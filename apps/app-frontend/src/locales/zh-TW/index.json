@@ -413,9 +413,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "返回瀏覽"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "將內容安裝至實例"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "開發人員模式已啟用。"
   },

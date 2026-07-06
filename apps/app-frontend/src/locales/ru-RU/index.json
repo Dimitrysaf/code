@@ -404,9 +404,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Вернуться к поиску"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Установка контента в сборку"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Режим разработчика включён."
   },

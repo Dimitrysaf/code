@@ -413,9 +413,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Retour vers la page découvrir"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Installer du contenu à l'instance"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Mode développeur activé."
   },

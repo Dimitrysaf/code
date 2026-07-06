@@ -287,9 +287,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "탐색으로 돌아가기"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "인스턴스에 콘텐츠 설치"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "개발자 모드가 활성화되었습니다."
   },

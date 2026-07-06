@@ -410,9 +410,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Torna a Esplora"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Installa il contenuto nell'istanza"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Modalità sviluppatore attiva."
   },

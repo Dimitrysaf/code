@@ -293,9 +293,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Повернутися до дослідження"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Установити вміст до профілю"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Увімкнено режим розробника."
   },

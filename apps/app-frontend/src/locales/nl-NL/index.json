@@ -293,9 +293,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Terug naar Ontdekken"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Installeer content naar instantie"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Ontwikkelaarsmodus ingeschakeld."
   },

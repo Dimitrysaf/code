@@ -293,9 +293,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Quay lại trang Khám Phá"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Cài đặt nội dung vào phiên bản"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Chế độ nhà phát triển đã được bật."
   },

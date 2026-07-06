@@ -413,9 +413,6 @@
   "app.project.install-context.back-to-browse": {
     "message": "Zpět k Objevování"
   },
-  "app.project.install-context.install-content-to-instance": {
-    "message": "Nainstalovat obsah do instance"
-  },
   "app.settings.developer-mode-enabled": {
     "message": "Vývojářský režim povolen."
   },

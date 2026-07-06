@@ -69,6 +69,7 @@ const debugLog = useDebugLogger('Browse')
 const router = useRouter()
 const route = useRoute()
 const themeStore = useTheming()
+const browseRouteActive = computed(() => route.path.startsWith('/browse/'))
 const serverSetupModalRef = ref<InstanceType<typeof CreationFlowModal> | null>(null)
 const serverInstallContent = createServerInstallContent({ serverSetupModalRef })
 provideServerInstallContent(serverInstallContent)
@@ -487,6 +488,9 @@ function resetInstanceContext() {
 watch(
 	() => route.params.projectType as ProjectType,
 	async (newType) => {
+		if (!browseRouteActive.value) {
+			return
+		}
 		if (isSetupServerContext.value) {
 			enforceSetupModpackRoute(newType)
 			if (newType !== 'modpack') return
@@ -954,6 +958,7 @@ const lockedFilterMessages = computed(() => ({
 const searchState = useBrowseSearch({
 	projectType,
 	tags,
+	active: browseRouteActive,
 	providedFilters: combinedProvidedFilters,
 	search,
 	persistentQueryParams: ['i', 'ai', 'shi', 'sid', 'wid', 'from'],
@@ -1029,6 +1034,9 @@ onUnmounted(() => {
 })
 
 function getProjectBrowseQuery() {
+	if (!browseRouteActive.value) {
+		return undefined
+	}
 	if (!installContext.value) return undefined
 	return {
 		...route.query,
@@ -1119,7 +1127,7 @@ provideBrowseManager({
 			@browse-modpacks="() => {}"
 			@create="handleServerModpackFlowCreate"
 		/>
-		<Teleport to="#sidebar-teleport-target">
+		<Teleport v-if="browseRouteActive" to="#sidebar-teleport-target">
 			<BrowseSidebar />
 		</Teleport>
 	</div>
