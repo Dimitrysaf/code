@@ -13,7 +13,7 @@
 		>
 			<slot></slot>
 		</button>
-		<Teleport to="#teleports">
+		<Teleport to="body">
 			<Transition
 				enter-active-class="transition duration-125 ease-out"
 				enter-from-class="transform scale-75 opacity-0"
