@@ -4,6 +4,14 @@
 
 @import '@modrinth/ui/src/styles/tailwind-utilities.css';
 
+/* Optional "disable all animations" switch (kept by request). Not a crash fix. */
+*,
+*::before,
+*::after {
+	transition: none !important;
+	animation: none !important;
+}
+
 @font-face {
 	font-family: 'bundled-minecraft-font-mrapp';
 	font-style: normal;

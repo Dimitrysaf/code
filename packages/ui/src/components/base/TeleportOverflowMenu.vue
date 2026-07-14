@@ -16,11 +16,11 @@
 		<Teleport to="body">
 			<Transition
 				enter-active-class="transition duration-125 ease-out"
-				enter-from-class="transform scale-75 opacity-0"
-				enter-to-class="transform scale-100 opacity-100"
+				enter-from-class="opacity-0"
+				enter-to-class="opacity-100"
 				leave-active-class="transition duration-125 ease-in"
-				leave-from-class="transform scale-100 opacity-100"
-				leave-to-class="transform scale-75 opacity-0"
+				leave-from-class="opacity-100"
+				leave-to-class="opacity-0"
 			>
 				<div
 					v-if="isOpen"
@@ -282,12 +282,11 @@ const handleMouseOver = (index: number) => {
 }
 
 const disableBodyScroll = () => {
-	document.body.style.overflow = 'hidden'
+	// TEST (#3057): body-overflow toggle removed — it forced a full-page reflow on
+	// open/close, the suspected crash/hang trigger on WebKit/NVIDIA.
 }
 
-const enableBodyScroll = () => {
-	document.body.style.overflow = ''
-}
+const enableBodyScroll = () => {}
 
 const focusFirstMenuItem = () => {
 	if (menuItemsRef.value.length > 0) {
