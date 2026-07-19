@@ -12,19 +12,28 @@ use uuid::Uuid;
 
 pub mod emit;
 
+/// The Tauri runtime backing the app: `wry` (WebKitGTK) by default, or CEF
+/// (Chromium) when the `cef` feature is enabled.
+#[cfg(all(feature = "tauri", not(feature = "cef")))]
+pub type AppRuntime = tauri::Wry;
+#[cfg(all(feature = "tauri", feature = "cef"))]
+pub type AppRuntime = tauri::Cef;
+
 // Global event state
 // Stores the Tauri app handle and other event-related state variables
 static EVENT_STATE: OnceCell<Arc<EventState>> = OnceCell::const_new();
 pub struct EventState {
     /// Tauri app
     #[cfg(feature = "tauri")]
-    pub app: tauri::AppHandle,
+    pub app: tauri::AppHandle<AppRuntime>,
     pub loading_bars: DashMap<Uuid, LoadingBar>,
 }
 
 impl EventState {
     #[cfg(feature = "tauri")]
-    pub async fn init(app: tauri::AppHandle) -> crate::Result<Arc<Self>> {
+    pub async fn init(
+        app: tauri::AppHandle<AppRuntime>,
+    ) -> crate::Result<Arc<Self>> {
         EVENT_STATE
             .get_or_try_init(|| async {
                 Ok(Arc::new(Self {
@@ -60,8 +69,8 @@ impl EventState {
     }
 
     #[cfg(feature = "tauri")]
-    pub async fn get_main_window() -> crate::Result<Option<tauri::WebviewWindow>>
-    {
+    pub async fn get_main_window(
+    ) -> crate::Result<Option<tauri::WebviewWindow<AppRuntime>>> {
         use tauri::Manager;
         let value = Self::get()?;
         Ok(value.app.get_webview_window("main"))

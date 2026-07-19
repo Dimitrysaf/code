@@ -1,6 +1,17 @@
 use tauri_build::{DefaultPermissionRule, InlinedPlugin};
 
 fn main() {
+    // With the CEF runtime, CEF initializes NSS, whose softoken module loads the
+    // system SQLite. This app statically links its own SQLite (via sqlx) and
+    // exports those symbols into the dynamic symbol table, which interposes NSS's
+    // SQLite and segfaults it during cert-DB init. Keep static-archive symbols
+    // local so NSS resolves the system SQLite cleanly.
+    if std::env::var_os("CARGO_FEATURE_CEF").is_some()
+        && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
+    {
+        println!("cargo:rustc-link-arg=-Wl,--exclude-libs,ALL");
+    }
+
     // Sadly, there is no better way to do it right now
     // You could try parsing source code here and detecting #[tauri::command]
     // But I think it's not worth it

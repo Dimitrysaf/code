@@ -129,6 +129,8 @@ winreg = { workspace = true }
 [features]
 cli = ["dep:indicatif"]
 tauri = ["dep:tauri"]
+# Use CEF (Chromium) as the tauri runtime instead of wry/WebKitGTK.
+cef = ["tauri/cef", "tauri"]
 
 [lints]
 workspace = true

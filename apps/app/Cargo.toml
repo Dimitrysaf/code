@@ -78,6 +78,8 @@ default = ["custom-protocol"]
 # DO NOT remove this
 custom-protocol = ["tauri/custom-protocol"]
 updater = []
+# Use CEF (Chromium) as the webview runtime instead of wry/WebKitGTK.
+cef = ["tauri/cef", "theseus/cef"]
 
 [lints]
 workspace = true
