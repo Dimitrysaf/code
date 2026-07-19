@@ -30,6 +30,7 @@ export type ThemeStore = {
 	advancedRendering: boolean
 	hideNametagSkinsPage: boolean
 	toggleSidebar: boolean
+	disableAnimations: boolean
 
 	devMode: boolean
 	featureFlags: FeatureFlags
@@ -40,13 +41,17 @@ export const DEFAULT_THEME_STORE: ThemeStore = {
 	advancedRendering: true,
 	hideNametagSkinsPage: false,
 	toggleSidebar: false,
+	disableAnimations: false,
 
 	devMode: false,
 	featureFlags: DEFAULT_FEATURE_FLAGS,
 }
 
 export const useTheming = defineStore('themeStore', {
-	state: () => DEFAULT_THEME_STORE,
+	state: () => ({
+		...DEFAULT_THEME_STORE,
+		disableAnimations: localStorage.getItem('disableAnimations') === 'true',
+	}),
 	actions: {
 		setThemeState(newTheme: ColorTheme) {
 			if (THEME_OPTIONS.includes(newTheme)) {
@@ -74,6 +79,17 @@ export const useTheming = defineStore('themeStore', {
 			}
 
 			html.classList.add(`${theme}-mode`)
+
+			this.setAnimationsClass()
+		},
+		setAnimationsClass() {
+			const html = document.getElementsByTagName('html')[0]
+			html.classList.toggle('disable-animations', this.disableAnimations)
+		},
+		setDisableAnimations(value: boolean) {
+			this.disableAnimations = value
+			localStorage.setItem('disableAnimations', String(value))
+			this.setAnimationsClass()
 		},
 		getFeatureFlag(key: FeatureFlag) {
 			return this.featureFlags[key] ?? DEFAULT_FEATURE_FLAGS[key]

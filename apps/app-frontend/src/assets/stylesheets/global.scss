@@ -4,6 +4,15 @@
 
 @import '@modrinth/ui/src/styles/tailwind-utilities.css';
 
+/* Opt-in "disable all animations" switch, toggled from Appearance settings via
+   the `disable-animations` class on <html>. */
+html.disable-animations *,
+html.disable-animations *::before,
+html.disable-animations *::after {
+	transition: none !important;
+	animation: none !important;
+}
+
 @font-face {
 	font-family: 'bundled-minecraft-font-mrapp';
 	font-style: normal;
@@ -88,7 +97,6 @@ a {
 	color: inherit;
 	text-decoration: none;
 	-webkit-font-smoothing: antialiased;
-	will-change: filter;
 }
 
 .badge {

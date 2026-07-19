@@ -119,6 +119,14 @@ const messages = defineMessages({
 		id: 'app.appearance-settings.show-play-time.description',
 		defaultMessage: `Displays how much time you've spent playing an instance.`,
 	},
+	disableAnimationsTitle: {
+		id: 'app.appearance-settings.disable-animations.title',
+		defaultMessage: 'Disable animations',
+	},
+	disableAnimationsDescription: {
+		id: 'app.appearance-settings.disable-animations.description',
+		defaultMessage: 'Turns off all UI transitions and animations across the app.',
+	},
 })
 
 const os = ref(await getOS())
@@ -208,6 +216,20 @@ watch(
 					settings.feature_flags[showPlayTimeFlag] = newValue
 				}
 			"
+		/>
+	</div>
+
+	<div class="mt-6 flex items-center justify-between">
+		<div>
+			<h2 class="m-0 text-lg font-semibold text-contrast">
+				{{ formatMessage(messages.disableAnimationsTitle) }}
+			</h2>
+			<p class="m-0 mt-1">{{ formatMessage(messages.disableAnimationsDescription) }}</p>
+		</div>
+		<Toggle
+			id="disable-animations"
+			:model-value="themeStore.disableAnimations"
+			@update:model-value="(e) => themeStore.setDisableAnimations(!!e)"
 		/>
 	</div>
 
