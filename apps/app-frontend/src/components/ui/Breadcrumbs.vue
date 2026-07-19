@@ -1,7 +1,6 @@
 <template>
 	<div
 		ref="outerRef"
-		data-tauri-drag-region
 		class="min-w-0 overflow-hidden pl-3"
 		:class="{ 'breadcrumb-fade-mask': isOverflowing }"
 		:style="isOverflowing ? { '--scroll-distance': `-${overflowAmount}px` } : undefined"
@@ -10,7 +9,6 @@
 	>
 		<div
 			ref="innerRef"
-			data-tauri-drag-region
 			class="flex w-fit items-center gap-1"
 			:class="{ 'breadcrumbs-scroll': isAnimating }"
 			@animationiteration="onAnimationIteration"
@@ -29,12 +27,11 @@
 				</router-link>
 				<span
 					v-else
-					data-tauri-drag-region
 					class="shrink-0 whitespace-nowrap text-contrast font-semibold cursor-default select-none"
 				>
 					{{ resolveLabel(breadcrumb.name) }}
 				</span>
-				<ChevronRightIcon v-if="breadcrumb.link" data-tauri-drag-region class="w-5 h-5 shrink-0" />
+				<ChevronRightIcon v-if="breadcrumb.link" class="w-5 h-5 shrink-0" />
 			</template>
 		</div>
 	</div>
