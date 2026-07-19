@@ -31,7 +31,13 @@ pub(crate) use drag::{
   DragDropEventTarget, DragDropScriptEvent, DragDropState, WebDragDropResourceRequestHandler,
   drag_drop_initialization_script, event_from_script_event,
 };
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 pub(crate) use drag::window_drag_initialization_script;
 use keyboard::TauriCefKeyboardHandler;
 use life_span::TauriCefChildLifeSpanHandler;

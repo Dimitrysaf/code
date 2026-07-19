@@ -22,7 +22,13 @@ const DRAG_DROP_BRIDGE_PATH: &str = "/__tauri_cef_drag_drop__";
 
 /// Bridge path used by [`WINDOW_DRAG_INIT_SCRIPT`] to report the window origin
 /// the frontend wants while a `data-tauri-drag-region` drag is in progress.
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 pub(crate) const WINDOW_DRAG_BRIDGE_PATH: &str = "/__tauri_cef_window_drag__";
 
 /// Moves the window from the renderer while a drag region is held.
@@ -37,7 +43,13 @@ pub(crate) const WINDOW_DRAG_BRIDGE_PATH: &str = "/__tauri_cef_window_drag__";
 /// so the drag is driven from here instead: remember where inside the window
 /// the pointer grabbed, then keep asking for `pointer - grab` as the new origin.
 /// Absolute positions are used rather than deltas so the window cannot drift.
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 const WINDOW_DRAG_INIT_SCRIPT: &str = r#"
 (() => {
   if (window.__TAURI_CEF_WINDOW_DRAG__) {
@@ -135,7 +147,13 @@ const WINDOW_DRAG_INIT_SCRIPT: &str = r#"
 })();
 "#;
 
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 pub(crate) fn window_drag_initialization_script() -> InitializationScript {
   InitializationScript {
     script: WINDOW_DRAG_INIT_SCRIPT.to_string(),
@@ -144,7 +162,13 @@ pub(crate) fn window_drag_initialization_script() -> InitializationScript {
 }
 
 /// Window origin requested by [`WINDOW_DRAG_INIT_SCRIPT`], in physical pixels.
-#[cfg(target_os = "linux")]
+#[cfg(any(
+  target_os = "linux",
+  target_os = "dragonfly",
+  target_os = "freebsd",
+  target_os = "netbsd",
+  target_os = "openbsd"
+))]
 #[derive(Clone, serde::Deserialize)]
 pub(crate) struct WindowDragScriptEvent {
   pub(crate) x: i32,
@@ -356,7 +380,13 @@ wrap_resource_request_handler! {
       _callback: Option<&mut Callback>,
     ) -> ReturnValue {
       // Window dragging is independent of the drag-and-drop handler.
-      #[cfg(target_os = "linux")]
+      #[cfg(any(
+        target_os = "linux",
+        target_os = "dragonfly",
+        target_os = "freebsd",
+        target_os = "netbsd",
+        target_os = "openbsd"
+      ))]
       if let Some(request) = &request {
         let url = CefString::from(&request.url()).to_string();
         if let Ok(url) = Url::parse(&url)
