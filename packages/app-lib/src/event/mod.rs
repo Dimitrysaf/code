@@ -17,7 +17,7 @@ pub mod emit;
 #[cfg(all(feature = "tauri", not(feature = "cef")))]
 pub type AppRuntime = tauri::Wry;
 #[cfg(all(feature = "tauri", feature = "cef"))]
-pub type AppRuntime = tauri_runtime_cef::CefRuntime;
+pub type AppRuntime = tauri::Cef;
 
 // Global event state
 // Stores the Tauri app handle and other event-related state variables

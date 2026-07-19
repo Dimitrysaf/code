@@ -1,4 +1,7 @@
 packages:
   - 'apps/*'
   - 'packages/*'
+  # Vendored tauri-apps/tauri@feat/cef (git subtree) — it ships its own pnpm
+  # workspace and must not join ours.
+  - '!packages/tauri-upstream'
 minimumReleaseAge: 10080 # 7 days

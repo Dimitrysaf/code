@@ -18,6 +18,9 @@ members = [
 exclude = [
   # WIP CEF runtime — does not compile yet; kept out of the workspace build.
   "packages/tauri-runtime-cef",
+  # Vendored tauri-apps/tauri@feat/cef (git subtree). Declares its own
+  # workspace; consumed through [patch.crates-io] below.
+  "packages/tauri-upstream",
 ]
 
 [workspace.package]
@@ -198,8 +201,8 @@ strum = "0.27.2"
 syn = { version = "2.0" }
 sysinfo = { version = "0.37.2", default-features = false }
 tar = "0.4.44"
-tauri = "2.8.5"
-tauri-build = "2.4.1"
+tauri = "2.11.5"
+tauri-build = "2.6.3"
 tauri-plugin-deep-link = "2.4.3"
 tauri-plugin-dialog = "2.4.0"
 tauri-plugin-fs = "2.4.5"
@@ -250,6 +253,33 @@ zip = { version = "6.0.0", default-features = false, features = [
   "zstd",
 ] }
 zxcvbn = "3.1.0"
+
+# Vendored tauri-apps/tauri@feat/cef, pinned at be0f6b50de122bea10a6462aff82a3958c32601a.
+# Provides the CEF runtime (tauri/cef feature) that replaces WebKitGTK on Linux.
+# Update with: git subtree pull --prefix=packages/tauri-upstream \
+#   https://github.com/tauri-apps/tauri.git feat/cef --squash
+[patch.crates-io]
+tauri = { path = "packages/tauri-upstream/crates/tauri" }
+tauri-build = { path = "packages/tauri-upstream/crates/tauri-build" }
+tauri-codegen = { path = "packages/tauri-upstream/crates/tauri-codegen" }
+tauri-macros = { path = "packages/tauri-upstream/crates/tauri-macros" }
+tauri-plugin = { path = "packages/tauri-upstream/crates/tauri-plugin" }
+tauri-runtime = { path = "packages/tauri-upstream/crates/tauri-runtime" }
+tauri-runtime-wry = { path = "packages/tauri-upstream/crates/tauri-runtime-wry" }
+tauri-utils = { path = "packages/tauri-upstream/crates/tauri-utils" }
+
+# The released plugins are built against tauri-plugin 2.x/schemars 0.8, while the
+# vendored tauri uses schemars 1 — their build scripts fail to compile. The
+# plugins-workspace `feat/cef` branch is the set that matches.
+# `tauri-plugin-updater` is not patched here: it is a modrinth git fork already.
+tauri-plugin-deep-link = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-dialog = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-fs = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-http = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-opener = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-os = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-single-instance = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
+tauri-plugin-window-state = { git = "https://github.com/tauri-apps/plugins-workspace", rev = "1423992771e0b57582ca3b06a6adc46ec26aa784" }
 
 [workspace.lints.clippy]
 bool_to_int_with_if = "warn"

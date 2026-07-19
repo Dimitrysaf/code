@@ -90,7 +90,6 @@ sqlx = { workspace = true, features = [
 ] }
 sysinfo = { workspace = true, features = ["disk", "system"] }
 tauri = { workspace = true, features = ["unstable"], optional = true }
-tauri-runtime-cef = { path = "../tauri-runtime-cef", optional = true }
 tempfile = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = [
@@ -129,7 +128,7 @@ winreg = { workspace = true }
 cli = ["dep:indicatif"]
 tauri = ["dep:tauri"]
 # Use CEF (Chromium) as the tauri runtime instead of wry/WebKitGTK.
-cef = ["dep:tauri-runtime-cef", "tauri"]
+cef = ["tauri/cef", "tauri"]
 
 [lints]
 workspace = true

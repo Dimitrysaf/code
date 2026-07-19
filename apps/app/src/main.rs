@@ -130,10 +130,14 @@ fn main() {
 
     */
 
-    // CEF must initialize (and short-circuit helper subprocesses) before any
-    // threads are spawned, so this must be the very first thing in `main()`.
+    // CEF runs its renderer/GPU/utility processes by re-executing this binary
+    // with a `--type=` switch. They must hand off to CEF before any app
+    // initialization, so this has to be the very first thing in `main()`.
     #[cfg(feature = "cef")]
-    tauri_runtime_cef::init_cef();
+    if env::args().any(|arg| arg.starts_with("--type=")) {
+        tauri::run_cef_helper_process();
+        return;
+    }
 
     let tauri_context = tauri::generate_context!();
 
@@ -144,7 +148,7 @@ fn main() {
     #[cfg(not(feature = "cef"))]
     let mut builder = tauri::Builder::default();
     #[cfg(feature = "cef")]
-    let mut builder = tauri_runtime_cef::builder();
+    let mut builder = tauri::Builder::<tauri::Cef>::new();
 
     #[cfg(feature = "updater")]
     {
