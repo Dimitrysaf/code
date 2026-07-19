@@ -6,6 +6,10 @@ fn main() {
     // exports those symbols into the dynamic symbol table, which interposes NSS's
     // SQLite and segfaults it during cert-DB init. Keep static-archive symbols
     // local so NSS resolves the system SQLite cleanly.
+    //
+    // Still required as of 2026-07-19 -- re-tested by removing it: the binary then
+    // exports 51 `sqlite3_*` dynamic symbols and dies with SIGSEGV before a window
+    // appears. Do not drop this without re-running that test.
     if std::env::var_os("CARGO_FEATURE_CEF").is_some()
         && std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("linux")
     {
