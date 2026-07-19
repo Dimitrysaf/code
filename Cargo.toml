@@ -16,8 +16,6 @@ members = [
   "packages/path-util",
 ]
 exclude = [
-  # WIP CEF runtime — does not compile yet; kept out of the workspace build.
-  "packages/tauri-runtime-cef",
   # Vendored tauri-apps/tauri@feat/cef (git subtree). Declares its own
   # workspace; consumed through [patch.crates-io] below.
   "packages/tauri-upstream",
