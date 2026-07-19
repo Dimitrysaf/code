@@ -125,7 +125,7 @@
 		</ButtonStyled>
 	</div>
 
-	<Teleport to="#teleports">
+	<Teleport to="body">
 		<Transition
 			:enter-active-class="addMenuTransitionEnterActiveClass"
 			leave-active-class="transition-none duration-0"
@@ -163,7 +163,7 @@
 		</Transition>
 	</Teleport>
 
-	<Teleport to="#teleports">
+	<Teleport to="body">
 		<div
 			v-if="isAddMenuOpen && activeCategory && (isMobileAddMenuLayout || hasSubmenuPosition)"
 			ref="submenu"

@@ -96,7 +96,7 @@
 			</div>
 		</span>
 
-		<Teleport to="#teleports">
+		<Teleport to="body">
 			<Transition
 				enter-active-class="transition-opacity duration-150"
 				leave-active-class="transition-opacity duration-150"
