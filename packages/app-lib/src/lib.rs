@@ -24,6 +24,8 @@ pub use event::{
     EventState, LoadingBar, LoadingBarType, emit::emit_loading,
     emit::init_loading,
 };
+#[cfg(feature = "tauri")]
+pub use event::AppRuntime;
 pub use logger::start_logger;
 pub use state::State;
 pub use util::fetch::DownloadReason;

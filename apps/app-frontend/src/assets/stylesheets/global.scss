@@ -4,10 +4,11 @@
 
 @import '@modrinth/ui/src/styles/tailwind-utilities.css';
 
-/* Optional "disable all animations" switch (kept by request). Not a crash fix. */
-*,
-*::before,
-*::after {
+/* Opt-in "disable all animations" switch, toggled from Appearance settings via
+   the `disable-animations` class on <html>. */
+html.disable-animations *,
+html.disable-animations *::before,
+html.disable-animations *::after {
 	transition: none !important;
 	animation: none !important;
 }

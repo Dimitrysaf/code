@@ -1,0 +1,44 @@
+[package]
+name = "tauri-runtime-cef"
+version = "0.0.0"
+edition = "2024"
+description = "A Tauri runtime backed by CEF (Chromium Embedded Framework)."
+license = "MIT"
+
+# Derived from tauri-runtime-verso (MIT, (c) 2025 Versotile) — see
+# LICENSE-verso-MIT.txt. The tao event-loop machinery is reused; the window +
+# webview layer is reimplemented over `cef` (tauri-apps/cef-rs).
+#
+# NOTE: excluded from the root workspace while WIP (does not yet compile).
+# Build standalone: `cd packages/tauri-runtime-cef && cargo build`.
+
+[features]
+macos-private-api = ["tauri-runtime/macos-private-api"]
+
+[dependencies]
+cef = "150"
+# Pinned to the 2.10.x line so a standalone build matches the modrinth workspace
+# (tauri 2.10.2 / tauri-runtime 2.10.0 / tauri-utils 2.8.2). Newer 2.11 adds
+# WebviewDispatch methods that would not exist here.
+tauri = { version = "~2.10.2", default-features = false }
+tauri-runtime = "~2.10.0"
+tauri-utils = "~2.8.2"
+tao = "0.34"
+raw-window-handle = "0.6"
+url = "2"
+http = "1"
+percent-encoding = "2"
+log = "0.4"
+tracing = "0.1"
+
+[target."cfg(windows)".dependencies]
+windows = "0.61"
+
+[target."cfg(any(target_os = \"linux\", target_os = \"dragonfly\", target_os = \"freebsd\", target_os = \"openbsd\", target_os = \"netbsd\"))".dependencies]
+gtk = { version = "0.18", features = ["v3_24"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = { version = "0.3", features = ["NSScreen"] }
+
+[lints.clippy]
+needless_doctest_main = "allow"

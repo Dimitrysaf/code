@@ -15,6 +15,10 @@ members = [
   "packages/modrinth-util",
   "packages/path-util",
 ]
+exclude = [
+  # WIP CEF runtime — does not compile yet; kept out of the workspace build.
+  "packages/tauri-runtime-cef",
+]
 
 [workspace.package]
 edition = "2024"

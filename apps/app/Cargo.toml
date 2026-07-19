@@ -32,6 +32,7 @@ tauri-plugin-single-instance = { workspace = true }
 tauri-plugin-updater = { workspace = true }
 tauri-plugin-window-state = { workspace = true }
 theseus = { workspace = true, features = ["tauri"] }
+tauri-runtime-cef = { path = "../../packages/tauri-runtime-cef", optional = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["time"] }
 tracing = { workspace = true }
@@ -78,6 +79,8 @@ default = ["custom-protocol"]
 # DO NOT remove this
 custom-protocol = ["tauri/custom-protocol"]
 updater = []
+# Use CEF (Chromium) as the webview runtime instead of wry/WebKitGTK.
+cef = ["dep:tauri-runtime-cef", "theseus/cef"]
 
 [lints]
 workspace = true

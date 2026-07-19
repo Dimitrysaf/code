@@ -49,6 +49,17 @@ export default defineConfig({
 		],
 	},
 	plugins: [
+		{
+			// Exit the dev server with code 0 on teardown signals so stopping the
+			// app (or Ctrl+C) doesn't surface a spurious pnpm/turbo "command failed".
+			name: 'clean-exit-on-signal',
+			apply: 'serve',
+			configureServer() {
+				const cleanExit = () => process.exit(0)
+				process.once('SIGINT', cleanExit)
+				process.once('SIGTERM', cleanExit)
+			},
+		},
 		vue(),
 		svgLoader({
 			svgoConfig: {
