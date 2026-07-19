@@ -2,7 +2,7 @@
 	<section
 		v-if="showControls"
 		class="flex items-center gap-2 mr-1.5"
-		data-tauri-drag-region-exclude
+		data-tauri-drag-region="false"
 	>
 		<ButtonStyled type="transparent" circular>
 			<button class="relative expanded-button" @click="() => getCurrentWindow().minimize()">

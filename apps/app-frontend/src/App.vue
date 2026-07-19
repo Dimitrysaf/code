@@ -1606,10 +1606,13 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				<LogInIcon class="text-brand" />
 			</NavButton>
 		</div>
-		<div data-tauri-drag-region class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex">
-			<div data-tauri-drag-region class="flex min-w-0 flex-1 overflow-hidden p-3">
+		<div
+			data-tauri-drag-region="deep"
+			class="app-grid-statusbar bg-bg-raised h-[--top-bar-height] flex"
+		>
+			<div class="flex min-w-0 flex-1 overflow-hidden p-3">
 				<ModrinthAppLogo class="h-full w-auto shrink-0 text-contrast pointer-events-none" />
-				<div data-tauri-drag-region class="flex shrink-0 items-center gap-1 ml-3">
+				<div class="flex shrink-0 items-center gap-1 ml-3">
 					<button
 						class="cursor-pointer p-0 m-0 text-contrast border-none outline-none bg-button-bg rounded-full flex items-center justify-center w-6 h-6 hover:brightness-75 transition-all"
 						@click="router.back()"
@@ -1625,7 +1628,7 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 				</div>
 				<Breadcrumbs class="pt-[2px]" />
 			</div>
-			<section data-tauri-drag-region class="flex shrink-0 ml-auto items-center">
+			<section class="flex shrink-0 ml-auto items-center">
 				<ButtonStyled
 					v-if="!forceSidebar && themeStore.toggleSidebar"
 					:type="sidebarToggled ? 'standard' : 'transparent'"
@@ -1868,10 +1871,6 @@ provideAppUpdateDownloadProgress(appUpdateDownload)
 	padding-right: var(--window-controls-width, 0px);
 	position: relative;
 	z-index: 2;
-}
-
-[data-tauri-drag-region-exclude] {
-	-webkit-app-region: no-drag;
 }
 
 .app-contents {
