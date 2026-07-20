@@ -17,7 +17,15 @@
 		"build": {
 			"dependsOn": ["^build"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
-			"outputs": [".nuxt/**", "dist/**", ".output/**", "$TURBO_ROOT$/target/**"],
+			// `$TURBO_ROOT$/target/**` is deliberately not an output. Every Rust
+			// package shares the one target dir, so caching it stores the whole
+			// directory under each package's hash and lets one package's restore
+			// clobber another's artifacts. It also makes the cache write scale with
+			// the entire Rust build: with the CEF runtime's libcef.so that is 55 GB,
+			// and turbo hangs on "Finishing writing to cache" — which in turn hangs
+			// anything waiting on it, such as tauri's beforeBuildCommand.
+			// Rust caching is handled by cargo plus sccache (see turbo-ci.yml).
+			"outputs": [".nuxt/**", "dist/**", ".output/**"],
 			"env": [
 				"NODE_ENV",
 				"SITE_URL",
