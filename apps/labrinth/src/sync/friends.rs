@@ -1,4 +1,4 @@
-use crate::database::PgPool;
+use crate::database::ReadOnlyPgPool;
 use crate::database::models::notification_item::DBNotification;
 use crate::models::ids::NotificationId;
 use crate::models::notifications::Notification;
@@ -10,12 +10,11 @@ use actix_web::web::Data;
 use ariadne::ids::UserId;
 use ariadne::networking::message::ServerToClientMessage;
 use ariadne::users::UserStatus;
-use redis::aio::PubSub;
-use redis::{RedisWrite, ToRedisArgs};
+use redis::{RedisWrite, ToRedisArgs, ToSingleRedisArg};
 use serde::{Deserialize, Serialize};
-use tokio_stream::StreamExt;
+use tokio::sync::mpsc;
 
-pub const FRIENDS_CHANNEL_NAME: &str = "friends:v1";
+pub const FRIENDS_CHANNEL_NAME: &str = "friends:v4";
 
 #[derive(Serialize, Deserialize)]
 pub enum RedisFriendsMessage {
@@ -44,20 +43,17 @@ impl ToRedisArgs for RedisFriendsMessage {
     }
 }
 
+impl ToSingleRedisArg for RedisFriendsMessage {}
+
 pub async fn handle_pubsub(
-    mut pubsub: PubSub,
-    pool: PgPool,
+    mut messages: mpsc::Receiver<Vec<u8>>,
+    ro_pool: ReadOnlyPgPool,
     sockets: Data<ActiveSockets>,
 ) {
-    pubsub.subscribe(FRIENDS_CHANNEL_NAME).await.unwrap();
-    let mut stream = pubsub.into_on_message();
-    while let Some(message) = stream.next().await {
-        if message.get_channel_name() != FRIENDS_CHANNEL_NAME {
-            continue;
-        }
-        let payload = postcard::from_bytes(message.get_payload_bytes());
+    while let Some(message) = messages.recv().await {
+        let payload = postcard::from_bytes::<RedisFriendsMessage>(&message);
 
-        let pool = pool.clone();
+        let ro_pool = ro_pool.clone();
         let sockets = sockets.clone();
         actix_rt::spawn(async move {
             match payload {
@@ -65,7 +61,7 @@ pub async fn handle_pubsub(
                     let _ = broadcast_to_local_friends(
                         status.user_id,
                         ServerToClientMessage::StatusUpdate { status },
-                        &pool,
+                        &ro_pool,
                         &sockets,
                     )
                     .await;
@@ -75,7 +71,7 @@ pub async fn handle_pubsub(
                     let _ = broadcast_to_local_friends(
                         user,
                         ServerToClientMessage::UserOffline { id: user },
-                        &pool,
+                        &ro_pool,
                         &sockets,
                     )
                     .await;
@@ -98,7 +94,8 @@ pub async fn handle_pubsub(
                     notification_id,
                 }) => {
                     if let Ok(Some(notification)) =
-                        DBNotification::get(notification_id.into(), &pool).await
+                        DBNotification::get(notification_id.into(), &*ro_pool)
+                            .await
                     {
                         let _ = send_notification_to_user(
                             &sockets,

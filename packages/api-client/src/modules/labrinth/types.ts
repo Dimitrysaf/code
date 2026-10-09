@@ -397,6 +397,14 @@ export namespace Labrinth {
 				attribution: AttributionResolution
 			}
 
+			export type DeleteGroupsRequest = {
+				groups: string[]
+			}
+
+			export type DeleteAllGroupsRequest = {
+				project_id: string
+			}
+
 			export type AssignRequest = {
 				sha1: string
 				target_group_id: number
@@ -434,7 +442,7 @@ export namespace Labrinth {
 				| { context: 'project'; project_id: string }
 				| { context: 'version'; version_id: string }
 				| { context: 'thread_message'; thread_message_id: string }
-				| { context: 'report'; report_id: string }
+				| { context: 'report'; report_id: string | null }
 			)
 
 			export type UploadedImageFor<C extends ImageUploadContext> = Extract<
@@ -450,11 +458,21 @@ export namespace Labrinth {
 				| { context: 'project'; project_id: string }
 				| { context: 'version'; version_id: string }
 				| { context: 'thread_message'; thread_message_id: string }
-				| { context: 'report'; report_id: string }
+				| { context: 'report'; report_id?: string }
 		}
 	}
 
 	export namespace Analytics {
+		export namespace Internal {
+			export type AnalyticsEventUpsert = {
+				announcement_url: string | null
+				for_metric_kind: v3.AnalyticsEventMetricKind[] | null
+				title: string
+				ends: string
+				starts: string
+			}
+		}
+
 		export namespace v3 {
 			export type AnalyticsEventId = number
 			export type AnalyticsEventMetricKind = 'views' | 'revenue' | 'downloads' | 'playtime'
@@ -465,14 +483,6 @@ export namespace Labrinth {
 				title: string
 				ends: string
 				id: AnalyticsEventId
-				starts: string
-			}
-
-			export type AnalyticsEventUpsert = {
-				announcement_url: string | null
-				for_metric_kind: AnalyticsEventMetricKind[] | null
-				title: string
-				ends: string
 				starts: string
 			}
 
@@ -734,21 +744,22 @@ export namespace Labrinth {
 				username: string
 				password: string
 				challenge: string
+				app_session?: boolean
 			}
 
 			export type LoginResponse = {
 				session?: string
+				app_session?: string
 				flow?: string
 			}
 
 			export type Login2FARequest = {
 				code: string
 				flow: string
+				app_session?: boolean
 			}
 
-			export type Login2FAResponse = {
-				session: string
-			}
+			export type Login2FAResponse = AuthSessionResponse
 
 			export type CreateAccountRequest = {
 				username: string
@@ -757,11 +768,10 @@ export namespace Labrinth {
 				challenge: string
 				sign_up_newsletter?: boolean
 				account_consent?: boolean
+				app_session?: boolean
 			}
 
-			export type CreateAccountResponse = {
-				session: string
-			}
+			export type CreateAccountResponse = AuthSessionResponse
 
 			export type ValidateCreateAccountRequest = {
 				username: string
@@ -775,10 +785,14 @@ export namespace Labrinth {
 				challenge: string
 				sign_up_newsletter: boolean
 				account_consent?: boolean
+				app_session?: boolean
 			}
 
-			export type CreateOAuthAccountResponse = {
+			export type CreateOAuthAccountResponse = AuthSessionResponse
+
+			export type AuthSessionResponse = Omit<Sessions.v2.Session, 'session'> & {
 				session: string
+				app_session?: string
 			}
 
 			export type ResetPasswordRequest = {
@@ -818,6 +832,7 @@ export namespace Labrinth {
 			export type PasskeyAuthenticateFinishRequest = {
 				flow: string
 				credential: unknown
+				app_session?: boolean
 			}
 
 			export type PasskeyRenameRequest = {
@@ -859,6 +874,7 @@ export namespace Labrinth {
 				id: string
 				name: string
 				icon_url: string | null
+				raw_icon_url: string | null
 				max_scopes: number
 				redirect_uris: OAuthRedirectUri[]
 				created_by: string
@@ -992,6 +1008,7 @@ export namespace Labrinth {
 				loaders: string[]
 				versions: string[]
 				icon_url?: string
+				raw_icon_url?: string
 				issues_url?: string
 				source_url?: string
 				wiki_url?: string
@@ -1106,6 +1123,81 @@ export namespace Labrinth {
 				url: string
 			}
 
+			export type NormalizedProjectNagKind =
+				| 'minecraft-title-clause'
+				| 'project-name-non-standard-text'
+				| 'project-name-profanity'
+				| 'project-name-slur'
+				| 'project-name-version'
+				| 'project-summary-links'
+				| 'project-summary-matches-title'
+				| 'project-summary-non-english'
+				| 'project-summary-non-standard-text'
+				| 'project-summary-profanity'
+				| 'project-summary-slur'
+				| 'project-summary-spam'
+				| 'summary-special-formatting'
+				| 'summary-too-short'
+				| 'add-icon'
+				| 'feature-gallery-image'
+				| 'upload-gallery-image'
+				| 'gallery-text-non-standard'
+				| 'gallery-text-profanity'
+				| 'gallery-text-slur'
+				| 'add-description'
+				| 'adjacent-headers'
+				| 'description-ends-with-header'
+				| 'description-too-short'
+				| 'long-headers'
+				| 'missing-alt-text'
+				| 'project-description-matches-summary'
+				| 'project-description-non-english'
+				| 'project-description-non-standard-text'
+				| 'project-description-profanity'
+				| 'project-description-slur'
+				| 'project-description-spam'
+				| 'add-custom-license-details'
+				| 'select-license'
+				| 'add-links'
+				| 'add-links-server'
+				| 'link-validation'
+				| 'gpl-license-source-required'
+				| 'review-permissions'
+				| 'add-java-address'
+				| 'all-languages'
+				| 'select-compatibility'
+				| 'select-country'
+				| 'select-language'
+				| 'too-many-languages'
+				| 'all-tags-selected'
+				| 'multiple-resolution-tags'
+				| 'select-tags'
+				| 'too-many-tags'
+				| 'too-many-tags-server'
+				| 'select-environment'
+				| 'upload-version'
+				| 'check-disclosures'
+				| 'disclosures-special-formatting'
+				| 'moderator-feedback'
+
+			type ReplaceHyphensWithUnderscores<T extends string> = T extends `${infer Head}-${infer Tail}`
+				? `${Head}_${ReplaceHyphensWithUnderscores<Tail>}`
+				: T
+
+			export type ProjectNagKind = ReplaceHyphensWithUnderscores<NormalizedProjectNagKind>
+
+			export type ProjectNagSeverity = 'required' | 'warning' | 'suggestion'
+
+			export type ProjectNag = {
+				kind: ProjectNagKind
+				severity: ProjectNagSeverity
+				details: Record<string, unknown>
+			}
+
+			export type ProjectValidationResponse = {
+				nags: ProjectNag[]
+			}
+
 			export type Project = {
 				id: string
 				slug?: string
@@ -1135,6 +1227,7 @@ export namespace Labrinth {
 				mrpack_loaders: string[]
 				versions: string[]
 				icon_url?: string
+				raw_icon_url?: string
 				link_urls: Record<string, Link>
 				gallery: GalleryItem[]
 				color?: number
@@ -1143,9 +1236,10 @@ export namespace Labrinth {
 				side_types_migration_review_status: 'reviewed' | 'pending'
 				environment?: Environment[]
 
-				minecraft_server?: MinecraftServer
-				minecraft_java_server?: MinecraftJavaServer
-				minecraft_bedrock_server?: MinecraftBedrockServer
+				minecraft_server?: MinecraftServer | null
+				minecraft_java_server?: MinecraftJavaServer | null
+				minecraft_bedrock_server?: MinecraftBedrockServer | null
+				minecraft_mod?: unknown | null
 
 				/**
 				 * @deprecated Not recommended to use.
@@ -1253,6 +1347,7 @@ export namespace Labrinth {
 				team_id: string
 				description: string
 				icon_url: string | null
+				raw_icon_url: string | null
 				color: number | null
 				members: TeamMember[]
 			}
@@ -1290,6 +1385,84 @@ export namespace Labrinth {
 				projects: Project[]
 				versions: Labrinth.Versions.v3.Version[]
 			}
+
+			export type TelemetryConsent = 'opt_in' | 'opt_out' | 'always_active'
+
+			export type AiUsage = 'code' | 'assets' | 'text'
+
+			export type DisclosureLockStatus = 'unlocked' | 'cannot_disable' | 'fully_locked'
+
+			export type DerivativeSource = {
+				label: string
+				link?: string | null
+				note?: string | null
+			}
+
+			export type ProjectDisclosure =
+				| {
+						type: 'ai_content'
+						uses: AiUsage[]
+						note?: string | null
+				  }
+				| {
+						type: 'ai_functionality'
+						note?: string | null
+				  }
+				| {
+						type: 'advertisements'
+						note?: string | null
+				  }
+				| {
+						type: 'epilepsy_triggers'
+						note?: string | null
+				  }
+				| {
+						type: 'system_interactions'
+						interactions: string[]
+						note?: string | null
+				  }
+				| {
+						type: 'telemetry'
+						consent: TelemetryConsent
+						data_collected: string[]
+				  }
+				| {
+						type: 'derivative_work'
+						sources: DerivativeSource[]
+				  }
+				| {
+						type: 'paid_features'
+						features: string[]
+				  }
+				| {
+						type: 'archived'
+						note?: string | null
+				  }
+
+			export type ProjectDisclosureData = ProjectDisclosure & {
+				set_by_moderator?: boolean | null
+				lock_status?: DisclosureLockStatus | null
+				updated_at: string
+				updated_by?: string | null
+				deleted_at?: string | null
+			}
+
+			export type ProjectDisclosureType = ProjectDisclosure['type']
+
+			export type ProjectDisclosureOf<T extends ProjectDisclosureType> = Extract<
+				ProjectDisclosureData,
+				{ type: T }
+			>
+
+			export type GetProjectDisclosures = {
+				disclosures: ProjectDisclosureData[]
+			}
+
+			export type ModifyProjectDisclosures = {
+				set: ProjectDisclosure[]
+				remove: ProjectDisclosureType[]
+				lock_status?: DisclosureLockStatus | null
+			}
 		}
 	}
 
@@ -1302,6 +1475,7 @@ export namespace Labrinth {
 				team_id: string
 				description: string
 				icon_url: string | null
+				raw_icon_url: string | null
 				color: number | null
 				members: Projects.v3.TeamMember[]
 				moderation_notes?: Users.Common.ModerationNote | null
@@ -1595,6 +1769,12 @@ export namespace Labrinth {
 				user_rating: number
 				version: number
 			}
+
+			export type UserLock = {
+				locked_by: string
+				reason: string
+				created: string
+			}
 		}
 
 		export namespace v2 {
@@ -1625,6 +1805,77 @@ export namespace Labrinth {
 			export type Role = Common.Role
 			export type AuthProvider = Common.AuthProvider
 			export type UserPayoutData = Common.UserPayoutData
+			export type Theme = 'light' | 'dark' | 'oled' | 'retro'
+			export type LayoutOption = 'grid' | 'rows'
+			export type FriendPrivacy = 'none' | 'mutual' | 'everyone'
+			export type InvitePrivacy = 'none' | 'friends' | 'everyone'
+
+			export type AppearancePreferences = {
+				auto: boolean
+				theme: Theme
+			}
+
+			export type BehaviorPreferences = {
+				minimize_app: boolean
+				refocus_on_game_close: boolean
+				hide_right_sidebar: boolean
+				show_jump_in: boolean
+				compact_instance_cards: boolean
+				show_play_time: boolean
+				hide_nametag: boolean
+				show_all_screenshots: boolean
+				show_files_tab_in_instances: boolean
+				show_worlds_tab_in_instances: boolean
+				show_screenshots_tab_in_instances: boolean
+				show_skin_selector_in_sidebar: boolean
+				quick_instance_count: number
+				warn_on_unknown_modpacks: boolean
+				skip_non_essential_warnings: boolean
+			}
+
+			export type LocalizationPreferences = {
+				locale: string
+			}
+
+			export type LayoutPreferences = {
+				mods: LayoutOption
+				plugins: LayoutOption
+				datapacks: LayoutOption
+				shaders: LayoutOption
+				resourcepacks: LayoutOption
+				modpacks: LayoutOption
+				servers: LayoutOption
+				users: LayoutOption
+			}
+
+			export type SidebarPreferences = {
+				right_aligned_search: boolean
+				left_aligned_content: boolean
+			}
+
+			export type SocialPreferences = {
+				friend_privacy: FriendPrivacy
+				shared_instances_privacy: InvitePrivacy
+				hosting_access_privacy: InvitePrivacy
+			}
+
+			export type UserPreferences = {
+				appearance: AppearancePreferences
+				behavior: BehaviorPreferences
+				localization: LocalizationPreferences
+				layouts: LayoutPreferences
+				sidebars: SidebarPreferences
+				social: SocialPreferences
+			}
+
+			export type PartialUserPreferences = {
+				appearance?: Partial<AppearancePreferences>
+				behavior?: Partial<BehaviorPreferences>
+				localization?: Partial<LocalizationPreferences>
+				layouts?: Partial<LayoutPreferences>
+				sidebars?: Partial<SidebarPreferences>
+				social?: Partial<SocialPreferences>
+			}
 
 			export type Pride26CampaignDonation = {
 				last_donated_at: string
@@ -1640,6 +1891,7 @@ export namespace Labrinth {
 				id: string
 				username: string
 				avatar_url?: string
+				raw_avatar_url?: string
 				bio?: string
 				created: string
 				role: Role
@@ -1654,7 +1906,10 @@ export namespace Labrinth {
 				stripe_customer_id?: string
 				allow_friend_requests?: boolean
 				moderation_notes?: Common.ModerationNote | null
+				lock?: Common.UserLock
 				github_id?: number
+				discord_id?: string
+				steam_id?: string
 			}
 
 			export type SearchUser = {
@@ -1678,6 +1933,18 @@ export namespace Labrinth {
 				accepted: boolean
 				created: string
 			}
+		}
+	}
+
+	export namespace BlockedUsers {
+		export namespace Internal {
+			export type BlockStatus = {
+				blocked: boolean
+			}
+		}
+
+		export namespace v3 {
+			export type BlockedUserId = string
 		}
 	}
 
@@ -1717,6 +1984,11 @@ export namespace Labrinth {
 				name: string
 			}
 
+			export interface License {
+				short: string
+				name: string
+			}
+
 			export type LicenseText = {
 				title: string
 				body: string
@@ -1750,6 +2022,17 @@ export namespace Labrinth {
 	}
 
 	export namespace Search {
+		export type SearchParams = {
+			query?: string
+			offset?: string | number
+			index?: string
+			limit?: string | number
+			new_filters?: string
+			facets?: string[][]
+			filters?: string
+			version?: string
+		}
+
 		export namespace v2 {
 			export interface ResultSearchProject {
 				project_id: string
@@ -1774,6 +2057,7 @@ export namespace Labrinth {
 				license: string
 				client_side: string
 				server_side: string
+				disclosure_types: string[]
 				gallery: string[]
 				featured_gallery: string | null
 				color: number | null
@@ -1789,7 +2073,7 @@ export namespace Labrinth {
 
 		export namespace v3 {
 			export interface ResultSearchProject {
-				version_id: string
+				version_id?: string
 				project_id: string
 				project_types: string[]
 				all_project_types: string[]
@@ -1812,11 +2096,14 @@ export namespace Labrinth {
 				featured_gallery: string | null
 				color: number | null
 				loaders: string[]
-				project_loader_fields?: Record<string, unknown[]>
+				project_loader_fields?: Record<string, unknown[]> & {
+					environment?: Projects.v3.Environment[]
+				}
 				minecraft_server?: Projects.v3.MinecraftServer | null
 				minecraft_java_server?: Projects.v3.MinecraftJavaServer | null
 				minecraft_bedrock_server?: Projects.v3.MinecraftBedrockServer | null
 				minecraft_mod?: unknown | null
+				disclosure_types: string[]
 			}
 
 			export interface SearchResults {
@@ -1904,13 +2191,14 @@ export namespace Labrinth {
 
 	export namespace Reports {
 		export namespace v3 {
-			export type ItemType = 'project' | 'version' | 'user' | 'unknown'
+			export type ItemType = 'project' | 'version' | 'user' | 'shared-instance' | 'unknown'
 
 			export type Report = {
 				id: string
 				report_type: string
 				item_id: string
 				item_type: ItemType
+				shared_instance_version_id?: number
 				reporter: string
 				body: string
 				created: string
@@ -2118,6 +2406,7 @@ export namespace Labrinth {
 			name: string
 			description: string | null
 			icon_url: string | null
+			raw_icon_url: string | null
 			color: number | null
 			status: CollectionStatus
 			created: string
@@ -2228,6 +2517,127 @@ export namespace Labrinth {
 
 	export namespace TechReview {
 		export namespace Internal {
+			export type DelphiRule = {
+				id: number
+				name: string
+				rule: string
+				priority: number
+				on_issue_types: string[]
+				revision: number
+				current_revision?: number
+				created_at: string
+				updated_at: string
+				created_by: number | null
+				updated_by: number | null
+				affected_details_count: number
+				affected_details: DelphiRuleAffectedDetail[]
+			}
+
+			export type DelphiRuleAffectedDetail = {
+				detail_id: string
+				issue_id: string
+				project_id: string | null
+				project_name: string | null
+				project_icon_url: string | null
+				version_id: string | null
+				version_name: string | null
+				version_number: string | null
+				issue_type: string
+				key: string
+				jar: string | null
+				file_path: string
+				original_severity: DelphiSeverity
+				severity: DelphiSeverity
+			}
+
+			export type GetRuleAffectedDetailsRequest = {
+				limit?: number
+				page?: number
+				processing_only?: boolean
+			}
+
+			export type GetRuleAffectedDetailsResponse = {
+				total: number
+				details: DelphiRuleAffectedDetail[]
+			}
+
+			export type WriteDelphiRule = {
+				name: string
+				rule: string
+				priority: number
+				on_issue_types: string[]
+			}
+
+			export type DelphiIssueTypeSchemaResponse = Record<string, unknown>
+
+			export type TestDelphiRuleRequest = {
+				rule: string
+				inputs: RuleInput[]
+			}
+
+			export type DelphiRuleEffect = {
+				severity: DelphiSeverity
+			}
+
+			export type DelphiRuleSchema = Record<string, unknown>
+
+			export type DelphiRuleSchemaResponse = {
+				input: DelphiRuleSchema
+				output: DelphiRuleSchema
+				components: Record<string, DelphiRuleSchema>
+			}
+
+			export type RuleInput = {
+				schema_version: number
+				trace: RuleTrace
+				file_traces: RuleTrace[]
+				scan: {
+					delphi_version: number
+				}
+				artifact: {
+					size: number | null
+					hashes: Record<string, string>
+				}
+				project: {
+					id: string | null
+					types: string[]
+				}
+				version: {
+					id: string | null
+					loaders: string[]
+				}
+				file: {
+					id: string | null
+				}
+			}
+
+			export type RuleTrace = {
+				key: string
+				issue_type: string
+				severity: DelphiSeverity
+				jar: string | null
+				file_path: string
+				data: Record<string, unknown>
+			}
+
+			export type TestDelphiRuleResponse = {
+				effects: Array<DelphiRuleEffect | null>
+			}
+
+			export type DelphiRuleScanPhase = 'scanning' | 'publishing' | 'complete'
+
+			export type DelphiRuleScanEvent = {
+				phase: DelphiRuleScanPhase
+				revision: number
+				scanned: number
+				total: number
+				effects: number
+			}
+
+			export type DelphiRuleScanErrorEvent = {
+				message: string
+			}
+
 			export type SearchProjectsRequest = {
 				limit?: number
 				page?: number
@@ -2337,6 +2747,7 @@ export namespace Labrinth {
 
 			export type VersionReport = {
 				version_id: string
+				version_number?: string
 				files: FileReport[]
 			}
 
@@ -2350,6 +2761,10 @@ export namespace Labrinth {
 				file_size: number
 				download_url: string
 				issues: FileIssue[]
+			}
+
+			export type GetIssueRequest = {
+				include_hidden?: boolean
 			}
 
 			export type FileIssue = {
@@ -2473,7 +2888,7 @@ export namespace Labrinth {
 
 			export type FlagReason = 'delphi'
 
-			export type DelphiSeverity = 'low' | 'medium' | 'high' | 'severe'
+			export type DelphiSeverity = 'hidden' | 'low' | 'medium' | 'high' | 'severe' | 'malware'
 
 			export type DelphiReportIssueStatus = 'pending' | 'safe' | 'unsafe'
 

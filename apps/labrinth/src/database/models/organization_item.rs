@@ -1,16 +1,17 @@
 use crate::database::PgTransaction;
-use crate::database::redis::RedisPool;
 use ariadne::ids::base62_impl::parse_base62;
 use dashmap::DashMap;
+use eyre::{Result, WrapErr};
 use futures::TryStreamExt;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use xredis::RedisPool;
 
 use super::{DBTeamMember, ids::*};
 use serde::{Deserialize, Serialize};
 
-const ORGANIZATIONS_NAMESPACE: &str = "organizations:v1";
-const ORGANIZATIONS_TITLES_NAMESPACE: &str = "organizations_titles:v1";
+const ORGANIZATIONS_NAMESPACE: &str = "organizations:v4";
+const ORGANIZATIONS_TITLES_NAMESPACE: &str = "organizations_titles:v4";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 /// An organization of users who together control one or more projects and organizations.
@@ -40,7 +41,7 @@ impl DBOrganization {
     pub async fn insert(
         self,
         transaction: &mut PgTransaction<'_>,
-    ) -> Result<(), super::DatabaseError> {
+    ) -> Result<()> {
         sqlx::query!(
             "
             INSERT INTO organizations (id, slug, name, team_id, description, icon_url, raw_icon_url, color)
@@ -56,7 +57,8 @@ impl DBOrganization {
             self.color.map(|x| x as i32),
         )
         .execute(&mut *transaction)
-        .await?;
+        .await
+        .wrap_err("inserting organization")?;
 
         Ok(())
     }
@@ -65,12 +67,13 @@ impl DBOrganization {
         string: &str,
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Option<Self>, super::DatabaseError>
+    ) -> Result<Option<Self>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
         Self::get_many(&[string], exec, redis)
             .await
+            .wrap_err("fetching organization")
             .map(|x| x.into_iter().next())
     }
 
@@ -78,12 +81,13 @@ impl DBOrganization {
         id: DBOrganizationId,
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Option<Self>, super::DatabaseError>
+    ) -> Result<Option<Self>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
         Self::get_many_ids(&[id], exec, redis)
             .await
+            .wrap_err("fetching organization by id")
             .map(|x| x.into_iter().next())
     }
 
@@ -91,7 +95,7 @@ impl DBOrganization {
         organization_ids: &[DBOrganizationId],
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Vec<Self>, super::DatabaseError>
+    ) -> Result<Vec<Self>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
@@ -99,7 +103,9 @@ impl DBOrganization {
             .iter()
             .map(|x| crate::models::ids::OrganizationId::from(*x))
             .collect::<Vec<_>>();
-        Self::get_many(&ids, exec, redis).await
+        Self::get_many(&ids, exec, redis)
+            .await
+            .wrap_err("fetching organizations by id")
     }
 
     pub async fn get_many<
@@ -110,7 +116,7 @@ impl DBOrganization {
         organization_strings: &[T],
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Vec<Self>, super::DatabaseError>
+    ) -> Result<Vec<Self>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
@@ -131,7 +137,7 @@ impl DBOrganization {
                         .map(|x| x.to_string().to_lowercase())
                         .collect::<Vec<_>>();
 
-                    let organizations = sqlx::query!(
+                    sqlx::query!(
                         "
                         SELECT o.id, o.slug, o.name, o.team_id, o.description, o.icon_url, o.raw_icon_url, o.color
                         FROM organizations o
@@ -155,14 +161,13 @@ impl DBOrganization {
                         };
 
                         acc.insert(m.id, (Some(m.slug), org));
-                        async move { Ok(acc) }
+                        async move { Ok::<_, sqlx::Error>(acc) }
                     })
-                    .await?;
-
-                    Ok(organizations)
+                    .await
                 },
             )
-            .await?;
+            .await
+            .wrap_err("fetching cached organizations")?;
 
         Ok(val)
     }
@@ -171,7 +176,7 @@ impl DBOrganization {
     pub async fn get_associated_organization_project_id<'a, 'b, E>(
         project_id: DBProjectId,
         exec: E,
-    ) -> Result<Option<Self>, super::DatabaseError>
+    ) -> Result<Option<Self>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
@@ -186,7 +191,8 @@ impl DBOrganization {
             project_id as DBProjectId,
         )
         .fetch_optional(exec)
-        .await?;
+        .await
+        .wrap_err("fetching organization associated with project")?;
 
         if let Some(result) = result {
             Ok(Some(DBOrganization {
@@ -204,12 +210,40 @@ impl DBOrganization {
         }
     }
 
+    pub async fn get_projects<'a, E>(
+        organization_id: DBOrganizationId,
+        exec: E,
+    ) -> Result<Vec<DBProjectId>>
+    where
+        E: crate::database::Executor<'a, Database = sqlx::Postgres>,
+    {
+        use futures::TryStreamExt;
+
+        let db_projects = sqlx::query!(
+            "
+            SELECT m.id FROM organizations o
+            INNER JOIN mods m ON m.organization_id = o.id
+            WHERE o.id = $1
+            ",
+            organization_id as DBOrganizationId,
+        )
+        .fetch(exec)
+        .map_ok(|m| DBProjectId(m.id))
+        .try_collect::<Vec<_>>()
+        .await
+        .wrap_err("fetching organization projects")?;
+
+        Ok(db_projects)
+    }
+
     pub async fn remove(
         id: DBOrganizationId,
         transaction: &mut PgTransaction<'_>,
         redis: &RedisPool,
-    ) -> Result<Option<()>, super::DatabaseError> {
-        let organization = Self::get_id(id, &mut *transaction, redis).await?;
+    ) -> Result<Option<()>> {
+        let organization = Self::get_id(id, &mut *transaction, redis)
+            .await
+            .wrap_err("fetching organization to remove")?;
 
         if let Some(organization) = organization {
             sqlx::query!(
@@ -220,9 +254,12 @@ impl DBOrganization {
                 id as DBOrganizationId,
             )
             .execute(&mut *transaction)
-            .await?;
+            .await
+            .wrap_err("deleting organization")?;
 
-            DBTeamMember::clear_cache(organization.team_id, redis).await?;
+            DBTeamMember::clear_cache(organization.team_id, redis)
+                .await
+                .wrap_err("clearing removed organization team cache")?;
 
             sqlx::query!(
                 "
@@ -232,7 +269,8 @@ impl DBOrganization {
                 organization.team_id as DBTeamId,
             )
             .execute(&mut *transaction)
-            .await?;
+            .await
+            .wrap_err("deleting organization team members")?;
 
             sqlx::query!(
                 "
@@ -242,7 +280,8 @@ impl DBOrganization {
                 organization.team_id as DBTeamId,
             )
             .execute(&mut *transaction)
-            .await?;
+            .await
+            .wrap_err("deleting organization team")?;
 
             Ok(Some(()))
         } else {
@@ -254,18 +293,25 @@ impl DBOrganization {
         id: DBOrganizationId,
         slug: Option<String>,
         redis: &RedisPool,
-    ) -> Result<(), super::DatabaseError> {
-        let mut redis = redis.connect().await?;
+    ) -> Result<()> {
+        let mut redis = redis
+            .connect()
+            .await
+            .wrap_err("connecting to redis to clear organization cache")?;
+        let mut keys = vec![redis.key().entity(ORGANIZATIONS_NAMESPACE, id.0)];
+        if let Some(slug) = slug {
+            keys.push(
+                redis.key().entity(
+                    ORGANIZATIONS_TITLES_NAMESPACE,
+                    slug.to_lowercase(),
+                ),
+            );
+        }
 
         redis
-            .delete_many([
-                (ORGANIZATIONS_NAMESPACE, Some(id.0.to_string())),
-                (
-                    ORGANIZATIONS_TITLES_NAMESPACE,
-                    slug.map(|x| x.to_lowercase()),
-                ),
-            ])
-            .await?;
+            .delete_many(&keys)
+            .await
+            .wrap_err("clearing organization cache")?;
         Ok(())
     }
 }

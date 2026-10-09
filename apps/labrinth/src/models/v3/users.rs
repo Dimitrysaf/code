@@ -52,6 +52,7 @@ pub struct User {
     pub id: UserId,
     pub username: String,
     pub avatar_url: Option<String>,
+    pub raw_avatar_url: Option<String>,
     pub bio: Option<String>,
     pub created: DateTime<Utc>,
     pub role: Role,
@@ -69,9 +70,31 @@ pub struct User {
     pub eligibility_verified_at: Option<DateTime<Utc>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub moderation_notes: Option<Option<ModerationNote>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub lock: Option<UserLock>,
 
-    // DEPRECATED. Always returns None
     pub github_id: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub discord_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub steam_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+pub struct UserLock {
+    pub locked_by: UserId,
+    pub reason: String,
+    pub created: DateTime<Utc>,
+}
+
+impl From<DBUserLock> for UserLock {
+    fn from(lock: DBUserLock) -> Self {
+        Self {
+            locked_by: lock.locked_by.into(),
+            reason: lock.reason,
+            created: lock.created,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
@@ -98,6 +121,7 @@ pub struct UserPayoutData {
 use crate::database::models::user_item::{
     DBSearchUser, DBUser, Pride26CampaignDonation,
 };
+use crate::database::models::user_lock_item::DBUserLock;
 
 impl From<DBUser> for User {
     fn from(data: DBUser) -> Self {
@@ -107,6 +131,7 @@ impl From<DBUser> for User {
             email: None,
             email_verified: None,
             avatar_url: data.avatar_url,
+            raw_avatar_url: data.raw_avatar_url,
             bio: data.bio,
             created: data.created,
             role: Role::from_string(&data.role),
@@ -119,10 +144,13 @@ impl From<DBUser> for User {
             has_password: None,
             has_totp: None,
             github_id: None,
+            discord_id: None,
+            steam_id: None,
             stripe_customer_id: None,
             allow_friend_requests: None,
             eligibility_verified_at: None,
             moderation_notes: None,
+            lock: None,
         }
     }
 }
@@ -169,6 +197,7 @@ impl User {
             email: db_user.email,
             email_verified: Some(db_user.email_verified),
             avatar_url: db_user.avatar_url,
+            raw_avatar_url: db_user.raw_avatar_url,
             bio: db_user.bio,
             created: db_user.created,
             role: Role::from_string(&db_user.role),
@@ -180,6 +209,8 @@ impl User {
             has_password: Some(db_user.password.is_some()),
             has_totp: Some(db_user.totp_secret.is_some()),
             github_id: None,
+            discord_id: None,
+            steam_id: None,
             payout_data: Some(UserPayoutData {
                 paypal_address: db_user.paypal_email,
                 paypal_country: db_user.paypal_country,
@@ -190,6 +221,7 @@ impl User {
             allow_friend_requests: Some(db_user.allow_friend_requests),
             eligibility_verified_at: db_user.eligibility_verified_at,
             moderation_notes: None,
+            lock: None,
         }
     }
 }

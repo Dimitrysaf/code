@@ -1,14 +1,16 @@
-use crate::database::models::DatabaseError;
-use crate::database::redis::RedisPool;
 use crate::models::v3::notifications::{NotificationChannel, NotificationType};
 use crate::routes::ApiError;
+use crate::util::error::ApiContext as _;
+use crate::util::error::Context as _;
+use eyre::Result;
 use serde::{Deserialize, Serialize};
+use xredis::RedisPool;
 
-const TEMPLATES_NAMESPACE: &str = "notifications_templates:v1";
+const TEMPLATES_NAMESPACE: &str = "notifications_templates:v4";
 const TEMPLATES_HTML_DATA_NAMESPACE: &str =
-    "notifications_templates_html_data:v1";
+    "notifications_templates_html_data:v4";
 const TEMPLATES_DYNAMIC_HTML_NAMESPACE: &str =
-    "notifications_templates_dynamic_html:v1";
+    "notifications_templates_dynamic_html:v4";
 
 const HTML_DATA_CACHE_EXPIRY: i64 = 60 * 15; // 15 minutes
 const TEMPLATES_CACHE_EXPIRY: i64 = 60 * 30; // 30 minutes
@@ -52,13 +54,19 @@ impl NotificationTemplate {
         channel: NotificationChannel,
         exec: impl crate::database::Executor<'_, Database = sqlx::Postgres>,
         redis: &RedisPool,
-    ) -> Result<Vec<NotificationTemplate>, DatabaseError> {
+    ) -> Result<Vec<NotificationTemplate>> {
         {
-            let mut redis = redis.connect().await?;
+            let mut redis = redis
+                .connect()
+                .await
+                .wrap_err("connecting to Redis for notification templates")?;
+            let key =
+                redis.key().metadata(TEMPLATES_NAMESPACE, channel.as_str());
 
             let maybe_cached_templates = redis
-                .get_deserialized(TEMPLATES_NAMESPACE, channel.as_str())
-                .await?;
+                .get_deserialized(&key)
+                .await
+                .wrap_err("fetching notification templates from cache")?;
 
             if let Some(cached) = maybe_cached_templates {
                 return Ok(cached);
@@ -73,20 +81,21 @@ impl NotificationTemplate {
             channel.as_str(),
         )
         .fetch_all(exec)
-        .await?;
+        .await
+        .wrap_err("fetching notification templates")?;
 
         let templates = results.into_iter().map(Into::into).collect();
 
-        let mut redis = redis.connect().await?;
+        let mut redis = redis
+            .connect()
+            .await
+            .wrap_err("connecting to Redis to cache notification templates")?;
+        let key = redis.key().metadata(TEMPLATES_NAMESPACE, channel.as_str());
 
         redis
-            .set_serialized(
-                TEMPLATES_NAMESPACE,
-                channel.as_str(),
-                &templates,
-                Some(TEMPLATES_CACHE_EXPIRY),
-            )
-            .await?;
+            .set_serialized(&key, &templates, Some(TEMPLATES_CACHE_EXPIRY))
+            .await
+            .wrap_err("caching notification templates")?;
 
         Ok(templates)
     }
@@ -94,30 +103,30 @@ impl NotificationTemplate {
     pub async fn get_cached_html_data(
         &self,
         redis: &RedisPool,
-    ) -> Result<Option<String>, DatabaseError> {
-        let mut redis = redis.connect().await?;
+    ) -> Result<Option<String>> {
+        let mut redis = redis.connect().await.wrap_err(
+            "connecting to Redis for cached notification template HTML",
+        )?;
+        let key = redis.key().metadata(TEMPLATES_HTML_DATA_NAMESPACE, self.id);
         redis
-            .get_deserialized(
-                TEMPLATES_HTML_DATA_NAMESPACE,
-                &self.id.to_string(),
-            )
+            .get_deserialized(&key)
             .await
+            .wrap_err("fetching cached notification template HTML")
     }
 
     pub async fn set_cached_html_data(
         &self,
         data: String,
         redis: &RedisPool,
-    ) -> Result<(), DatabaseError> {
-        let mut redis = redis.connect().await?;
+    ) -> Result<()> {
+        let mut redis = redis.connect().await.wrap_err(
+            "connecting to Redis to cache notification template HTML",
+        )?;
+        let key = redis.key().metadata(TEMPLATES_HTML_DATA_NAMESPACE, self.id);
         redis
-            .set_serialized(
-                TEMPLATES_HTML_DATA_NAMESPACE,
-                &self.id.to_string(),
-                &data,
-                Some(HTML_DATA_CACHE_EXPIRY),
-            )
+            .set_serialized(&key, &data, Some(HTML_DATA_CACHE_EXPIRY))
             .await
+            .wrap_err("caching notification template HTML")
     }
 }
 
@@ -125,36 +134,47 @@ pub async fn get_or_set_cached_dynamic_html<F>(
     redis: &RedisPool,
     key: &str,
     get: impl FnOnce() -> F,
-) -> Result<String, ApiError>
+) -> std::result::Result<String, ApiError>
 where
-    F: Future<Output = Result<String, ApiError>>,
+    F: Future<Output = std::result::Result<String, ApiError>>,
 {
     #[derive(Debug, Clone, Serialize, Deserialize)]
     struct HtmlBody {
         html: String,
     }
 
-    let mut redis_conn = redis.connect().await?;
+    let mut redis_conn = redis.connect().await.wrap_internal_err(
+        "connecting to redis for dynamic notification html",
+    )?;
+    let redis_key = redis_conn
+        .key()
+        .metadata(TEMPLATES_DYNAMIC_HTML_NAMESPACE, key);
     if let Some(body) = redis_conn
-        .get_deserialized::<HtmlBody>(TEMPLATES_DYNAMIC_HTML_NAMESPACE, key)
-        .await?
+        .get_deserialized::<HtmlBody>(&redis_key)
+        .await
+        .wrap_internal_err("fetching dynamic notification html from redis")?
     {
         return Ok(body.html);
     }
 
     drop(redis_conn);
 
-    let cached = HtmlBody { html: get().await? };
-    let mut redis_conn = redis.connect().await?;
+    let cached = HtmlBody {
+        html: get()
+            .await
+            .wrap_api_err("generating notification template HTML")?,
+    };
+    let mut redis_conn = redis.connect().await.wrap_internal_err(
+        "connecting to redis for dynamic notification html",
+    )?;
+    let redis_key = redis_conn
+        .key()
+        .metadata(TEMPLATES_DYNAMIC_HTML_NAMESPACE, key);
 
     redis_conn
-        .set_serialized(
-            TEMPLATES_DYNAMIC_HTML_NAMESPACE,
-            key,
-            &cached,
-            Some(HTML_DATA_CACHE_EXPIRY),
-        )
-        .await?;
+        .set_serialized(&redis_key, &cached, Some(HTML_DATA_CACHE_EXPIRY))
+        .await
+        .wrap_internal_err("writing dynamic notification html to redis")?;
 
     Ok(cached.html)
 }

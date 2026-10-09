@@ -18,8 +18,9 @@ import { renderString } from '@modrinth/utils'
 import { useMutation, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, useTemplateRef, watch } from 'vue'
 
-import { ButtonStyled, Collapsible, OverflowMenu } from '#ui/components'
-import type { OverflowMenuOption } from '#ui/components/base'
+import { Collapsible, ConfirmModal } from '#ui/components'
+import type { ButtonMenuOption } from '#ui/components/base'
+import { Button, IconButton, TeleportOverflowMenu } from '#ui/components/base/buttons'
 import { commonMessages } from '#ui/utils'
 
 import { defineMessage, defineMessages, useVIntl } from '../../composables/i18n'
@@ -30,7 +31,7 @@ import {
 	injectProjectPageContext,
 } from '../../providers'
 import type { QuickReply } from '../../providers/attribution-moderation'
-import StyledInput from '../base/StyledInput.vue'
+import Textarea from '../base/inputs/Textarea.vue'
 import AddFilesToAttributionGroupModal from './AddFilesToAttributionGroupModal.vue'
 import AddToExistingExternalProjectModal from './AddToExistingExternalProjectModal.vue'
 import AddToGlobalPermissionsDatabaseModal from './AddToGlobalPermissionsDatabaseModal.vue'
@@ -79,6 +80,7 @@ const addToGlobalModalRef =
 	useTemplateRef<typeof AddToGlobalPermissionsDatabaseModal>('addToGlobalModalRef')
 const addToExistingModalRef =
 	useTemplateRef<typeof AddToExistingExternalProjectModal>('addToExistingModalRef')
+const deleteGroupModalRef = useTemplateRef<InstanceType<typeof ConfirmModal>>('deleteGroupModalRef')
 
 const { formatMessage } = useVIntl()
 const client = injectModrinthClient()
@@ -138,7 +140,20 @@ const messages = defineMessages({
 	},
 	removeGroup: {
 		id: 'external-files.permissions-card.remove-group',
-		defaultMessage: 'Remove group',
+		defaultMessage: 'Delete group',
+	},
+	removeGroupConfirmationTitle: {
+		id: 'external-files.permissions-card.remove-group-confirmation.title',
+		defaultMessage: 'Delete {title}?',
+	},
+	removeGroupConfirmationDescription: {
+		id: 'external-files.permissions-card.remove-group-confirmation.description',
+		defaultMessage:
+			'This will permanently delete this attribution group and all files inside it. This action cannot be undone.',
+	},
+	removeGroupShiftHint: {
+		id: 'external-files.permissions-card.remove-group-shift-hint',
+		defaultMessage: 'Hold Shift while clicking to skip confirmation.',
 	},
 	moderationReasonLabel: {
 		id: 'external-files.permissions-card.moderation-reason',
@@ -254,7 +269,7 @@ const splitFileMutation = useMutation({
 })
 
 const deleteGroupMutation = useMutation({
-	mutationFn: () => client.labrinth.attribution_internal.deleteGroup(props.group.id),
+	mutationFn: () => client.labrinth.attribution_internal.deleteGroups([props.group.id]),
 	onSuccess: async () => {
 		await queryClient.invalidateQueries({ queryKey: ['project-attribution', props.projectId] })
 		emit('updated')
@@ -265,7 +280,7 @@ const deleteGroupMutation = useMutation({
 			title: formatMessage(
 				defineMessage({
 					id: 'external-files.permissions-card.remove-group-error.title',
-					defaultMessage: 'Could not remove group',
+					defaultMessage: 'Could not delete group',
 				}),
 			),
 			text: error.message,
@@ -305,8 +320,17 @@ function handleConfirmAddFiles(sha1s: string[]) {
 	assignFilesMutation.mutate(sha1s)
 }
 
-function handleDeleteGroup() {
+function deleteGroup() {
 	deleteGroupMutation.mutate()
+}
+
+function handleDeleteGroup(event: MouseEvent) {
+	if (event.shiftKey) {
+		deleteGroup()
+		return
+	}
+
+	deleteGroupModalRef.value?.show()
 }
 
 async function handleAddFilesToGroup(event: MouseEvent) {
@@ -461,7 +485,7 @@ async function handleQuickReply(reply: QuickReply) {
 	reviewReasonInput.value = message
 }
 
-const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
+const visibleQuickReplies = computed<ButtonMenuOption[]>(() => {
 	const replies = attributionModeration?.attributionQuickReplies
 
 	if (!replies) return []
@@ -475,8 +499,9 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 			(reply) =>
 				({
 					id: reply.label,
+					label: reply.label,
 					action: () => handleQuickReply(reply),
-				}) as OverflowMenuOption,
+				}) as ButtonMenuOption,
 		)
 })
 </script>
@@ -554,28 +579,27 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 							</span>
 						</div>
 						<div class="flex items-center gap-1 my-auto">
-							<ButtonStyled v-if="group.files.length > 1" circular size="small">
-								<button
-									v-tooltip="formatMessage(messages.splitFile)"
-									class="m-1"
-									:disabled="splitFileMutation.isPending.value"
-									@click="handleSplitFile(file.sha1)"
-								>
-									<SpinnerIcon
-										v-if="splitFileMutation.isPending.value && pendingSplitSha1 === file.sha1"
-										class="size-4 shrink-0 animate-spin"
-									/>
-									<XIcon v-else class="size-4 shrink-0" />
-								</button>
-							</ButtonStyled>
+							<IconButton
+								v-if="group.files.length > 1"
+								v-tooltip="formatMessage(messages.splitFile)"
+								class="m-1 !size-6"
+								size="xs"
+								:label="formatMessage(messages.splitFile)"
+								:disabled="splitFileMutation.isPending.value"
+								@click="handleSplitFile(file.sha1)"
+							>
+								<SpinnerIcon
+									v-if="splitFileMutation.isPending.value && pendingSplitSha1 === file.sha1"
+									class="size-4 shrink-0 animate-spin"
+								/>
+								<XIcon v-else class="size-4 shrink-0" />
+							</IconButton>
 						</div>
 					</span>
 					<div>
-						<ButtonStyled>
-							<button @click="handleAddFilesToGroup($event)">
-								<PlusIcon class="size-4 shrink-0" /> {{ formatMessage(messages.addFilesToGroup) }}
-							</button>
-						</ButtonStyled>
+						<Button @click="handleAddFilesToGroup($event)">
+							<PlusIcon class="size-4 shrink-0" /> {{ formatMessage(messages.addFilesToGroup) }}
+						</Button>
 					</div>
 				</div>
 				<template v-if="(containingVersions?.length ?? 0) > 0">
@@ -621,11 +645,9 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 						"
 						#actions
 					>
-						<ButtonStyled>
-							<button @click="startEditingAttribution">
-								<EditIcon /> {{ formatMessage(commonMessages.editButton) }}
-							</button>
-						</ButtonStyled>
+						<Button @click="startEditingAttribution">
+							<EditIcon /> {{ formatMessage(commonMessages.editButton) }}
+						</Button>
 					</template>
 					<template
 						v-if="
@@ -684,88 +706,89 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 										</div>
 									</template>
 									<template v-else>
-										<StyledInput
+										<Textarea
 											v-model="reviewReasonInput"
-											multiline
 											placeholder="Explanation of review (optional)"
 											class="mt-3"
 										/>
 										<div class="flex items-center gap-2 flex-wrap mt-3">
-											<ButtonStyled v-if="visibleQuickReplies.length > 0">
-												<OverflowMenu :options="visibleQuickReplies">
-													Reply presets
-													<ChevronDownIcon />
-												</OverflowMenu>
-											</ButtonStyled>
-											<ButtonStyled color="green" color-fill="text">
-												<button
-													:disabled="setModerationStatusMutation.isPending.value"
-													@click="handleSetModerationStatus('approved')"
-												>
-													<SpinnerIcon
-														v-if="
-															setModerationStatusMutation.isPending.value &&
-															pendingModerationStatusKind === 'approved'
-														"
-														class="size-4 shrink-0 animate-spin"
-													/>
-													<CheckCircleIcon v-else />
-													Approve
-												</button>
-											</ButtonStyled>
-											<ButtonStyled color="red" color-fill="text">
-												<button
-													:disabled="setModerationStatusMutation.isPending.value"
-													@click="handleSetModerationStatus('bad_proof')"
-												>
-													<SpinnerIcon
-														v-if="
-															setModerationStatusMutation.isPending.value &&
-															pendingModerationStatusKind === 'bad_proof'
-														"
-														class="size-4 shrink-0 animate-spin"
-													/>
-													<XCircleIcon v-else />
-													Reject: Insufficient proof
-												</button>
-											</ButtonStyled>
-											<ButtonStyled color="red" color-fill="text">
-												<button
-													:disabled="setModerationStatusMutation.isPending.value"
-													@click="handleSetModerationStatus('not_allowed')"
-												>
-													<SpinnerIcon
-														v-if="
-															setModerationStatusMutation.isPending.value &&
-															pendingModerationStatusKind === 'not_allowed'
-														"
-														class="size-4 shrink-0 animate-spin"
-													/>
-													<ReportIcon v-else />
-													Reject: Not allowed
-												</button>
-											</ButtonStyled>
-											<ButtonStyled v-if="isEditingModerationReview" type="outlined">
-												<button
-													:disabled="setModerationStatusMutation.isPending.value"
-													@click="cancelModerationReviewEditing"
-												>
-													<XIcon />
-													{{ formatMessage(commonMessages.cancelButton) }}
-												</button>
-											</ButtonStyled>
+											<TeleportOverflowMenu
+												v-if="visibleQuickReplies.length > 0"
+												label="More options"
+												:options="visibleQuickReplies"
+												class="!w-auto !px-2.5 !rounded-xl"
+											>
+												Reply presets
+												<ChevronDownIcon />
+											</TeleportOverflowMenu>
+											<Button
+												type="quiet"
+												color="green"
+												:disabled="setModerationStatusMutation.isPending.value"
+												class="!text-green [&>svg]:!text-green"
+												@click="handleSetModerationStatus('approved')"
+											>
+												<SpinnerIcon
+													v-if="
+														setModerationStatusMutation.isPending.value &&
+														pendingModerationStatusKind === 'approved'
+													"
+													class="size-4 shrink-0 animate-spin"
+												/>
+												<CheckCircleIcon v-else />
+												Approve
+											</Button>
+											<Button
+												type="quiet"
+												color="red"
+												:disabled="setModerationStatusMutation.isPending.value"
+												class="!text-red [&>svg]:!text-red"
+												@click="handleSetModerationStatus('bad_proof')"
+											>
+												<SpinnerIcon
+													v-if="
+														setModerationStatusMutation.isPending.value &&
+														pendingModerationStatusKind === 'bad_proof'
+													"
+													class="size-4 shrink-0 animate-spin"
+												/>
+												<XCircleIcon v-else />
+												Reject: Insufficient proof
+											</Button>
+											<Button
+												type="quiet"
+												color="red"
+												:disabled="setModerationStatusMutation.isPending.value"
+												class="!text-red [&>svg]:!text-red"
+												@click="handleSetModerationStatus('not_allowed')"
+											>
+												<SpinnerIcon
+													v-if="
+														setModerationStatusMutation.isPending.value &&
+														pendingModerationStatusKind === 'not_allowed'
+													"
+													class="size-4 shrink-0 animate-spin"
+												/>
+												<ReportIcon v-else />
+												Reject: Not allowed
+											</Button>
+											<Button
+												v-if="isEditingModerationReview"
+												type="outlined"
+												:disabled="setModerationStatusMutation.isPending.value"
+												@click="cancelModerationReviewEditing"
+											>
+												<XIcon />
+												{{ formatMessage(commonMessages.cancelButton) }}
+											</Button>
 										</div>
 										<div class="flex items-center gap-2 flex-wrap mt-3">
-											<ButtonStyled>
-												<button @click="handleAddToGlobalDatabase">
-													<ScaleIcon /> Add files to database...
-												</button>
-											</ButtonStyled>
-											<ButtonStyled>
-												<button @click="handleAddToExistingEntry">
-													<ScaleIcon /> Add to existing entry...
-												</button>
-											</ButtonStyled>
+											<Button @click="handleAddToGlobalDatabase">
+												<ScaleIcon /> Add files to database...
+											</Button>
+											<Button @click="handleAddToExistingEntry">
+												<ScaleIcon /> Add to existing entry...
+											</Button>
 										</div>
 									</template>
 								</template>
@@ -785,12 +808,10 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 								"
 								class="ml-auto"
 							>
-								<ButtonStyled color="orange">
-									<button @click="startEditingModerationReview">
-										<ScaleIcon />
-										{{ formatMessage(commonMessages.editButton) }}
-									</button>
-								</ButtonStyled>
+								<Button type="colored" color="orange" @click="startEditingModerationReview">
+									<ScaleIcon />
+									{{ formatMessage(commonMessages.editButton) }}
+								</Button>
 							</div>
 						</div>
 					</template>
@@ -812,19 +833,34 @@ const visibleQuickReplies = computed<OverflowMenuOption[]>(() => {
 					/>
 				</div>
 				<div v-if="isModerator" class="flex justify-end pt-2">
-					<ButtonStyled color="red" type="outlined">
-						<button :disabled="deleteGroupMutation.isPending.value" @click="handleDeleteGroup">
-							<SpinnerIcon
-								v-if="deleteGroupMutation.isPending.value"
-								class="size-4 shrink-0 animate-spin"
-							/>
-							<TrashIcon v-else class="size-4 shrink-0" />
-							{{ formatMessage(messages.removeGroup) }}
-						</button>
-					</ButtonStyled>
+					<Button
+						type="outlined"
+						:disabled="deleteGroupMutation.isPending.value"
+						class="!text-red [&>svg]:!text-red !shadow-[inset_0_0_0_1px_var(--color-red)]"
+						@click="handleDeleteGroup"
+					>
+						<SpinnerIcon
+							v-if="deleteGroupMutation.isPending.value"
+							class="size-4 shrink-0 animate-spin"
+						/>
+						<TrashIcon v-else class="size-4 shrink-0" />
+						{{ formatMessage(messages.removeGroup) }}
+					</Button>
 				</div>
 			</div>
 		</Collapsible>
+		<ConfirmModal
+			v-if="isModerator"
+			ref="deleteGroupModalRef"
+			:title="formatMessage(messages.removeGroupConfirmationTitle, { title })"
+			:description="formatMessage(messages.removeGroupConfirmationDescription)"
+			:proceed-label="formatMessage(messages.removeGroup)"
+			@proceed="deleteGroup"
+		>
+			<p class="m-0 text-xs text-secondary">
+				{{ formatMessage(messages.removeGroupShiftHint) }}
+			</p>
+		</ConfirmModal>
 		<AddFilesToAttributionGroupModal
 			ref="addFilesModalRef"
 			:group-id="group.id"

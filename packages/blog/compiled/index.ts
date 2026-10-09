@@ -1,7 +1,9 @@
 // AUTO-GENERATED FILE - DO NOT EDIT
 import { article as a_new_chapter_for_modrinth_servers } from "./a_new_chapter_for_modrinth_servers";
 import { article as accelerating_development } from "./accelerating_development";
+import { article as ai_policy_and_disclosures } from "./ai_policy_and_disclosures";
 import { article as analytics_overhaul } from "./analytics_overhaul";
+import { article as app_personalization } from "./app_personalization";
 import { article as becoming_sustainable } from "./becoming_sustainable";
 import { article as capital_return } from "./capital_return";
 import { article as carbon_ads } from "./carbon_ads";
@@ -34,10 +36,12 @@ import { article as proud_of_you_2026 } from "./proud_of_you_2026";
 import { article as redesign } from "./redesign";
 import { article as russian_censorship } from "./russian_censorship";
 import { article as server_access } from "./server_access";
+import { article as shared_instances } from "./shared_instances";
 import { article as skins_now_in_modrinth_app } from "./skins_now_in_modrinth_app";
 import { article as standing_by_our_values } from "./standing_by_our_values";
 import { article as standing_by_our_values_russian } from "./standing_by_our_values_russian";
 import { article as streamlined_version_creation } from "./streamlined_version_creation";
+import { article as sync_settings } from "./sync_settings";
 import { article as two_years_of_modrinth } from "./two_years_of_modrinth";
 import { article as two_years_of_modrinth_history } from "./two_years_of_modrinth_history";
 import { article as whats_modrinth } from "./whats_modrinth";
@@ -46,7 +50,9 @@ import { article as windows_borderless_malware_disclosure } from "./windows_bord
 export const articles = [
   a_new_chapter_for_modrinth_servers,
   accelerating_development,
+  ai_policy_and_disclosures,
   analytics_overhaul,
+  app_personalization,
   becoming_sustainable,
   capital_return,
   carbon_ads,
@@ -79,10 +85,12 @@ export const articles = [
   redesign,
   russian_censorship,
   server_access,
+  shared_instances,
   skins_now_in_modrinth_app,
   standing_by_our_values,
   standing_by_our_values_russian,
   streamlined_version_creation,
+  sync_settings,
   two_years_of_modrinth,
   two_years_of_modrinth_history,
   whats_modrinth,

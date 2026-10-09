@@ -10,12 +10,13 @@ import {
 	UploadIcon,
 	XIcon,
 } from '@modrinth/assets'
-import { builtinLicenses } from '@modrinth/utils'
-import { useMutation, useQueryClient } from '@tanstack/vue-query'
+import { defaultLicenseIds } from '@modrinth/utils'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, watch } from 'vue'
 
-import { ButtonStyled, Chips, Combobox, type ComboboxOption, StyledInput } from '#ui/components'
+import { Chips, Combobox, type ComboboxOption, Input, Textarea } from '#ui/components'
 import { FileInput } from '#ui/components/base'
+import { Button, IconButton } from '#ui/components/base/buttons'
 import { commonMessages } from '#ui/utils'
 
 import { defineMessage, defineMessages, useVIntl } from '../../composables/i18n'
@@ -48,6 +49,11 @@ const emit = defineEmits<{
 const { formatMessage } = useVIntl()
 const client = injectModrinthClient()
 const queryClient = useQueryClient()
+const { data: spdxLicenses } = useQuery({
+	queryKey: ['tags', 'licenses', 'v2'],
+	queryFn: () => client.labrinth.tags_v2.getLicenses(),
+	staleTime: 1000 * 60 * 60,
+})
 
 const initialAttribution = computed<Labrinth.Attribution.Internal.AttributionResolution | null>(
 	() => parseInitialAttribution(props.attribution),
@@ -66,7 +72,7 @@ const messages = defineMessages({
 	},
 	selectLicenseLabel: {
 		id: 'external-files.permissions-card.editor.select-license-label',
-		defaultMessage: 'Select a license...',
+		defaultMessage: 'Search licenses...',
 	},
 	linkLabel: {
 		id: 'external-files.permissions-card.editor.link-label',
@@ -268,24 +274,44 @@ const attributionFieldSections = computed(() => {
 
 const isCustomLicense = computed(() => licenseIdInput.value === CUSTOM_LICENSE_VALUE)
 
-const licenseOptions = computed<ComboboxOption<string>[]>(() => [
-	...builtinLicenses
-		.filter((license) => license.short !== '')
-		.map((license) => ({
-			value: license.short,
-			label:
-				license.short === 'All-Rights-Reserved' ? formatMessage(messages.arrLabel) : license.short,
-		})),
-	{
-		value: CUSTOM_LICENSE_VALUE,
-		label: formatMessage(
-			defineMessage({
-				id: 'external-files.permissions-card.custom-license-option',
-				defaultMessage: 'Other',
-			}),
-		),
-	},
-])
+const licenseOptions = computed<ComboboxOption<string>[]>(() => {
+	const licensesById = new Map(
+		(spdxLicenses.value ?? []).map((license) => [license.short, license]),
+	)
+	const otherLabel = formatMessage(
+		defineMessage({
+			id: 'external-files.permissions-card.custom-license-option',
+			defaultMessage: 'Other',
+		}),
+	)
+	const options = defaultLicenseIds
+		.filter((short) => short !== '')
+		.map((short) => {
+			const license = licensesById.get(short)
+			return {
+				value: short,
+				label: short === 'All-Rights-Reserved' ? formatMessage(messages.arrLabel) : short,
+				searchTerms: license ? [license.name] : [],
+			}
+		})
+	return [...options, { value: CUSTOM_LICENSE_VALUE, label: otherLabel }]
+})
+
+const allLicenseOptions = computed<ComboboxOption<string>[]>(() => {
+	const defaultIds = new Set<string>(defaultLicenseIds)
+	const otherOption = licenseOptions.value.find((license) => license.value === CUSTOM_LICENSE_VALUE)
+	return [
+		...licenseOptions.value.filter((license) => license.value !== CUSTOM_LICENSE_VALUE),
+		...(spdxLicenses.value ?? [])
+			.filter((license) => !defaultIds.has(license.short))
+			.map((license) => ({
+				value: license.short,
+				label: license.short,
+				searchTerms: [license.name, license.short.replaceAll('-', ' ')],
+			})),
+		...(otherOption ? [otherOption] : []),
+	]
+})
 
 function buildAttributionLicense(): Labrinth.Attribution.Internal.AttributionLicense | null {
 	const custom = isCustomLicense.value
@@ -474,7 +500,7 @@ function cancelEditing() {
 			<span class="text-contrast font-semibold mt-1">
 				{{ formatMessage(messages.linkLabel) }}
 			</span>
-			<StyledInput
+			<Input
 				v-model="linkInput"
 				type="text"
 				class="max-w-[40rem]"
@@ -498,7 +524,11 @@ function cancelEditing() {
 				v-model="licenseIdInput"
 				class="max-w-80"
 				:options="licenseOptions"
+				:search-options="allLicenseOptions"
 				searchable
+				sync-with-selection
+				select-search-text-on-focus
+				:placeholder="formatMessage(messages.selectLicenseLabel)"
 				:search-placeholder="formatMessage(messages.selectLicenseLabel)"
 			/>
 		</div>
@@ -515,7 +545,7 @@ function cancelEditing() {
 					)
 				}}
 			</span>
-			<StyledInput
+			<Input
 				v-model="customLicenseInput"
 				type="text"
 				class="max-w-[40rem]"
@@ -542,11 +572,9 @@ function cancelEditing() {
 							formatMessage(selectedPermissionReason.notesDescription)
 						}}</span>
 					</div>
-					<StyledInput
+					<Textarea
 						v-model="notesInput"
-						type="text"
 						resize="both"
-						multiline
 						:rows="notesInputRows"
 						class="max-w-[40rem]"
 						:placeholder="formatMessage(messages.notesPlaceholder)"
@@ -577,15 +605,14 @@ function cancelEditing() {
 									class="flex w-full object-contain bg-surface-3"
 								/>
 								<div class="absolute top-2 right-2">
-									<ButtonStyled circular>
-										<button
-											v-tooltip="formatMessage(messages.proofImageRemove)"
-											type="button"
-											@click="removeProofImage(idx)"
-										>
-											<TrashIcon />
-										</button>
-									</ButtonStyled>
+									<IconButton
+										v-tooltip="formatMessage(messages.proofImageRemove)"
+										:label="formatMessage(messages.proofImageRemove)"
+										native-type="button"
+										@click="removeProofImage(idx)"
+									>
+										<TrashIcon />
+									</IconButton>
 								</div>
 							</div>
 						</div>
@@ -633,29 +660,29 @@ function cancelEditing() {
 
 		<hr class="mt-1 bg-surface-5 border-none h-[1px] w-full" />
 		<div class="flex items-center gap-2 justify-end">
-			<ButtonStyled v-if="isAttributed" type="outlined">
-				<button
-					:disabled="saveMutation.isPending.value || uploadProofImageMutation.isPending.value"
-					@click="cancelEditing"
-				>
-					<XIcon /> {{ formatMessage(commonMessages.cancelButton) }}
-				</button>
-			</ButtonStyled>
-			<ButtonStyled color="brand">
-				<button
-					:disabled="saveMutation.isPending.value || uploadProofImageMutation.isPending.value"
-					@click="handleSave"
-				>
-					<template v-if="saveMutation.isPending.value">
-						<SpinnerIcon class="animate-spin" />
-						{{ formatMessage(commonMessages.savingButton) }}
-					</template>
-					<template v-else-if="isAttributed">
-						<SaveIcon /> {{ formatMessage(messages.saveAttribution) }}
-					</template>
-					<template v-else> <CheckIcon /> {{ formatMessage(messages.addAttribution) }} </template>
-				</button>
-			</ButtonStyled>
+			<Button
+				v-if="isAttributed"
+				type="outlined"
+				:disabled="saveMutation.isPending.value || uploadProofImageMutation.isPending.value"
+				@click="cancelEditing"
+			>
+				<XIcon /> {{ formatMessage(commonMessages.cancelButton) }}
+			</Button>
+			<Button
+				type="colored"
+				color="brand"
+				:disabled="saveMutation.isPending.value || uploadProofImageMutation.isPending.value"
+				@click="handleSave"
+			>
+				<template v-if="saveMutation.isPending.value">
+					<SpinnerIcon class="animate-spin" />
+					{{ formatMessage(commonMessages.savingButton) }}
+				</template>
+				<template v-else-if="isAttributed">
+					<SaveIcon /> {{ formatMessage(messages.saveAttribution) }}
+				</template>
+				<template v-else> <CheckIcon /> {{ formatMessage(messages.addAttribution) }} </template>
+			</Button>
 		</div>
 	</div>
 </template>

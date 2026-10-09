@@ -1,16 +1,18 @@
 use super::{FriendPayload, LoadingBarId};
-use crate::event::{
-    CommandPayload, EventError, InstanceBulkUpdateProgressPayload,
-    InstancePayloadType, LoadingBar, LoadingBarType, ProcessPayloadType,
-};
 #[cfg(feature = "tauri")]
 use crate::event::{
-    InstancePayload, LoadingPayload, ProcessPayload, WarningPayload,
+    AppEvent, InstanceGroupsChangedPayload, InstancePayload, LoadingPayload,
+    ProcessPayload, WarningPayload,
 };
+use crate::event::{
+    CommandPayload, EventError, InstancePayloadType, LoadingBar,
+    LoadingBarType, ProcessPayloadType,
+};
+use crate::state::OnboardingChecklist;
 use futures::prelude::*;
 use serde_json::Value;
 #[cfg(feature = "tauri")]
-use tauri::{Emitter, Manager};
+use tauri::Manager;
 use uuid::Uuid;
 
 #[cfg(feature = "cli")]
@@ -61,7 +63,7 @@ pub async fn init_loading_unsafe(
     total: f64,
     title: &str,
 ) -> crate::Result<LoadingBarId> {
-    let event_state = crate::EventState::get()?;
+    let event_state = crate::EventState::get();
     let key = LoadingBarId(Uuid::new_v4());
 
     event_state.loading_bars.insert(
@@ -71,7 +73,7 @@ pub async fn init_loading_unsafe(
             message: title.to_string(),
             total,
             current: 0.0,
-            last_sent: 0.0,
+            last_sent: -1.0,
             bar_type,
             #[cfg(feature = "cli")]
             cli_progress_bar: {
@@ -105,7 +107,7 @@ pub fn emit_loading(
     increment_frac: f64,
     message: Option<&str>,
 ) -> crate::Result<()> {
-    let event_state = crate::EventState::get()?;
+    let event_state = crate::EventState::get();
 
     let Some(mut loading_bar) = event_state.loading_bars.get_mut(&key.0) else {
         return Err(EventError::NoLoadingBar(key.0).into());
@@ -131,25 +133,17 @@ pub fn emit_loading(
 
         //Emit event to tauri
         #[cfg(feature = "tauri")]
-        event_state
-            .app
-            .emit(
-                "loading",
-                LoadingPayload {
-                    fraction: if display_frac >= 1.0 {
-                        None // by convention, when its done, we submit None
-                    // any further updates will be ignored (also sending None)
-                    } else {
-                        Some(display_frac)
-                    },
-                    message: message
-                        .unwrap_or(&loading_bar.message)
-                        .to_string(),
-                    event: loading_bar.bar_type.clone(),
-                    loader_uuid: loading_bar.loading_bar_uuid,
-                },
-            )
-            .map_err(EventError::from)?;
+        event_state.send(AppEvent::Loading(LoadingPayload {
+            fraction: if display_frac >= 1.0 {
+                None // by convention, when its done, we submit None
+            // any further updates will be ignored (also sending None)
+            } else {
+                Some(display_frac)
+            },
+            message: message.unwrap_or(&loading_bar.message).to_string(),
+            event: loading_bar.bar_type.clone(),
+            loader_uuid: loading_bar.loading_bar_uuid.to_string(),
+        }))?;
 
         #[cfg(not(any(feature = "cli", feature = "tauri")))]
         let _ = message;
@@ -163,34 +157,12 @@ pub fn emit_loading(
 // emit_warning(message)
 pub async fn emit_warning(message: &str) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
-    {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit(
-                "warning",
-                WarningPayload {
-                    message: message.to_string(),
-                },
-            )
-            .map_err(EventError::from)?;
+    if let Some(event_state) = crate::EventState::try_get() {
+        event_state.send(AppEvent::Warning(WarningPayload {
+            message: message.to_string(),
+        }))?;
     }
     tracing::warn!("{}", message);
-    Ok(())
-}
-
-#[allow(unused_variables)]
-pub async fn emit_instance_bulk_update_progress(
-    payload: InstanceBulkUpdateProgressPayload,
-) -> crate::Result<()> {
-    #[cfg(feature = "tauri")]
-    {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit("instance_bulk_update_progress", payload)
-            .map_err(EventError::from)?;
-    }
     Ok(())
 }
 
@@ -201,11 +173,8 @@ pub async fn emit_command(command: CommandPayload) -> crate::Result<()> {
     tracing::debug!("Command: {}", serde_json::to_string(&command)?);
     #[cfg(feature = "tauri")]
     {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit("command", command)
-            .map_err(EventError::from)?;
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::Command(command))?;
 
         if let Some(window) = event_state.app.get_window("main") {
             let _ = window.set_focus();
@@ -224,19 +193,13 @@ pub async fn emit_process(
 ) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit(
-                "process",
-                ProcessPayload {
-                    instance_id: instance_id.to_string(),
-                    uuid,
-                    event,
-                    message: message.to_string(),
-                },
-            )
-            .map_err(EventError::from)?;
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::Process(ProcessPayload {
+            instance_id: instance_id.to_string(),
+            uuid: uuid.to_string(),
+            event,
+            message: message.to_string(),
+        }))?;
     }
     Ok(())
 }
@@ -249,17 +212,39 @@ pub async fn emit_instance(
 ) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit(
-                "instance",
-                InstancePayload {
-                    instance_id: instance_id.to_string(),
-                    event,
-                },
-            )
-            .map_err(EventError::from)?;
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::Instance(InstancePayload {
+            instance_id: instance_id.to_string(),
+            event,
+        }))?;
+    }
+    Ok(())
+}
+
+#[allow(unused_variables)]
+pub async fn emit_instance_groups_changed(
+    instance_ids: &[String],
+) -> crate::Result<()> {
+    #[cfg(feature = "tauri")]
+    {
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::InstanceGroupsChanged(
+            InstanceGroupsChangedPayload {
+                instance_ids: instance_ids.to_vec(),
+            },
+        ))?;
+    }
+    Ok(())
+}
+
+#[allow(unused_variables)]
+pub async fn emit_onboarding_checklist(
+    checklist: OnboardingChecklist,
+) -> crate::Result<()> {
+    #[cfg(feature = "tauri")]
+    {
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::OnboardingChecklist(checklist))?;
     }
     Ok(())
 }
@@ -268,11 +253,8 @@ pub async fn emit_instance(
 pub async fn emit_friend(payload: FriendPayload) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit("friend", payload)
-            .map_err(EventError::from)?;
+        let event_state = crate::EventState::get();
+        event_state.send(AppEvent::Friend(payload))?;
     }
 
     Ok(())
@@ -282,11 +264,9 @@ pub async fn emit_friend(payload: FriendPayload) -> crate::Result<()> {
 pub async fn emit_notification(payload: Value) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
-        let event_state = crate::EventState::get()?;
+        let event_state = crate::EventState::get();
         event_state
-            .app
-            .emit("notification", payload)
-            .map_err(EventError::from)?;
+            .send(AppEvent::Notification(serde_json::to_string(&payload)?))?;
     }
 
     Ok(())
@@ -368,6 +348,49 @@ where
     T: Send,
 {
     let mut f = f;
+    if let Ok(control) =
+        crate::install::control::CURRENT_INSTALL.try_with(Clone::clone)
+    {
+        let mut operations = futures::stream::FuturesUnordered::new();
+        futures::pin_mut!(stream);
+        let limit = limit.filter(|limit| *limit > 0).unwrap_or(usize::MAX);
+        let mut stream_done = false;
+        let mut error = None;
+        while !stream_done || !operations.is_empty() {
+            tokio::select! {
+                biased;
+                Some(result) = operations.next(), if !operations.is_empty() => {
+                    if let Err(next_error) = result {
+                        error.get_or_insert(next_error);
+                        stream_done = true;
+                    }
+                }
+                item = futures::future::poll_fn(|cx| stream.as_mut().try_poll_next(cx)),
+                    if !stream_done && operations.len() < limit => {
+                    match item {
+                        Some(Ok(item)) => {
+                            let operation = f(item);
+                            let control = control.clone();
+                            operations.push(async move {
+                                control.checkpoint().await?;
+                                operation.await?;
+                                if let Some(key) = key {
+                                    emit_loading(key, total / (num_futs as f64), message)?;
+                                }
+                                Ok::<(), crate::Error>(())
+                            });
+                        }
+                        None => stream_done = true,
+                        Some(Err(next_error)) => {
+                            error.get_or_insert(next_error);
+                            stream_done = true;
+                        }
+                    }
+                }
+            }
+        }
+        return error.map_or(Ok(()), Err);
+    }
     stream
         .try_for_each_concurrent(limit, |item| {
             let f = f(item);

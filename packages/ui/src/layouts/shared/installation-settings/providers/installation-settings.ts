@@ -24,6 +24,7 @@ export interface InstallationSettingsContext {
 	currentPlatform: ComputedRef<string>
 	currentGameVersion: ComputedRef<string>
 	currentLoaderVersion: ComputedRef<string>
+	requiresInstallation?: Ref<boolean> | ComputedRef<boolean>
 
 	availablePlatforms: string[] | ComputedRef<string[]>
 
@@ -62,6 +63,14 @@ export interface InstallationSettingsContext {
 
 	/** True when the linked modpack was uploaded as a local file rather than from Modrinth */
 	isLocalFile?: boolean | ComputedRef<boolean>
+
+	/** True when an external source controls the linked modpack. */
+	isManagedModpack?: boolean | ComputedRef<boolean>
+	managedModpackWarning?: ComputedRef<{
+		admonitionHeader: string
+		changeVersionBody: string
+		unlinkBody: string
+	}>
 
 	repairing?: Ref<boolean>
 	reinstalling?: Ref<boolean>

@@ -5,10 +5,10 @@ use crate::state::instances::{
     adapters::sqlite::{content_rows, instance_rows},
 };
 use crate::state::{
-    InstanceInstallStage, LauncherFeatureVersion, ModLoader, ReleaseChannel,
-    State,
+    InstanceIconConfig, InstanceInstallStage, LauncherFeatureVersion,
+    ModLoader, ReleaseChannel, State,
 };
-use crate::util::fetch::{self, write_cached_icon};
+use crate::util::fetch;
 use crate::util::io;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
@@ -23,6 +23,7 @@ pub struct CreateInstance {
     pub loader: ModLoader,
     pub loader_version: Option<String>,
     pub icon_path: Option<String>,
+    pub icon_config: Option<InstanceIconConfig>,
     pub link: InstanceLink,
 }
 
@@ -55,8 +56,12 @@ pub(crate) async fn create_instance(
             None
         };
 
-        let icon_path =
-            resolve_icon_path(input.icon_path.as_deref(), state).await?;
+        let icon_path = resolve_icon_path(
+            input.icon_path.as_deref(),
+            matches!(&input.link, InstanceLink::SharedInstance { .. }),
+            state,
+        )
+        .await?;
         let now = Utc::now();
         let instance_id = format!("local:{}", Uuid::new_v4());
         let content_set_id = format!("content-set:{}", Uuid::new_v4());
@@ -91,8 +96,21 @@ pub(crate) async fn create_instance(
         let launch_overrides =
             InstanceLaunchOverrides::empty(instance_id.clone());
 
-        let mut tx = state.pool.begin().await?;
+        let mut tx = state.pool.begin_with("BEGIN IMMEDIATE").await?;
         instance_rows::insert_instance(&instance, &mut tx).await?;
+        instance_rows::insert_default_instance_sync_preferences(
+            &instance_id,
+            &mut tx,
+        )
+        .await?;
+        if let Some(icon_config) = &input.icon_config {
+            instance_rows::update_instance_icon_config(
+                &instance_id,
+                Some(icon_config),
+                &mut tx,
+            )
+            .await?;
+        }
         content_rows::insert_content_set(&content_set, &mut tx).await?;
         instance_rows::upsert_instance_link(&instance_id, &input.link, &mut tx)
             .await?;
@@ -112,6 +130,17 @@ pub(crate) async fn create_instance(
             &state.directories,
         )
         .await;
+        if let Err(error) =
+            crate::api::instance::reconcile_instance_synced_options(
+                &instance.id,
+            )
+            .await
+        {
+            tracing::warn!(
+                "Failed to reconcile synced options for newly created instance {}: {error}",
+                instance.id
+            );
+        }
 
         Ok(instance)
     }
@@ -132,6 +161,7 @@ async fn resolve_instance_path(
     let base_path = path
         .map(ToOwned::to_owned)
         .unwrap_or_else(|| sanitize_instance_name(name));
+    crate::state::content_store::validate_relative(&base_path)?;
     let mut path = base_path.clone();
     let mut full_path = state.directories.instances_dir().join(&path);
 
@@ -166,18 +196,17 @@ async fn path_available(
         .is_none())
 }
 
-async fn resolve_icon_path(
+pub(crate) async fn resolve_icon_path(
     icon_path: Option<&str>,
+    ignore_missing_remote_icon: bool,
     state: &State,
 ) -> crate::Result<Option<String>> {
     let Some(icon) = icon_path else {
         return Ok(None);
     };
 
-    let (bytes, file_name) = if icon.starts_with("https://")
-        || icon.starts_with("http://")
-    {
-        let fetched = fetch::fetch(
+    let file = if icon.starts_with("https://") || icon.starts_with("http://") {
+        let bytes = match fetch::fetch(
             icon,
             None,
             None,
@@ -185,21 +214,23 @@ async fn resolve_icon_path(
             &state.fetch_semaphore,
             &state.pool,
         )
-        .await?;
-        let name = icon.rsplit('/').next().unwrap_or("icon").to_string();
-        (fetched, name)
+        .await
+        {
+            Ok(bytes) => bytes,
+            Err(error) if ignore_missing_remote_icon => {
+                tracing::warn!("Error while getting instance icon: {error}");
+                return Ok(None);
+            }
+            Err(error) => return Err(error),
+        };
+        crate::api::instance::cache_icon(bytes, state).await?
     } else {
-        let data = io::read(state.directories.caches_dir().join(icon)).await?;
-        (bytes::Bytes::from(data), icon.to_string())
+        crate::api::instance::cache_icon_from_path(
+            &state.directories.caches_dir().join(icon),
+            state,
+        )
+        .await?
     };
-
-    let file = write_cached_icon(
-        &file_name,
-        &state.directories.caches_dir(),
-        bytes,
-        &state.io_semaphore,
-    )
-    .await?;
 
     Ok(Some(file.to_string_lossy().to_string()))
 }
@@ -227,8 +258,11 @@ fn content_source_kind(link: &InstanceLink) -> ContentSourceKind {
 }
 
 fn sanitize_instance_name(input: &str) -> String {
-    input.replace(
-        ['/', '\\', '?', '*', ':', '\'', '\"', '|', '<', '>', '!'],
-        "_",
-    )
+    input
+        .replace(
+            ['/', '\\', '?', '*', ':', '\'', '\"', '|', '<', '>', '!'],
+            "_",
+        )
+        .trim_end_matches(['.', ' '])
+        .to_string()
 }

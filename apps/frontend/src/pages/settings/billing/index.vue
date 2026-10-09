@@ -165,107 +165,114 @@
 						v-if="midasCharge && midasCharge.status === 'failed'"
 						class="ml-auto flex flex-row-reverse items-center gap-2"
 					>
-						<ButtonStyled v-if="midasCharge && midasCharge.status === 'failed'">
-							<button
-								@click="
-									() => {
-										$refs.midasPurchaseModal.show()
-									}
-								"
-							>
-								<UpdatedIcon />
-								{{ formatMessage(messages.updateMethod) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled type="transparent" circular>
-							<OverflowMenu
-								:dropdown-id="`${baseId}-cancel-midas`"
-								:options="[
-									{
-										id: 'cancel',
-										action: () => {
-											cancelSubscriptionId = midasSubscription.id
-											$refs.modalCancel.show()
-										},
-									},
-								]"
-							>
-								<MoreVerticalIcon />
-								<template #cancel
-									><XIcon /> {{ formatMessage(commonMessages.cancelButton) }}</template
-								>
-							</OverflowMenu>
-						</ButtonStyled>
-					</div>
-					<div
-						v-else-if="midasCharge && midasCharge.status !== 'cancelled'"
-						class="ml-auto flex gap-2"
-					>
-						<ButtonStyled>
-							<button
-								:disabled="changingInterval"
-								@click="
-									() => {
-										cancelSubscriptionId = midasSubscription.id
-										$refs.modalCancel.show()
-									}
-								"
-							>
-								<XIcon /> {{ formatMessage(commonMessages.cancelButton) }}
-							</button>
-						</ButtonStyled>
-						<ButtonStyled
-							:color="midasCharge.subscription_interval === 'yearly' ? 'standard' : 'purple'"
-							color-fill="text"
-						>
-							<button
-								v-tooltip="
-									midasCharge.subscription_interval === 'yearly'
-										? formatMessage(messages.monthlyBillingAdditionalPerYearTooltip, {
-												amount: formatPrice(
-													oppositePrice * 12 - midasCharge.amount,
-													midasCharge.currency_code,
-												),
-											})
-										: undefined
-								"
-								:disabled="changingInterval"
-								@click="switchMidasInterval(oppositeInterval)"
-							>
-								<SpinnerIcon v-if="changingInterval" class="animate-spin" />
-								<TransferIcon v-else />
-								{{
-									changingInterval
-										? formatMessage(messages.switchingToInterval, {
-												interval: oppositeInterval,
-											})
-										: formatMessage(messages.switchToInterval, {
-												interval: oppositeInterval,
-											})
-								}}
-							</button>
-						</ButtonStyled>
-					</div>
-					<ButtonStyled
-						v-else-if="midasCharge && midasCharge.status === 'cancelled'"
-						color="purple"
-					>
-						<button class="ml-auto" @click="cancelSubscription(midasSubscription.id, false)">
-							{{ formatMessage(messages.resubscribe) }} <RightArrowIcon />
-						</button>
-					</ButtonStyled>
-					<ButtonStyled v-else color="purple" size="large">
-						<button
-							class="ml-auto"
+						<Button
+							v-if="midasCharge && midasCharge.status === 'failed'"
 							@click="
 								() => {
 									$refs.midasPurchaseModal.show()
 								}
 							"
 						>
-							{{ formatMessage(messages.subscribe) }} <RightArrowIcon />
-						</button>
-					</ButtonStyled>
+							<UpdatedIcon />
+							{{ formatMessage(messages.updateMethod) }}
+						</Button>
+						<TeleportOverflowMenu
+							type="quiet"
+							:label="formatMessage(commonMessages.moreOptionsButton)"
+							:options="[
+								{
+									id: 'cancel',
+									label: formatMessage(commonMessages.cancelButton),
+									action: () => {
+										cancelSubscriptionId = midasSubscription.id
+										$refs.modalCancel.show()
+									},
+								},
+							]"
+						>
+							<MoreVerticalIcon />
+							<template #cancel
+								><XIcon /> {{ formatMessage(commonMessages.cancelButton) }}</template
+							>
+						</TeleportOverflowMenu>
+					</div>
+					<div
+						v-else-if="midasCharge && midasCharge.status !== 'cancelled'"
+						class="ml-auto flex gap-2"
+					>
+						<Button
+							:disabled="changingInterval"
+							@click="
+								() => {
+									cancelSubscriptionId = midasSubscription.id
+									$refs.modalCancel.show()
+								}
+							"
+						>
+							<XIcon /> {{ formatMessage(commonMessages.cancelButton) }}
+						</Button>
+						<Button
+							v-tooltip="
+								midasCharge.subscription_interval === 'yearly'
+									? formatMessage(messages.monthlyBillingAdditionalPerYearTooltip, {
+											amount: formatPrice(
+												oppositePrice * 12 - midasCharge.amount,
+												midasCharge.currency_code,
+											),
+										})
+									: undefined
+							"
+							type="quiet"
+							:color="midasCharge.subscription_interval === 'yearly' ? undefined : 'purple'"
+							:disabled="changingInterval"
+							:style="{
+								'--legacy-button-color':
+									(midasCharge.subscription_interval === 'yearly' ? 'standard' : 'purple') &&
+									(midasCharge.subscription_interval === 'yearly' ? 'standard' : 'purple') !==
+										'standard'
+										? `var(--color-${midasCharge.subscription_interval === 'yearly' ? 'standard' : 'purple'})`
+										: undefined,
+							}"
+							class="!text-[var(--legacy-button-color,var(--color-base))] [&>svg]:!text-[var(--legacy-button-color,var(--color-primary))]"
+							@click="switchMidasInterval(oppositeInterval)"
+						>
+							<SpinnerIcon v-if="changingInterval" class="animate-spin" />
+							<TransferIcon v-else />
+							{{
+								changingInterval
+									? formatMessage(messages.switchingToInterval, {
+											interval: oppositeInterval,
+										})
+									: formatMessage(messages.switchToInterval, {
+											interval: oppositeInterval,
+										})
+							}}
+						</Button>
+					</div>
+					<Button
+						v-else-if="midasCharge && midasCharge.status === 'cancelled'"
+						type="colored"
+						color="purple"
+						size="xl"
+						class="ml-auto"
+						@click="cancelSubscription(midasSubscription.id, false)"
+					>
+						{{ formatMessage(messages.resubscribe) }} <RightArrowIcon />
+					</Button>
+					<Button
+						v-else
+						type="colored"
+						color="purple"
+						size="xl"
+						class="ml-auto"
+						@click="
+							() => {
+								$refs.midasPurchaseModal.show()
+							}
+						"
+					>
+						{{ formatMessage(messages.subscribe) }} <RightArrowIcon />
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -284,7 +291,9 @@
 								v-bind="subscription.serverInfo"
 								:pending-change="getPendingChange(subscription)"
 								:cancellation-date="getCancellationDate(subscription)"
-								:on-download-backup="getBackupDownloadForServer(subscription.serverInfo)"
+								:on-download-world="
+									getWorldDownload(subscription.serverInfo.server_id, serverFullList)
+								"
 							/>
 							<div v-else class="w-fit">
 								<p>
@@ -375,14 +384,8 @@
 													getProductPrice(getPyroProduct(subscription), subscription.interval)
 														? formatMessage(messages.pricePerInterval, {
 																price: formatPrice(
-																	getProductPrice(
-																		getPyroProduct(subscription),
-																		subscription.interval,
-																	).prices.intervals[subscription.interval],
-																	getProductPrice(
-																		getPyroProduct(subscription),
-																		subscription.interval,
-																	).currency_code,
+																	getPyroSubscriptionTotal(subscription),
+																	getPyroSubscriptionCurrency(subscription),
 																),
 																interval: getIntervalNounLabel(subscription.interval),
 															})
@@ -391,15 +394,7 @@
 											</span>
 										</h3>
 										<div
-											v-if="
-												getPyroCharge(subscription) &&
-												getPyroCharge(subscription).status === 'open' &&
-												((getPyroCharge(subscription).price_id &&
-													getPyroCharge(subscription).price_id !== subscription.price_id) ||
-													(getPyroCharge(subscription).subscription_interval &&
-														getPyroCharge(subscription).subscription_interval !==
-															subscription.interval))
-											"
+											v-if="hasPendingPyroChange(subscription)"
 											class="-mt-1 flex items-baseline gap-2 text-sm text-secondary"
 										>
 											<span class="opacity-70">{{ formatMessage(messages.nextLabel) }}</span>
@@ -407,8 +402,8 @@
 												{{
 													formatMessage(messages.pricePerInterval, {
 														price: formatPrice(
-															getPyroCharge(subscription).amount,
-															getPyroCharge(subscription).currency_code,
+															getPyroNextChargeTotal(subscription),
+															getPyroSubscriptionCurrency(subscription),
 														),
 														interval: getIntervalNounLabel(
 															getPyroCharge(subscription).subscription_interval ||
@@ -418,6 +413,19 @@
 												}}
 											</span>
 										</div>
+										<span
+											v-if="subscription.next_charge_tax_amount != null"
+											class="text-sm text-secondary"
+										>
+											{{
+												formatMessage(messages.includesTax, {
+													amount: formatPrice(
+														subscription.next_charge_tax_amount,
+														getPyroSubscriptionCurrency(subscription),
+													),
+												})
+											}}
+										</span>
 										<div v-if="getPyroCharge(subscription)" class="mb-4 flex flex-col items-end">
 											<span class="text-sm text-secondary">
 												{{
@@ -477,44 +485,40 @@
 										</div>
 									</div>
 									<div class="flex gap-2">
-										<ButtonStyled
+										<Button
 											v-if="
 												getPyroCharge(subscription) &&
 												getPyroCharge(subscription).status !== 'cancelled'
 											"
+											@click="showCancellationSurvey(subscription)"
 										>
-											<button @click="showCancellationSurvey(subscription)">
-												<XIcon />
-												{{ formatMessage(commonMessages.cancelButton) }}
-											</button>
-										</ButtonStyled>
-										<ButtonStyled
+											<XIcon />
+											{{ formatMessage(commonMessages.cancelButton) }}
+										</Button>
+										<Button
 											v-if="
 												getPyroCharge(subscription) &&
 												getPyroCharge(subscription).status !== 'cancelled' &&
 												getPyroCharge(subscription).status !== 'failed'
 											"
+											type="quiet"
 											color="green"
-											color-fill="text"
+											class="!text-green [&>svg]:!text-green"
+											@click="showPyroUpgradeModal(subscription)"
 										>
-											<button @click="showPyroUpgradeModal(subscription)">
-												<ArrowBigUpDashIcon />
-												{{ formatMessage(messages.upgrade) }}
-											</button>
-										</ButtonStyled>
-										<ButtonStyled
-											v-else-if="
-												getPyroCharge(subscription) &&
-												(getPyroCharge(subscription).status === 'cancelled' ||
-													getPyroCharge(subscription).status === 'failed')
-											"
+											<ArrowBigUpDashIcon />
+											{{ formatMessage(messages.upgrade) }}
+										</Button>
+										<Button
+											v-else-if="canResubscribe(subscription)"
+											type="colored"
 											color="green"
+											size="xl"
+											@click="openPyroResubscribeModal(subscription)"
 										>
-											<button @click="openPyroResubscribeModal(subscription)">
-												{{ formatMessage(messages.resubscribe) }}
-												<RightArrowIcon />
-											</button>
-										</ButtonStyled>
+											{{ formatMessage(messages.resubscribe) }}
+											<RightArrowIcon />
+										</Button>
 									</div>
 								</div>
 							</div>
@@ -565,16 +569,12 @@
 			<div class="header__title">
 				<h2 class="text-2xl">{{ formatMessage(messages.paymentMethodTitle) }}</h2>
 			</div>
-			<ButtonStyled>
-				<nuxt-link to="/settings/billing/charges">
-					<HistoryIcon /> {{ formatMessage(messages.paymentMethodHistory) }}
-				</nuxt-link>
-			</ButtonStyled>
-			<ButtonStyled>
-				<button @click="addPaymentMethod">
-					<PlusIcon /> {{ formatMessage(messages.paymentMethodAdd) }}
-				</button>
-			</ButtonStyled>
+			<ButtonLink to="/settings/billing/charges">
+				<HistoryIcon /> {{ formatMessage(messages.paymentMethodHistory) }}
+			</ButtonLink>
+			<Button @click="addPaymentMethod">
+				<PlusIcon /> {{ formatMessage(messages.paymentMethodAdd) }}
+			</Button>
 		</div>
 		<div
 			v-if="!paymentMethods || paymentMethods.length === 0"
@@ -633,43 +633,43 @@
 						</div>
 					</div>
 				</div>
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						:dropdown-id="`${baseId}-payment-method-overflow-${index}`"
-						class="btn-dropdown-animation !w-10"
-						:options="
-							[
-								{
-									id: 'primary',
-									action: () => editPaymentMethod(index, true),
+				<TeleportOverflowMenu
+					type="quiet"
+					:label="formatMessage(commonMessages.moreOptionsButton)"
+					class="btn-dropdown-animation !w-10"
+					:options="
+						[
+							{
+								id: 'primary',
+								label: formatMessage(messages.paymentMethodMakePrimary),
+								action: () => editPaymentMethod(index, true),
+							},
+							{
+								id: 'remove',
+								label: formatMessage(commonMessages.deleteLabel),
+								action: () => {
+									removePaymentMethodIndex = index
+									$refs.modal_confirm.show()
 								},
-								{
-									id: 'remove',
-									action: () => {
-										removePaymentMethodIndex = index
-										$refs.modal_confirm.show()
-									},
-									color: 'red',
-									hoverOnly: true,
-								},
-							].slice(primaryPaymentMethodId === method.id ? 1 : 0, 2)
-						"
-					>
-						<MoreVerticalIcon />
-						<template #primary>
-							<StarIcon />
-							{{ formatMessage(messages.paymentMethodMakePrimary) }}
-						</template>
-						<template #edit>
-							<EditIcon />
-							{{ formatMessage(commonMessages.editButton) }}
-						</template>
-						<template #remove>
-							<TrashIcon />
-							{{ formatMessage(commonMessages.deleteLabel) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+								tone: 'red',
+							},
+						].slice(primaryPaymentMethodId === method.id ? 1 : 0, 2)
+					"
+				>
+					<MoreVerticalIcon />
+					<template #primary>
+						<StarIcon />
+						{{ formatMessage(messages.paymentMethodMakePrimary) }}
+					</template>
+					<template #edit>
+						<EditIcon />
+						{{ formatMessage(commonMessages.editButton) }}
+					</template>
+					<template #remove>
+						<TrashIcon />
+						{{ formatMessage(commonMessages.deleteLabel) }}
+					</template>
+				</TeleportOverflowMenu>
 			</div>
 		</div>
 	</section>
@@ -694,22 +694,26 @@ import {
 } from '@modrinth/assets'
 import {
 	AddPaymentMethodModal,
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	commonMessages,
 	ConfirmModal,
 	CopyCode,
 	defineMessages,
 	getPaymentMethodIcon,
+	hasAvailableWorldDownload,
 	injectModrinthClient,
 	injectNotificationManager,
-	OverflowMenu,
+	isWithinServerResubscribeWindow,
 	paymentMethodMessages,
 	PurchaseModal,
 	ResubscribeModal,
 	ServerListing,
+	TeleportOverflowMenu,
+	useDebugLogger,
 	useFormatDateTime,
 	useFormatPrice,
-	useServerBackupDownload,
+	useServerWorldDownload,
 	useVIntl,
 } from '@modrinth/ui'
 import { calculateSavings, getCurrency } from '@modrinth/utils'
@@ -723,13 +727,13 @@ import { products } from '~/generated/state.json'
 
 const { addNotification, handleError } = injectNotificationManager()
 const client = injectModrinthClient()
-const { getLatestBackupDownload } = useServerBackupDownload()
+const { getWorldDownload } = useServerWorldDownload()
+const debug = useDebugLogger('Billing')
 definePageMeta({
 	middleware: 'auth',
 })
 
 const auth = await useAuth()
-const baseId = useId()
 
 useHead({
 	script: [
@@ -842,6 +846,10 @@ const messages = defineMessages({
 	pricePerInterval: {
 		id: 'settings.billing.price.per-interval',
 		defaultMessage: '{price} / {interval}',
+	},
+	includesTax: {
+		id: 'settings.billing.price.includes-tax',
+		defaultMessage: 'Includes {amount} tax',
 	},
 	nextLabel: {
 		id: 'settings.billing.next',
@@ -1010,7 +1018,6 @@ const messages = defineMessages({
 })
 
 function getIntervalNounLabel(interval) {
-	console.log(interval)
 	return interval === 'yearly'
 		? formatMessage(messages.intervalYear)
 		: interval === 'quarterly'
@@ -1095,17 +1102,17 @@ const pyroSubscriptions = computed(() => {
 			}
 		})
 		.filter((subscription) => {
-			// files expire 30 days after cancellation
-			const cancellationDate = getCancellationDate(subscription)
 			if (
-				!cancellationDate ||
 				subscription.serverInfo?.status !== 'suspended' ||
 				subscription.serverInfo?.suspension_reason !== 'cancelled'
 			)
 				return true
-			const cancellation = new Date(cancellationDate)
-			const thirtyDaysLater = new Date(cancellation.getTime() + 30 * 24 * 60 * 60 * 1000)
-			return new Date() <= thirtyDaysLater
+			const cancellationDate = getCancellationDate(subscription)
+			if (!cancellationDate || !serverFullList.value) return true
+			return (
+				isWithinServerResubscribeWindow(cancellationDate) ||
+				hasAvailableWorldDownload(subscription.serverInfo.server_id, serverFullList.value)
+			)
 		})
 })
 
@@ -1119,7 +1126,7 @@ const price = computed(() =>
 const primaryPaymentMethodId = computed(() => {
 	if (customer.value?.invoice_settings?.default_payment_method) {
 		return customer.value.invoice_settings.default_payment_method
-	} else if (paymentMethods.value?.[0]?.id) {
+	} else if (paymentMethods.value?.length === 1) {
 		return paymentMethods.value[0].id
 	} else {
 		return null
@@ -1227,11 +1234,51 @@ function getPyroCharge(subscription) {
 	)
 }
 
+function hasPendingPyroChange(subscription) {
+	const charge = getPyroCharge(subscription)
+	return (
+		charge?.status === 'open' &&
+		((charge.price_id && charge.price_id !== subscription.price_id) ||
+			(charge.subscription_interval && charge.subscription_interval !== subscription.interval))
+	)
+}
+
+function getPyroSubscriptionTotal(subscription) {
+	const productPrice = getProductPrice(getPyroProduct(subscription), subscription.interval)
+	const subtotal = productPrice?.prices?.intervals?.[subscription.interval]
+	if (subtotal == null) return subtotal
+
+	return (
+		subtotal + (hasPendingPyroChange(subscription) ? 0 : (subscription.next_charge_tax_amount ?? 0))
+	)
+}
+
+function getPyroSubscriptionCurrency(subscription) {
+	return (
+		getPyroCharge(subscription)?.currency_code ??
+		getProductPrice(getPyroProduct(subscription), subscription.interval)?.currency_code
+	)
+}
+
+function getPyroNextChargeTotal(subscription) {
+	const charge = getPyroCharge(subscription)
+	if (!charge) return 0
+
+	return charge.amount + (subscription.next_charge_tax_amount ?? 0)
+}
+
 function getCancellationDate(subscription) {
 	const charge = getPyroCharge(subscription)
 	if (!charge) return null
 	if (charge.status === 'cancelled') return charge.due
 	return null
+}
+
+function canResubscribe(subscription) {
+	const charge = getPyroCharge(subscription)
+	if (!charge) return false
+	if (charge.status === 'failed') return true
+	return charge.status === 'cancelled' && isWithinServerResubscribeWindow(charge.due)
 }
 
 const getProductSize = (product) => {
@@ -1348,10 +1395,6 @@ function handlePyroResubscribeConfirm({ subscriptionId, wasSuspended }) {
 	return resubscribePyro(subscriptionId, wasSuspended)
 }
 
-function getBackupDownloadForServer(serverInfo) {
-	return getLatestBackupDownload(serverInfo.server_id, serverFullList.value)
-}
-
 const refresh = async () => {
 	await Promise.all([
 		queryClient.invalidateQueries({ queryKey: ['billing'] }),
@@ -1388,10 +1431,10 @@ function showCancellationSurvey(subscription) {
 			price: price ? `${price / 100}` : 'unknown',
 			currency: currency ?? 'unknown',
 		},
-		onOpen: () => console.log(`Opened cancellation survey for: ${subscription.id}`),
-		onClose: () => console.log(`Closed cancellation survey for: ${subscription.id}`),
+		onOpen: () => debug(`Opened cancellation survey for: ${subscription.id}`),
+		onClose: () => debug(`Closed cancellation survey for: ${subscription.id}`),
 		onSubmit: (payload) => {
-			console.log('Form submitted, cancelling server.', payload)
+			debug('Form submitted, cancelling server.', payload)
 			cancelSubscription(subscription.id, true)
 		},
 	}
@@ -1400,9 +1443,7 @@ function showCancellationSurvey(subscription) {
 
 	try {
 		if (window.Tally?.openPopup) {
-			console.log(
-				`Opening Tally popup for servers subscription ${subscription.id} (form ID: ${formId})`,
-			)
+			debug(`Opening Tally popup for servers subscription ${subscription.id} (form ID: ${formId})`)
 			window.Tally.openPopup(formId, popupOptions)
 		} else {
 			console.warn('Tally script not yet loaded')

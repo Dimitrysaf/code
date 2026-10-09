@@ -82,10 +82,8 @@
 
 	<div
 		v-if="selectedVersion && downloadDataLoaded"
-		:role="compatibleVersions.length > 1 ? 'radiogroup' : undefined"
-		:aria-label="
-			compatibleVersions.length > 1 ? formatMessage(messages.compatibleVersionTitle) : undefined
-		"
+		:role="showVersionSelector ? 'radiogroup' : undefined"
+		:aria-label="showVersionSelector ? formatMessage(messages.compatibleVersionTitle) : undefined"
 		class="flex flex-col gap-2.5"
 	>
 		<h3
@@ -102,26 +100,12 @@
 			:download-reason="downloadReason"
 			:current-game-version="currentGameVersion"
 			:current-platform="currentPlatform"
-			:selectable="compatibleVersions.length > 1"
+			:selectable="showVersionSelector"
 			:selected="compatibleVersion.id === selectedVersion.id"
-			:show-download="
-				compatibleVersions.length === 1 || compatibleVersion.id === selectedVersion.id
-			"
-			:color="
-				compatibleVersion.id === selectedVersion.id &&
-				compatibleVersions.length === 1 &&
-				!hasAdditionalDownloads
-					? 'brand'
-					: 'standard'
-			"
-			:type="
-				compatibleVersion.id === selectedVersion.id &&
-				compatibleVersions.length === 1 &&
-				!hasAdditionalDownloads
-					? 'standard'
-					: 'transparent'
-			"
-			:circular="hasAdditionalDownloads || compatibleVersions.length > 1"
+			:show-download="!showVersionSelector || compatibleVersion.id === selectedVersion.id"
+			:color="isPrimaryDownloadVersion(compatibleVersion) ? 'brand' : 'standard'"
+			:type="isPrimaryDownloadVersion(compatibleVersion) ? 'standard' : 'transparent'"
+			:circular="!isPrimaryDownloadVersion(compatibleVersion)"
 			@select="selectCompatibleVersion(compatibleVersion)"
 			@download="emit('download')"
 		/>
@@ -204,6 +188,7 @@ const emit = defineEmits<{
 	selectGameVersion: [gameVersion: string]
 	selectPlatform: [platform: string]
 	'update:selection': [selection: ProjectDownloadSelection]
+	'update:showVersionSelector': [showVersionSelector: boolean]
 }>()
 const { formatMessage } = useVIntl()
 const debug = useDebugLogger('DownloadProject')
@@ -494,6 +479,36 @@ const hasAdditionalDownloads = computed(() => {
 	return hrefs.size > 1
 })
 
+const hasAdditionalDownloadsInCompatibleVersions = computed(
+	() =>
+		hasAdditionalDownloads.value ||
+		compatibleVersions.value.some((version) => {
+			const primaryFile = version.files.find((file) => file.primary) || version.files[0]
+			return (
+				version.dependencies.some(
+					(dependency) =>
+						dependency.dependency_type === 'required' &&
+						!!(dependency.project_id || dependency.version_id),
+				) ||
+				(props.project.project_type === 'datapack' &&
+					version.files.some(
+						(file) =>
+							file !== primaryFile &&
+							(file.file_type === 'required-resource-pack' ||
+								file.file_type === 'optional-resource-pack'),
+					))
+			)
+		}),
+)
+
+const showVersionSelector = computed(
+	() => hasAdditionalDownloadsInCompatibleVersions.value && compatibleVersions.value.length > 1,
+)
+
+watch(showVersionSelector, (value) => emit('update:showVersionSelector', value), {
+	immediate: true,
+})
+
 watch(
 	[currentGameVersion, currentPlatform, selectedVersion, selectedPrimaryFile],
 	() => {
@@ -537,6 +552,13 @@ function selectPlatform(platform?: string) {
 
 function selectCompatibleVersion(version: Labrinth.Versions.v3.Version) {
 	userSelectedCompatibleVersionId.value = version.id
+}
+
+function isPrimaryDownloadVersion(version: Labrinth.Versions.v3.Version) {
+	return (
+		!hasAdditionalDownloadsInCompatibleVersions.value &&
+		version.id === defaultSelectedVersion.value?.id
+	)
 }
 
 function latestVersionByType(type: Labrinth.Versions.v3.VersionChannel) {

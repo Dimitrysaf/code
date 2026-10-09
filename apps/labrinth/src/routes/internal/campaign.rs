@@ -1,3 +1,4 @@
+use crate::util::error::ApiContext as _;
 use actix_web::{HttpRequest, get, post, web};
 use base64::Engine;
 use chrono::{DateTime, Duration, Utc};
@@ -10,6 +11,7 @@ use sha2::Sha256;
 use std::collections::HashSet;
 use tracing::{debug, info, warn};
 use uuid::Uuid;
+use xredis::RedisPool;
 
 use crate::{
     database::{
@@ -18,7 +20,6 @@ use crate::{
             DBCampaignDonationId, DBUser, DBUserId,
             generate_campaign_donation_id,
         },
-        redis::RedisPool,
     },
     env::ENV,
     models::payouts::TremendousForexResponse,
@@ -68,7 +69,7 @@ pub struct CampaignInfo {
     cached_at: DateTime<Utc>,
 }
 
-const CAMPAIGN_INFO_CACHE_NAMESPACE: &str = "campaign_info:v1";
+const CAMPAIGN_INFO_CACHE_NAMESPACE: &str = "campaign_info:v4";
 const CAMPAIGN_INFO_CACHE_STALE_SECONDS: i64 = 15 * 60;
 const CAMPAIGN_INFO_CACHE_TTL_SECONDS: i64 = 24 * 60 * 60;
 
@@ -143,7 +144,7 @@ impl CampaignDonation {
     }
 }
 
-/// Receive a Tiltify webhook.  
+/// Receive a Tiltify webhook.
 #[utoipa::path(
 	context_path = "/campaign",
 	tag = "campaigns",
@@ -158,7 +159,8 @@ pub async fn tiltify_webhook(
     payouts_queue: web::Data<PayoutsQueue>,
     body: String,
 ) -> Result<(), ApiError> {
-    verify_tiltify_webhook_signature(&req, &body)?;
+    verify_tiltify_webhook_signature(&req, &body)
+        .wrap_api_err("executing `verify_tiltify_webhook_signature`")?;
 
     let raw_payload = serde_json::from_str::<serde_json::Value>(&body)
         .wrap_internal_err_with(|| eyre!("invalid Tiltify webhook JSON"))?;
@@ -181,7 +183,9 @@ pub async fn tiltify_webhook(
         .begin()
         .await
         .wrap_internal_err("beginning transaction")?;
-    let id = generate_campaign_donation_id(&mut transaction).await?;
+    let id = generate_campaign_donation_id(&mut transaction)
+        .await
+        .wrap_internal_err("generating campaign donation ID")?;
 
     let mut donation = CampaignDonation {
         id,
@@ -307,7 +311,7 @@ fn verify_tiltify_webhook_signature(
     Ok(())
 }
 
-/// Get Pride campaign data.  
+/// Get Pride campaign data.
 #[utoipa::path(
 	context_path = "/campaign",
 	tag = "campaigns",
@@ -324,12 +328,12 @@ pub async fn pride_26(
         .connect()
         .await
         .wrap_internal_err("connecting to redis")?;
+    let cache_key = redis
+        .key()
+        .entity(CAMPAIGN_INFO_CACHE_NAMESPACE, campaign_id);
 
     let cached = redis_connection
-        .get_deserialized::<CampaignInfo>(
-            CAMPAIGN_INFO_CACHE_NAMESPACE,
-            campaign_id,
-        )
+        .get_deserialized::<CampaignInfo>(&cache_key)
         .await
         .wrap_internal_err("getting cached campaign info")?;
 
@@ -377,14 +381,14 @@ pub async fn pride_26(
             total_donations_usd: response.data.total_amount_raised.value,
             target_usd: response.data.goal.value,
             num_donators: num_donators(&http, &access_token, campaign_id)
-                .await?,
+                .await
+                .wrap_api_err("executing `num_donators`")?,
             cached_at: Utc::now(),
         };
 
         redis_connection
             .set_serialized(
-                CAMPAIGN_INFO_CACHE_NAMESPACE,
-                campaign_id,
+                &cache_key,
                 &campaign_info,
                 Some(CAMPAIGN_INFO_CACHE_TTL_SECONDS),
             )

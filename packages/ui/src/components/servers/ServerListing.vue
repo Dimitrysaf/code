@@ -182,47 +182,53 @@
 				{{ formatMessage(messages.suspendedNotice) }}
 			</div>
 
-			<div v-if="noticeButtons" class="flex gap-2">
-				<ButtonStyled
-					v-if="noticeButtons.downloadBackup && onDownloadBackup && isBackupDownloadEnabled"
+			<div v-if="noticeButtons" class="flex flex-wrap gap-2">
+				<Button
+					v-if="noticeButtons.downloadWorld && onDownloadWorld"
 					type="outlined"
-					circular
+					data-server-listing-button
+					@click="onDownloadWorld"
 				>
-					<button
-						v-tooltip="formatMessage(messages.downloadLatestBackupTooltip)"
-						data-server-listing-button
-						@click="onDownloadBackup"
-					>
-						<DownloadIcon />
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-if="noticeButtons.copyId" type="outlined">
-					<button
-						v-tooltip="formatMessage(messages.copyCodeToClipboardTooltip)"
-						data-server-listing-button
-						@click="copyToClipboard(server_id)"
-					>
-						<template v-if="copied">
-							{{ formatMessage(messages.copiedLabel) }} <CheckIcon class="text-green" />
-						</template>
-						<template v-else> {{ formatMessage(messages.copyIdLabel) }} <CopyIcon /> </template>
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-if="noticeButtons.support">
-					<a href="https://support.modrinth.com/en/" target="_blank" data-server-listing-button
-						><MessagesSquareIcon /> {{ formatMessage(messages.supportLabel) }}
-					</a>
-				</ButtonStyled>
-				<ButtonStyled v-if="noticeButtons.manageBilling" color="brand">
-					<AutoLink :to="`/settings/billing#server-${server_id}`" data-server-listing-button>
-						<CardIcon /> {{ formatMessage(messages.manageBillingLabel) }}
-					</AutoLink>
-				</ButtonStyled>
-				<ButtonStyled v-if="noticeButtons.resubscribe && onResubscribe" color="brand">
-					<button data-server-listing-button @click="onResubscribe">
-						<RotateCounterClockwiseIcon /> {{ formatMessage(messages.resubscribeLabel) }}
-					</button>
-				</ButtonStyled>
+					<DownloadIcon />
+					{{ formatMessage(commonMessages.downloadFilesButton) }}
+				</Button>
+				<Button
+					v-if="noticeButtons.copyId"
+					v-tooltip="formatMessage(messages.copyCodeToClipboardTooltip)"
+					type="outlined"
+					data-server-listing-button
+					@click="copyToClipboard(server_id)"
+				>
+					<template v-if="copied">
+						{{ formatMessage(messages.copiedLabel) }} <CheckIcon class="text-green" />
+					</template>
+					<template v-else> {{ formatMessage(messages.copyIdLabel) }} <CopyIcon /> </template>
+				</Button>
+				<ButtonLink
+					v-if="noticeButtons.support"
+					href="https://support.modrinth.com/en/"
+					target="_blank"
+					data-server-listing-button
+					><MessagesSquareIcon /> {{ formatMessage(messages.supportLabel) }}
+				</ButtonLink>
+				<ButtonLink
+					v-if="noticeButtons.manageBilling"
+					type="colored"
+					color="brand"
+					:to="`/settings/billing#server-${server_id}`"
+					data-server-listing-button
+				>
+					<CardIcon /> {{ formatMessage(messages.manageBillingLabel) }}
+				</ButtonLink>
+				<Button
+					v-if="noticeButtons.resubscribe && onResubscribe"
+					type="colored"
+					color="brand"
+					data-server-listing-button
+					@click="onResubscribe"
+				>
+					<RotateCounterClockwiseIcon /> {{ formatMessage(messages.resubscribeLabel) }}
+				</Button>
 			</div>
 		</div>
 
@@ -261,10 +267,12 @@ import {
 	SparklesIcon,
 	SpinnerIcon,
 } from '@modrinth/assets'
-import { AutoLink, ButtonStyled } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
+
+import { Button, ButtonLink } from '#ui/components/base/buttons'
+import { commonMessages } from '#ui/utils/common-messages'
 
 import {
 	CardIcon,
@@ -358,10 +366,6 @@ const messages = defineMessages({
 		defaultMessage:
 			'Your server has been suspended. Please contact Modrinth Support for more information.',
 	},
-	downloadLatestBackupTooltip: {
-		id: 'servers.listing.download-latest-backup-tooltip',
-		defaultMessage: 'Download latest backup',
-	},
 	copyCodeToClipboardTooltip: {
 		id: 'servers.listing.copy-code-tooltip',
 		defaultMessage: 'Copy code to clipboard',
@@ -426,7 +430,7 @@ type ServerListingProps = {
 	isProvisioning?: boolean
 	cancellationDate?: string | Date | null
 	onResubscribe?: (() => void) | null
-	onDownloadBackup?: (() => void) | null
+	onDownloadWorld?: (() => void) | null
 	owner?: ServerListingOwner
 }
 
@@ -435,7 +439,6 @@ const router = useRouter()
 
 const { archon, kyros, labrinth } = injectModrinthClient()
 
-const isBackupDownloadEnabled = false
 const isConfiguring = computed(() => props.flows?.intro)
 const isUpgrading = computed(
 	() => props.status === 'suspended' && props.suspension_reason === 'upgrading',
@@ -485,7 +488,7 @@ const noticeType = computed<NoticeType | null>(() => {
 })
 
 type NoticeButtons = {
-	downloadBackup?: boolean
+	downloadWorld?: boolean
 	copyId?: boolean
 	support?: boolean
 	manageBilling?: boolean
@@ -496,12 +499,12 @@ const noticeButtons = computed<NoticeButtons | null>(() => {
 	switch (noticeType.value) {
 		case 'cancelled':
 		case 'setToCancel':
-			return { downloadBackup: true, copyId: true, support: true, resubscribe: true }
+			return { downloadWorld: true, copyId: true, support: true, resubscribe: true }
 		case 'paymentfailed':
-			return { downloadBackup: true, copyId: true, support: true, manageBilling: true }
+			return { downloadWorld: true, copyId: true, support: true, manageBilling: true }
 		case 'moderated':
 		case 'suspended':
-			return { downloadBackup: true, copyId: true, support: true }
+			return { downloadWorld: true, copyId: true, support: true }
 		default:
 			return null
 	}

@@ -47,21 +47,23 @@ async fn get_tags_v3() {
 
             let loader_metadata = loaders
                 .into_iter()
-                .map(|x| {
-                    (
-                        x.name,
-                        x.metadata.get("platform").and_then(|x| x.as_bool()),
-                    )
-                })
+                .map(|x| (x.name, x.metadata.platform))
                 .collect::<HashMap<_, _>>();
             let loader_names =
                 loader_metadata.keys().cloned().collect::<HashSet<String>>();
             assert_eq!(
                 loader_names,
-                ["fabric", "forge", "mrpack", "bukkit", "waterfall"]
-                    .iter()
-                    .map(|s| s.to_string())
-                    .collect()
+                [
+                    "fabric",
+                    "forge",
+                    "mrpack",
+                    "bukkit",
+                    "waterfall",
+                    "datapack"
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect()
             );
             assert_eq!(loader_metadata["fabric"], None);
             assert_eq!(loader_metadata["bukkit"], Some(false));

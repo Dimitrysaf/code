@@ -14,7 +14,7 @@
 		<div v-else-if="app && createdBy && authorizationData" class="flex flex-col gap-6">
 			<div class="mt-4 flex items-center justify-center">
 				<div class="flex w-full flex-row items-center justify-evenly">
-					<Avatar size="md" :src="app.icon_url" />
+					<Avatar size="md" :src="app.icon_url" :raw-src="app.raw_icon_url" />
 					<!-- <img class="profile-pic" :src="app.icon_url" alt="User profile picture" /> -->
 					<div class="flex select-none items-center justify-center text-[2rem] text-primary">→</div>
 					<Avatar size="md" circle :src="auth.user?.avatar_url" />
@@ -58,19 +58,22 @@
 					</div>
 				</div>
 			</div>
-			<div class="button-row">
-				<ButtonStyled size="large">
-					<button class="wide-button" :disabled="pending" @click="onReject">
-						<XIcon />
-						{{ formatMessage(messages.decline) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled color="brand" size="large">
-					<button class="wide-button" :disabled="pending" @click="onAuthorize">
-						<CheckIcon />
-						{{ formatMessage(messages.authorize) }}
-					</button>
-				</ButtonStyled>
+			<div class="flex gap-1">
+				<Button size="xl" class="flex-1" :disabled="pending" @click="onReject">
+					<XIcon />
+					{{ formatMessage(messages.decline) }}
+				</Button>
+				<Button
+					type="colored"
+					color="brand"
+					size="xl"
+					class="flex-1"
+					:disabled="pending"
+					@click="onAuthorize"
+				>
+					<CheckIcon />
+					{{ formatMessage(messages.authorize) }}
+				</Button>
 			</div>
 			<div class="flex flex-col gap-2 text-center">
 				<p class="m-0 text-sm">
@@ -91,7 +94,7 @@
 import { CheckIcon, XIcon } from '@modrinth/assets'
 import {
 	Avatar,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	injectModrinthClient,

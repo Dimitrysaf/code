@@ -1,30 +1,28 @@
 {
 	"$schema": "./node_modules/turbo/schema.json",
 	"concurrency": "100%",
+	"futureFlags": {
+		"experimentalCargoWorkspaces": true,
+		"experimentalTaskCommand": true
+	},
 	"globalDependencies": [
 		"packages/tooling-config/**",
 		"!packages/tooling-config/.turbo/**",
 		"!packages/tooling-config/node_modules/**",
-		"packages/app-lib/.env"
+		"packages/app-lib/.env",
+		"clippy.toml"
 	],
 	"globalEnv": [
 		"MODRINTH_URL",
 		"MODRINTH_API_BASE_URL",
+		"SHARED_INSTANCES_API_BASE_URL",
 		"MODRINTH_ARCHON_BASE_URL",
 		"VITE_STRIPE_PUBLISHABLE_KEY"
 	],
 	"tasks": {
 		"build": {
-			"dependsOn": ["^build"],
+			"dependsOn": ["//#i18n:coverage", "^build"],
 			"inputs": ["$TURBO_DEFAULT$", ".env*"],
-			// `$TURBO_ROOT$/target/**` is deliberately not an output. Every Rust
-			// package shares the one target dir, so caching it stores the whole
-			// directory under each package's hash and lets one package's restore
-			// clobber another's artifacts. It also makes the cache write scale with
-			// the entire Rust build: with the CEF runtime's libcef.so that is 55 GB,
-			// and turbo hangs on "Finishing writing to cache" — which in turn hangs
-			// anything waiting on it, such as tauri's beforeBuildCommand.
-			// Rust caching is handled by cargo plus sccache (see turbo-ci.yml).
 			"outputs": [".nuxt/**", "dist/**", ".output/**"],
 			"env": [
 				"NODE_ENV",
@@ -51,18 +49,12 @@
 				"RUST_*",
 				"RUSTFLAGS",
 				"FORCE_COLOR",
-				"NEXTEST_*",
-				"BUILD_ENV",
-				"PREVIEW"
+				"NEXTEST_*"
 			],
-			"passThroughEnv": [
-				"SCCACHE_*",
-				"RUSTC_WRAPPER",
-				"AWS_ACCESS_KEY_ID",
-				"AWS_SECRET_ACCESS_KEY"
-			]
+			"passThroughEnv": ["SCCACHE_*", "RUSTC_WRAPPER", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
 		},
 		"lint": {
+			"command": { "rust": ["cargo", "clippy", "--all-targets", "--locked"] },
 			"env": [
 				"DATABASE_URL",
 				"SQLX_OFFLINE",
@@ -72,14 +64,28 @@
 				"FORCE_COLOR",
 				"NEXTEST_*"
 			],
-			"passThroughEnv": [
-				"SCCACHE_*",
-				"RUSTC_WRAPPER",
-				"AWS_ACCESS_KEY_ID",
-				"AWS_SECRET_ACCESS_KEY"
-			]
+			"passThroughEnv": ["SCCACHE_*", "RUSTC_WRAPPER", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
 		},
 		"lint:ancillary": {},
+		"//#i18n:coverage": {
+			"inputs": [
+				"package.json",
+				"scripts/run.mjs",
+				"scripts/coverage-i18n.ts",
+				"scripts/i18n-icu-contract.ts",
+				"apps/app-frontend/src/**/*.vue",
+				"apps/app-frontend/src/locales/**/*.json",
+				"apps/frontend/src/**/*.vue",
+				"apps/frontend/src/locales/**/*.json",
+				"packages/moderation/src/**/*.vue",
+				"packages/moderation/src/locales/**/*.json",
+				"packages/ui/src/**/*.vue",
+				"packages/ui/src/locales/**/*.json"
+			],
+			"outputs": [
+				"packages/ui/src/layouts/wrapped/settings/language-settings/language-settings-coverage.generated.ts"
+			]
+		},
 		"dev": {
 			"cache": false,
 			"persistent": true,
@@ -88,23 +94,102 @@
 			"passThroughEnv": ["DISPLAY", "WEBKIT_DISABLE_DMABUF_RENDERER", "JAVA_HOME"]
 		},
 		"test": {
+			"command": {
+				"rust": ["cargo", "nextest", "run", "--all-targets", "--no-fail-fast", "--locked"]
+			},
 			"env": [
 				"SQLX_OFFLINE",
 				"DATABASE_URL",
+				"REDIS_*",
 				"CARGO_*",
 				"RUST_*",
 				"RUSTFLAGS",
 				"FORCE_COLOR",
 				"NEXTEST_*"
 			],
-			"passThroughEnv": [
-				"SCCACHE_*",
-				"RUSTC_WRAPPER",
-				"AWS_ACCESS_KEY_ID",
-				"AWS_SECRET_ACCESS_KEY"
-			]
+			"passThroughEnv": ["SCCACHE_*", "RUSTC_WRAPPER", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
 		},
 		"fix": {},
+		"modrinth-rust#lint": {
+			"dependsOn": ["@modrinth/app-frontend#build"],
+			"command": ["cargo", "clippy", "--all-targets", "--locked"],
+			"env": [
+				"DATABASE_URL",
+				"SQLX_OFFLINE",
+				"CARGO_*",
+				"RUST_*",
+				"RUSTFLAGS",
+				"FORCE_COLOR",
+				"NEXTEST_*"
+			],
+			"passThroughEnv": ["SCCACHE_*", "RUSTC_WRAPPER", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+		},
+		"modrinth-rust#test": {
+			"dependsOn": ["@modrinth/app-frontend#build"],
+			"command": ["cargo", "nextest", "run", "--all-targets", "--no-fail-fast", "--locked"],
+			"env": [
+				"SQLX_OFFLINE",
+				"DATABASE_URL",
+				"REDIS_*",
+				"CARGO_*",
+				"RUST_*",
+				"RUSTFLAGS",
+				"FORCE_COLOR",
+				"NEXTEST_*"
+			],
+			"passThroughEnv": ["SCCACHE_*", "RUSTC_WRAPPER", "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"]
+		},
+		"modrinth-rust#fix": {
+			"dependsOn": ["@modrinth/app#fix"],
+			"command": [
+				"cargo",
+				"clippy",
+				"--workspace",
+				"--all-targets",
+				"--fix",
+				"--allow-dirty",
+				"--locked"
+			]
+		},
+		"modrinth-rust#format": {
+			"dependsOn": ["modrinth-rust#fix"]
+		},
+		"modrinth-rust#prepr": {
+			"dependsOn": ["modrinth-rust#format"]
+		},
+		"modrinth-rust#lint:ancillary": {
+			"command": [
+				"pnpm",
+				"exec",
+				"prettier",
+				"--check",
+				"apps/labrinth",
+				"apps/app-playground",
+				"apps/daedalus_client",
+				"packages/app-lib",
+				"packages/daedalus"
+			]
+		},
+		"modrinth-rust#fix:ancillary": {
+			"cache": false,
+			"command": [
+				"pnpm",
+				"exec",
+				"prettier",
+				"--write",
+				"apps/labrinth",
+				"apps/app-playground",
+				"apps/daedalus_client",
+				"packages/app-lib",
+				"packages/daedalus"
+			]
+		},
+		"labrinth#dev": {
+			"cache": false,
+			"persistent": true,
+			"env": ["CARGO_*", "RUST_*", "RUSTFLAGS", "FORCE_COLOR"],
+			"command": ["cargo", "run", "--package=labrinth"]
+		},
 		"fix:ancillary": {
 			"cache": false
 		},

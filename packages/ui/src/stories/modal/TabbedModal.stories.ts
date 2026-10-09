@@ -12,9 +12,10 @@ import {
 	WrenchIcon,
 } from '@modrinth/assets'
 import type { StoryObj } from '@storybook/vue3-vite'
-import { defineComponent, h, ref } from 'vue'
+import { defineAsyncComponent, defineComponent, h, ref } from 'vue'
 
-import ButtonStyled from '../../components/base/ButtonStyled.vue'
+import { Button } from '../../components/base/buttons'
+import UnsavedChangesPopup from '../../components/base/UnsavedChangesPopup.vue'
 import TabbedModal from '../../components/modal/TabbedModal.vue'
 
 function makeTabContent(label: string, lines = 3) {
@@ -31,6 +32,11 @@ function makeTabContent(label: string, lines = 3) {
 	})
 }
 
+const AsyncTabContent = defineAsyncComponent(async () => {
+	await new Promise<void>((resolve) => setTimeout(resolve, 2000))
+	return makeTabContent('Loaded content')
+})
+
 const meta = {
 	title: 'Modal/TabbedModal',
 	// @ts-ignore
@@ -41,7 +47,7 @@ export default meta
 
 export const Default: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -65,9 +71,7 @@ export const Default: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open Tabbed Modal</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open Tabbed Modal</Button>
 				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs" />
 			</div>
 		`,
@@ -76,7 +80,7 @@ export const Default: StoryObj = {
 
 export const WithTitleSlot: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled, SettingsIcon },
+		components: { TabbedModal, SettingsIcon, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -95,9 +99,7 @@ export const WithTitleSlot: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Title Slot</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Title Slot</Button>
 				<TabbedModal ref="modalRef" :tabs="tabs">
 					<template #title>
 						<span class="flex items-center gap-2 text-lg font-extrabold text-contrast">
@@ -110,9 +112,65 @@ export const WithTitleSlot: StoryObj = {
 	}),
 }
 
+export const WithAsyncContent: StoryObj = {
+	render: () => ({
+		components: { TabbedModal, Button },
+		setup() {
+			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
+			const tabs = [
+				{
+					name: { id: 'async', defaultMessage: 'Async content' },
+					icon: InfoIcon,
+					content: AsyncTabContent,
+				},
+			]
+			return { modalRef, tabs }
+		},
+		template: /* html */ `
+			<div>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open async content</Button>
+				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs" />
+			</div>
+		`,
+	}),
+}
+
+export const WithContentSlot: StoryObj = {
+	render: () => ({
+		components: { TabbedModal, Button },
+		setup() {
+			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
+			const tabs = [
+				{
+					name: { id: 'general', defaultMessage: 'General' },
+					icon: InfoIcon,
+				},
+				{
+					name: { id: 'appearance', defaultMessage: 'Appearance' },
+					icon: PaintbrushIcon,
+				},
+			]
+			return { modalRef, tabs }
+		},
+		template: /* html */ `
+			<div>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Content Slot</Button>
+				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs">
+					<template #content="{ tab, index }">
+						<div class="space-y-4 py-2">
+							<h2 class="m-0 text-xl font-bold text-contrast">{{ tab?.name.defaultMessage }}</h2>
+							<p class="m-0 text-secondary">Content supplied by the parent for tab {{ index + 1 }}.</p>
+						</div>
+					</template>
+				</TabbedModal>
+			</div>
+		`,
+	}),
+}
+
 export const WithFooter: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -136,9 +194,7 @@ export const WithFooter: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Footer</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Footer</Button>
 				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs">
 					<template #footer>
 						<div class="mt-auto text-secondary text-sm">
@@ -152,9 +208,48 @@ export const WithFooter: StoryObj = {
 	}),
 }
 
+export const WithFloatingActionBar: StoryObj = {
+	render: () => ({
+		components: { TabbedModal, UnsavedChangesPopup, Button },
+		setup() {
+			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
+			const dirty = ref(true)
+			const tabs = [
+				{
+					name: { id: 'general', defaultMessage: 'General' },
+					icon: InfoIcon,
+					content: makeTabContent('General', 20),
+				},
+			]
+			return { modalRef, dirty, tabs }
+		},
+		template: /* html */ `
+			<div>
+				<Button type="colored" color="brand" @click="dirty = true; modalRef?.show()">Open with Floating Action Bar</Button>
+				<TabbedModal
+					ref="modalRef"
+					header="Settings"
+					:tabs="tabs"
+					:floating-action-bar-shown="dirty"
+				>
+					<template #floating-action-bar>
+						<UnsavedChangesPopup
+							:original="{ dirty: false }"
+							:modified="{ dirty }"
+							inline
+							@save="dirty = false"
+							@reset="dirty = false"
+						/>
+					</template>
+				</TabbedModal>
+			</div>
+		`,
+	}),
+}
+
 export const WithBadge: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -179,9 +274,7 @@ export const WithBadge: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Badge</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Badge</Button>
 				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs" />
 			</div>
 		`,
@@ -190,7 +283,7 @@ export const WithBadge: StoryObj = {
 
 export const HiddenTabs: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -215,9 +308,7 @@ export const HiddenTabs: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Hidden Tab</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Hidden Tab</Button>
 				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs" />
 			</div>
 		`,
@@ -226,52 +317,61 @@ export const HiddenTabs: StoryObj = {
 
 export const ManyTabs: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
 				{
 					name: { id: 'general', defaultMessage: 'General' },
+					category: { id: 'display-category', defaultMessage: 'Display' },
 					icon: InfoIcon,
 					content: makeTabContent('General'),
 				},
 				{
 					name: { id: 'appearance', defaultMessage: 'Appearance' },
+					category: { id: 'display-category', defaultMessage: 'Display' },
 					icon: PaintbrushIcon,
 					content: makeTabContent('Appearance'),
 				},
 				{
 					name: { id: 'language', defaultMessage: 'Language' },
+					category: { id: 'display-category', defaultMessage: 'Display' },
 					icon: LanguagesIcon,
 					content: makeTabContent('Language'),
 				},
 				{
 					name: { id: 'privacy', defaultMessage: 'Privacy' },
+					category: { id: 'account-category', defaultMessage: 'Account' },
 					icon: ShieldIcon,
 					content: makeTabContent('Privacy'),
 				},
 				{
 					name: { id: 'java', defaultMessage: 'Java and memory' },
+					category: { id: 'instances-category', defaultMessage: 'Instances' },
 					icon: CoffeeIcon,
 					content: makeTabContent('Java and memory'),
 				},
 				{
 					name: { id: 'instances', defaultMessage: 'Default instance options' },
+					category: { id: 'instances-category', defaultMessage: 'Instances' },
 					icon: GameIcon,
 					content: makeTabContent('Default instance options'),
 				},
 				{
 					name: { id: 'resources', defaultMessage: 'Resource management' },
+					category: { id: 'instances-category', defaultMessage: 'Instances' },
 					icon: GaugeIcon,
 					content: makeTabContent('Resource management'),
 				},
 				{
 					name: { id: 'window', defaultMessage: 'Window' },
+					category: { id: 'advanced-category', defaultMessage: 'Advanced' },
 					icon: MonitorIcon,
 					content: makeTabContent('Window'),
 				},
 				{
 					name: { id: 'hooks', defaultMessage: 'Launch hooks' },
+					category: { id: 'advanced-category', defaultMessage: 'Advanced' },
 					icon: WrenchIcon,
 					content: makeTabContent('Launch hooks'),
 				},
@@ -280,9 +380,7 @@ export const ManyTabs: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Many Tabs</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Many Tabs</Button>
 				<TabbedModal ref="modalRef" header="Settings" :tabs="tabs" />
 			</div>
 		`,
@@ -291,7 +389,7 @@ export const ManyTabs: StoryObj = {
 
 export const ScrollableContent: StoryObj = {
 	render: () => ({
-		components: { TabbedModal, ButtonStyled },
+		components: { TabbedModal, Button },
 		setup() {
 			const modalRef = ref<InstanceType<typeof TabbedModal> | null>(null)
 			const tabs = [
@@ -310,9 +408,7 @@ export const ScrollableContent: StoryObj = {
 		},
 		template: /* html */ `
 			<div>
-				<ButtonStyled color="brand">
-					<button @click="modalRef?.show()">Open with Scrollable Content</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" @click="modalRef?.show()">Open with Scrollable Content</Button>
 				<TabbedModal ref="modalRef" header="Scrollable Demo" :tabs="tabs" />
 			</div>
 		`,

@@ -1,6 +1,34 @@
 {
 	"articles": [
 		{
+			"title": "Sync settings across instances",
+			"summary": "Keep game options, servers, resource packs, and more the same across your instances.",
+			"thumbnail": "https://modrinth.com/news/article/sync-settings/thumbnail.webp",
+			"date": "2026-09-07T19:00:00.000Z",
+			"link": "https://modrinth.com/news/article/sync-settings"
+		},
+		{
+			"title": "More ways to personalize your library",
+			"summary": "The new Play page, overhauled instance groups, custom icons, and a smoother onboarding experience.",
+			"thumbnail": "https://modrinth.com/news/article/app-personalization/thumbnail.webp",
+			"date": "2026-08-18T00:30:00.000Z",
+			"link": "https://modrinth.com/news/article/app-personalization"
+		},
+		{
+			"title": "New AI rules and project disclosures",
+			"summary": "An update to Modrinth’s Content Rules and our new mandatory content disclosures.",
+			"thumbnail": "https://modrinth.com/news/article/ai-policy-and-disclosures/thumbnail.webp",
+			"date": "2026-08-13T16:00:00.000Z",
+			"link": "https://modrinth.com/news/article/ai-policy-and-disclosures"
+		},
+		{
+			"title": "Share instances with friends",
+			"summary": "Play more easily with friends without having to share .mrpack files.",
+			"thumbnail": "https://modrinth.com/news/article/shared-instances/thumbnail.webp",
+			"date": "2026-07-24T11:00:00.000Z",
+			"link": "https://modrinth.com/news/article/shared-instances"
+		},
+		{
 			"title": "Proud of you all",
 			"summary": "Over 2,400 of you came together to raise more than $40,000 for charity this Pride month!",
 			"thumbnail": "https://modrinth.com/news/article/proud-of-you-2026/thumbnail.webp",

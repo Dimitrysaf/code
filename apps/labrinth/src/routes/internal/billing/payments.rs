@@ -3,12 +3,13 @@ use crate::database::models::{
     generate_charge_id, generate_user_subscription_id, product_item,
     products_tax_identifier_item, user_subscription_item,
 };
-use crate::database::redis::RedisPool;
 use crate::models::ids::*;
 use crate::models::v3::billing::SubscriptionStatus;
 use crate::models::v3::users::User;
 use crate::routes::ApiError;
 use crate::util::anrok;
+use crate::util::error::{ApiContext as _, Context as _};
+use xredis::RedisPool;
 
 use crate::database::PgPool;
 use ariadne::ids::base62_impl::to_base62;
@@ -18,8 +19,9 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use stripe::{
     self, CreateCustomer, CreatePaymentIntent, Currency, CustomerId,
+    CustomerInvoiceSettings, CustomerPaymentMethodRetrieval,
     PaymentIntentOffSession, PaymentIntentSetupFutureUsage, PaymentMethod,
-    PaymentMethodId,
+    PaymentMethodId, UpdateCustomer,
 };
 
 use super::{
@@ -97,13 +99,12 @@ impl AttachedCharge {
     ) -> Result<Self, ApiError> {
         Ok(match charge_request_type {
             ChargeRequestType::Existing { id } => AttachedCharge::UseExisting {
-                charge: DBCharge::get(id.into(), exec).await?.ok_or_else(
-                    || {
-                        ApiError::InvalidInput(
-                            "Could not find charge".to_string(),
-                        )
-                    },
-                )?,
+                charge: DBCharge::get(id.into(), exec)
+                    .await
+                    .wrap_internal_err("fetching charge from database")?
+                    .wrap_request_err_with(|| {
+                        "could not find charge".to_string()
+                    })?,
             },
             ChargeRequestType::New {
                 product_id,
@@ -212,7 +213,8 @@ pub async fn create_or_update_payment_intent(
         pg,
         redis,
     )
-    .await?;
+    .await
+    .wrap_api_err("fetching or creating Stripe customer")?;
 
     let mut intent_uses_confirmation_token = false;
 
@@ -220,15 +222,15 @@ pub async fn create_or_update_payment_intent(
         PaymentSession::Interactive {
             payment_request_type: PaymentRequestType::PaymentMethod { id },
         } => {
-            let payment_method_id =
-                PaymentMethodId::from_str(id).map_err(|_| {
-                    ApiError::InvalidInput(
-                        "Invalid payment method id".to_string(),
-                    )
-                })?;
+            let payment_method_id = PaymentMethodId::from_str(id)
+                .map_err(|err| eyre::eyre!(err))
+                .wrap_request_err("invalid payment method id".to_string())?;
 
             PaymentMethod::retrieve(stripe_client, &payment_method_id, &[])
-                .await?
+                .await
+                .wrap_failed_dependency_err(
+                    "communicating with payment provider",
+                )?
         }
         PaymentSession::Interactive {
             payment_request_type:
@@ -243,7 +245,10 @@ pub async fn create_or_update_payment_intent(
 
             let mut confirmation: serde_json::Value = stripe_client
                 .get(&format!("confirmation_tokens/{token}"))
-                .await?;
+                .await
+                .wrap_failed_dependency_err(
+                    "communicating with payment provider",
+                )?;
 
             // We patch the JSONs to support the PaymentMethod struct
             let p: json_patch::Patch = serde_json::from_value(serde_json::json!([
@@ -254,37 +259,26 @@ pub async fn create_or_update_payment_intent(
             json_patch::patch(&mut confirmation, &p).unwrap();
 
             let confirmation: ConfirmationToken =
-                serde_json::from_value(confirmation)?;
+                serde_json::from_value(confirmation)
+                    .wrap_request_err("deserializing JSON data")?;
 
-            confirmation.payment_method_preview.ok_or_else(|| {
-                ApiError::InvalidInput(
-                    "Confirmation token is missing payment method!".to_string(),
-                )
-            })?
+            confirmation
+                .payment_method_preview
+                .wrap_request_err_with(|| {
+                    "confirmation token is missing payment method!".to_string()
+                })?
         }
         PaymentSession::AutomatedRenewal => {
             if attached_charge.as_charge().is_none() {
-                return Err(ApiError::InvalidInput(
-                    "Missing attached charge for automated renewal".to_string(),
-                ));
+                return Err(ApiError::Request(eyre::eyre!(
+                    "Missing attached charge for automated renewal",
+                )));
             }
 
-            let customer = stripe::Customer::retrieve(
-                stripe_client,
-                &customer_id,
-                &["invoice_settings.default_payment_method"],
-            )
-            .await?;
-
-            customer
-                .invoice_settings
-                .and_then(|x| {
-                    x.default_payment_method.and_then(|x| x.into_object())
-                })
-                .ok_or_else(|| {
-                    ApiError::InvalidInput(
-                        "Customer has no default payment method!".to_string(),
-                    )
+            get_default_payment_method(stripe_client, &customer_id)
+                .await?
+                .wrap_request_err_with(|| {
+                    "customer has no default payment method".to_string()
                 })?
         }
     };
@@ -301,9 +295,8 @@ pub async fn create_or_update_payment_intent(
         CurrencyMode::Infer => infer_currency_code(user_country)
             .to_lowercase()
             .parse::<Currency>()
-            .map_err(|_| {
-                ApiError::InvalidInput("Invalid currency code".to_string())
-            })?,
+            .map_err(|err| eyre::eyre!(err))
+            .wrap_request_err("invalid currency code".to_string())?,
     };
 
     let charge_data = match attached_charge {
@@ -335,7 +328,8 @@ pub async fn create_or_update_payment_intent(
                 Some(next_interval),
                 inferred_stripe_currency,
             )
-            .await?;
+            .await
+            .wrap_api_err("deriving proration charge data")?;
 
             charge_data.amount = amount;
             charge_data.charge_type = ChargeType::Proration;
@@ -346,29 +340,27 @@ pub async fn create_or_update_payment_intent(
             interval,
             current_subscription: _,
             new_region: _,
-        } => {
-            derive_charge_data_from_product_selector(
-                pg,
-                user.id,
-                product_id,
-                Some(interval),
-                inferred_stripe_currency,
-            )
-            .await?
-        }
+        } => derive_charge_data_from_product_selector(
+            pg,
+            user.id,
+            product_id,
+            Some(interval),
+            inferred_stripe_currency,
+        )
+        .await
+        .wrap_api_err("deriving promotion charge data")?,
         AttachedCharge::BaseUpon {
             product_id,
             interval,
-        } => {
-            derive_charge_data_from_product_selector(
-                pg,
-                user.id,
-                product_id,
-                interval,
-                inferred_stripe_currency,
-            )
-            .await?
-        }
+        } => derive_charge_data_from_product_selector(
+            pg,
+            user.id,
+            product_id,
+            interval,
+            inferred_stripe_currency,
+        )
+        .await
+        .wrap_api_err("deriving base charge data")?,
     };
 
     // Create an ephemeral transaction to calculate the tax amount if needed
@@ -388,23 +380,18 @@ pub async fn create_or_update_payment_intent(
                 charge_data.price_id.into(),
                 pg,
             )
-            .await?
-            .ok_or_else(|| {
-                ApiError::InvalidInput(
-                    "Missing product tax identifier for charge to continue"
-                        .to_owned(),
-                )
+            .await
+            .wrap_internal_err("fetching product tax identifier")?
+            .wrap_request_err_with(|| {
+                "missing product tax identifier for charge to continue"
+                    .to_owned()
             })?;
 
-        let address =
-            payment_method.billing_details.address.clone().ok_or_else(
-                || {
-                    ApiError::InvalidInput(
-						"Missing billing details from payment method to continue"
-							.to_owned(),
-					)
-                },
-            )?;
+        let address = payment_method
+            .billing_details
+            .address
+            .clone()
+            .wrap_request_err("finding billing details on payment method")?;
 
         let ephemeral_invoice = anrok_client
             .create_ephemeral_txn(&anrok::TransactionFields {
@@ -419,7 +406,8 @@ pub async fn create_or_update_payment_intent(
                 customer_id: None,
                 customer_name: None,
             })
-            .await?;
+            .await
+            .wrap_internal_err("inserting database records for `create_or_update_payment_intent`")?;
 
         ephemeral_invoice.tax_amount_to_collect
     };
@@ -436,7 +424,8 @@ pub async fn create_or_update_payment_intent(
     if let Some(payment_metadata) = attach_payment_metadata {
         metadata.insert(
             MODRINTH_PAYMENT_METADATA.to_owned(),
-            serde_json::to_string(&payment_metadata)?,
+            serde_json::to_string(&payment_metadata)
+                .wrap_request_err("inserting payment metadata into database")?,
         );
     }
 
@@ -459,8 +448,13 @@ pub async fn create_or_update_payment_intent(
         current_subscription,
     } = attached_charge
     {
-        let mut transaction = pg.begin().await?;
-        let charge_id = generate_charge_id(&mut transaction).await?;
+        let mut transaction = pg
+            .begin()
+            .await
+            .wrap_internal_err("starting database transaction")?;
+        let charge_id = generate_charge_id(&mut transaction)
+            .await
+            .wrap_internal_err("generating charge ID")?;
 
         metadata.insert(
             MODRINTH_CHARGE_ID.to_owned(),
@@ -486,8 +480,13 @@ pub async fn create_or_update_payment_intent(
         new_region,
     } = attached_charge
     {
-        let mut transaction = pg.begin().await?;
-        let charge_id = generate_charge_id(&mut transaction).await?;
+        let mut transaction = pg
+            .begin()
+            .await
+            .wrap_internal_err("starting database transaction")?;
+        let charge_id = generate_charge_id(&mut transaction)
+            .await
+            .wrap_internal_err("generating charge ID")?;
 
         metadata.insert(
             MODRINTH_CHARGE_ID.to_owned(),
@@ -508,10 +507,16 @@ pub async fn create_or_update_payment_intent(
         );
         metadata.insert(MODRINTH_NEW_REGION.to_owned(), new_region);
     } else {
-        let mut transaction = pg.begin().await?;
-        let charge_id = generate_charge_id(&mut transaction).await?;
-        let subscription_id =
-            generate_user_subscription_id(&mut transaction).await?;
+        let mut transaction = pg
+            .begin()
+            .await
+            .wrap_internal_err("starting database transaction")?;
+        let charge_id = generate_charge_id(&mut transaction)
+            .await
+            .wrap_internal_err("generating charge ID")?;
+        let subscription_id = generate_user_subscription_id(&mut transaction)
+            .await
+            .wrap_internal_err("generating charge ID")?;
 
         metadata.insert(
             MODRINTH_CHARGE_ID.to_owned(),
@@ -538,7 +543,11 @@ pub async fn create_or_update_payment_intent(
     if let Some(payment_intent_id) = existing_payment_intent {
         let mut update_payment_intent = stripe::UpdatePaymentIntent {
             amount: Some(charge_data.amount + tax_amount),
-            currency: Some(charge_data.stripe_currency_code()?),
+            currency: Some(
+                charge_data
+                    .stripe_currency_code()
+                    .wrap_api_err("converting charge currency for Stripe")?,
+            ),
             customer: Some(customer_id),
             metadata: Some(metadata),
             ..Default::default()
@@ -560,7 +569,10 @@ pub async fn create_or_update_payment_intent(
             &payment_intent_id,
             update_payment_intent,
         )
-        .await?;
+        .await
+        .wrap_failed_dependency_err(
+            "updating database records for `create_or_update_payment_intent`",
+        )?;
 
         Ok(PaymentBootstrapResults {
             new_payment_intent: None,
@@ -572,7 +584,9 @@ pub async fn create_or_update_payment_intent(
     } else {
         let mut intent = CreatePaymentIntent::new(
             charge_data.amount + tax_amount,
-            charge_data.stripe_currency_code()?,
+            charge_data
+                .stripe_currency_code()
+                .wrap_api_err("converting charge currency for Stripe")?,
         );
 
         intent.customer = Some(customer_id);
@@ -585,7 +599,11 @@ pub async fn create_or_update_payment_intent(
         payment_session.set_payment_intent_session_options(&mut intent);
 
         let payment_intent =
-            stripe::PaymentIntent::create(stripe_client, intent).await?;
+            stripe::PaymentIntent::create(stripe_client, intent)
+                .await
+                .wrap_failed_dependency_err(
+                    "communicating with payment provider",
+                )?;
 
         Ok(PaymentBootstrapResults {
             new_payment_intent: Some(payment_intent),
@@ -621,7 +639,8 @@ pub async fn get_or_create_customer(
                 ..Default::default()
             },
         )
-        .await?;
+        .await
+        .wrap_failed_dependency_err("communicating with payment provider")?;
 
         sqlx::query!(
             "
@@ -633,16 +652,127 @@ pub async fn get_or_create_customer(
             user_id.0 as i64
         )
         .execute(pool)
-        .await?;
+        .await
+        .wrap_internal_err("querying database for `get_or_create_customer`")?;
 
         crate::database::models::user_item::DBUser::clear_caches(
             &[(user_id.into(), None)],
             redis,
         )
-        .await?;
+        .await
+        .wrap_internal_err("clearing cached data from Redis")?;
 
         Ok(customer.id)
     }
+}
+
+/// Sets the customer's default payment method, which is charged for automated renewals.
+pub async fn set_default_payment_method(
+    client: &stripe::Client,
+    customer_id: &CustomerId,
+    payment_method_id: &PaymentMethodId,
+) -> Result<(), ApiError> {
+    stripe::Customer::update(
+        client,
+        customer_id,
+        UpdateCustomer {
+            invoice_settings: Some(CustomerInvoiceSettings {
+                default_payment_method: Some(payment_method_id.to_string()),
+                ..Default::default()
+            }),
+            ..Default::default()
+        },
+    )
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
+
+    Ok(())
+}
+
+/// Fetches the customer's default payment method.
+///
+/// If the customer has no default payment method but has exactly one payment method
+/// attached, that payment method is set as the default and returned.
+pub async fn get_default_payment_method(
+    client: &stripe::Client,
+    customer_id: &CustomerId,
+) -> Result<Option<PaymentMethod>, ApiError> {
+    let customer = stripe::Customer::retrieve(
+        client,
+        customer_id,
+        &["invoice_settings.default_payment_method"],
+    )
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
+
+    if let Some(payment_method) = customer
+        .invoice_settings
+        .and_then(|x| x.default_payment_method)
+        .and_then(|x| x.into_object())
+    {
+        return Ok(Some(payment_method));
+    }
+
+    let payment_methods = stripe::Customer::retrieve_payment_methods(
+        client,
+        customer_id,
+        CustomerPaymentMethodRetrieval {
+            limit: Some(2),
+            ..Default::default()
+        },
+    )
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
+
+    let Ok([payment_method]) =
+        <[PaymentMethod; 1]>::try_from(payment_methods.data)
+    else {
+        return Ok(None);
+    };
+
+    set_default_payment_method(client, customer_id, &payment_method.id).await?;
+
+    Ok(Some(payment_method))
+}
+
+/// Makes the customer's newest payment method the default if the customer has no
+/// default payment method left after `removed` was detached.
+pub async fn promote_default_payment_method(
+    client: &stripe::Client,
+    customer_id: &CustomerId,
+    removed: &PaymentMethodId,
+) -> Result<(), ApiError> {
+    let customer = stripe::Customer::retrieve(client, customer_id, &[])
+        .await
+        .wrap_failed_dependency_err(
+        "communicating with payment provider",
+    )?;
+
+    if customer
+        .invoice_settings
+        .and_then(|x| x.default_payment_method)
+        .is_some_and(|x| x.id() != *removed)
+    {
+        return Ok(());
+    }
+
+    let payment_methods = stripe::Customer::retrieve_payment_methods(
+        client,
+        customer_id,
+        CustomerPaymentMethodRetrieval {
+            limit: Some(1),
+            ..Default::default()
+        },
+    )
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
+
+    if let Some(payment_method) = payment_methods.data.first() {
+        set_default_payment_method(client, customer_id, &payment_method.id)
+            .await?;
+    }
+
+    Ok(())
 }
 
 pub fn infer_currency_code(country: &str) -> String {
@@ -720,9 +850,9 @@ impl ChargeData {
         self.currency_code
             .to_lowercase()
             .parse::<stripe::Currency>()
-            .map_err(|_| ApiError::InvalidInput(
+            .map_err(|_| ApiError::Request(eyre::eyre!(
                 format!("Invalid currency code '{}': could not convert to Stripe currency", &self.currency_code)
-            ))
+            )))
     }
 }
 
@@ -736,18 +866,18 @@ async fn derive_charge_data_from_product_selector(
     let recommended_currency_code = stripe_currency.to_string().to_uppercase();
 
     let product = product_item::DBProduct::get(product_id.into(), pool)
-        .await?
-        .ok_or_else(|| {
-            ApiError::InvalidInput(
-                "Specified product could not be found!".to_string(),
-            )
+        .await
+        .wrap_internal_err("fetching product from database")?
+        .wrap_request_err_with(|| {
+            "specified product could not be found!".to_string()
         })?;
 
     let mut product_prices =
         product_item::DBProductPrice::get_all_public_product_prices(
             product.id, pool,
         )
-        .await?;
+        .await
+        .wrap_internal_err("fetching product prices from database")?;
 
     let price_item = if let Some(pos) = product_prices
         .iter()
@@ -759,26 +889,22 @@ async fn derive_charge_data_from_product_selector(
     {
         product_prices.remove(pos)
     } else {
-        return Err(ApiError::InvalidInput(
-            "Could not find a valid price for the user's country".to_string(),
-        ));
+        return Err(ApiError::Request(eyre::eyre!(
+            "Could not find a valid price for the user's country",
+        )));
     };
 
     let price = match price_item.prices {
         Price::OneTime { price } => price,
         Price::Recurring { ref intervals } => {
-            let interval = interval.ok_or_else(|| {
-                ApiError::InvalidInput(
-                    "Could not find a valid price for the user's country"
-                        .to_string(),
-                )
+            let interval = interval.wrap_request_err_with(|| {
+                "could not find a valid price for the user's country"
+                    .to_string()
             })?;
 
-            *intervals.get(&interval).ok_or_else(|| {
-                ApiError::InvalidInput(
-                    "Could not find a valid price for the user's country"
-                        .to_string(),
-                )
+            *intervals.get(&interval).wrap_request_err_with(|| {
+                "could not find a valid price for the user's country"
+                    .to_string()
             })?
         }
     };
@@ -791,7 +917,8 @@ async fn derive_charge_data_from_product_selector(
                 user_id.into(),
                 pool,
             )
-            .await?;
+            .await
+            .wrap_internal_err("fetching user subscriptions from database")?;
 
         let user_products = product_item::DBProductPrice::get_many(
             &user_subscriptions
@@ -801,15 +928,16 @@ async fn derive_charge_data_from_product_selector(
                 .collect::<Vec<_>>(),
             pool,
         )
-        .await?;
+        .await
+        .wrap_internal_err("fetching product prices from database")?;
 
         if user_products
             .into_iter()
             .any(|x| x.product_id == product.id)
         {
-            return Err(ApiError::InvalidInput(
-                "You are already subscribed to this product!".to_string(),
-            ));
+            return Err(ApiError::Request(eyre::eyre!(
+                "You are already subscribed to this product!",
+            )));
         }
     }
 

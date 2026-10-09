@@ -1,5 +1,7 @@
 use crate::State;
 use crate::data::ModLoader;
+use crate::event::LoadingBarType;
+use crate::event::emit::{emit_loading, init_loading};
 use crate::install::{
     InstallErrorContext, InstallPhaseDetails, InstallPhaseId, InstallProgress,
     InstallProgressReporter,
@@ -10,15 +12,14 @@ use crate::state::{
 };
 use crate::util::fetch::{
     DownloadMeta, DownloadReason, FetchProgressFn, fetch,
-    fetch_advanced_with_progress, sha1_file_async, write_cached_icon,
+    sha1_file_async_with_progress,
 };
 use path_util::SafeRelativeUtf8UnixPathBuf;
-use reqwest::Method;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::future::Future;
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::pin::Pin;
 
 #[derive(Serialize, Deserialize, Eq, PartialEq)]
@@ -141,6 +142,7 @@ impl Default for CreatePackInstance {
 #[derive(Clone)]
 pub enum CreatePackFile {
     Bytes(bytes::Bytes),
+    Downloaded(crate::util::fetch::DownloadedFile),
     // Local packs can be larger than available memory, so keep them file-backed.
     Path(PathBuf),
 }
@@ -152,6 +154,17 @@ pub struct CreatePack {
 }
 
 const MAX_LOCAL_FILE_HASH_LOOKUP_SIZE: u64 = 1024 * 1024 * 1024;
+
+pub(crate) fn get_local_pack_instance(path: &Path) -> CreatePackInstance {
+    CreatePackInstance {
+        name: path
+            .file_stem()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string(),
+        ..Default::default()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct CreatePackDescription {
@@ -182,17 +195,60 @@ pub async fn get_instance_from_pack(
             ..Default::default()
         }),
         CreatePackLocation::FromFile { path } => {
-            let file_name = path
-                .file_stem()
-                .unwrap_or_default()
-                .to_string_lossy()
-                .to_string();
+            let mut instance = get_local_pack_instance(&path);
+            let file_size = tokio::fs::metadata(&path).await?.len();
+            let hashes_archive = file_size <= MAX_LOCAL_FILE_HASH_LOOKUP_SIZE;
+            let archive_hashing_bytes =
+                if hashes_archive { file_size } else { 0 };
+            let pack_file = CreatePackFile::Path(path.clone());
+            let external_file_hashing_bytes =
+                super::install_mrpack::get_external_file_hashing_size_from_mrpack(
+                    &pack_file,
+                )
+                .await?;
+            let inspection_total_bytes = archive_hashing_bytes
+                .saturating_add(external_file_hashing_bytes)
+                .max(1);
+            let inspection = init_loading(
+                LoadingBarType::PackImport {
+                    pack_name: instance.name.clone(),
+                },
+                inspection_total_bytes as f64,
+                "Inspecting modpack",
+            )
+            .await
+            .ok();
+            let min_delta = (inspection_total_bytes / 200).max(256 * 1024);
+            let mut reported_bytes = 0_u64;
+            let mut report_progress =
+                |current: u64, offset: u64, message: &str| {
+                    let target = offset
+                        .saturating_add(current)
+                        .min(inspection_total_bytes);
+                    let increment = target.saturating_sub(reported_bytes);
+                    if target < inspection_total_bytes && increment < min_delta
+                    {
+                        return;
+                    }
 
-            let is_known_file = if tokio::fs::metadata(&path).await?.len()
-                <= MAX_LOCAL_FILE_HASH_LOOKUP_SIZE
-            {
+                    if let Some(inspection) = &inspection {
+                        let _ = emit_loading(
+                            inspection,
+                            increment as f64,
+                            Some(message),
+                        );
+                    }
+                    reported_bytes = target;
+                };
+
+            let is_known_file = if hashes_archive {
                 let state = State::get().await?;
-                let (_, hash) = sha1_file_async(&path).await?;
+                let (_, hash) =
+                    sha1_file_async_with_progress(&path, |current, _| {
+                        report_progress(current, 0, "Hashing local modpack");
+                        Ok(())
+                    })
+                    .await?;
                 match CachedEntry::get_file_many(
                     &[&hash],
                     Some(CacheBehaviour::StaleWhileRevalidateSkipOffline),
@@ -217,16 +273,26 @@ pub async fn get_instance_from_pack(
 
             let external_files_in_modpack =
                 super::install_mrpack::get_external_files_from_mrpack(
-                    &CreatePackFile::Path(path),
+                    &pack_file,
+                    |current, _| {
+                        report_progress(
+                            current,
+                            archive_hashing_bytes,
+                            "Inspecting modpack files",
+                        );
+                        Ok(())
+                    },
                 )
                 .await?;
+            report_progress(
+                inspection_total_bytes,
+                0,
+                "Finished inspecting modpack",
+            );
 
-            Ok(CreatePackInstance {
-                name: file_name,
-                unknown_file: !is_known_file,
-                external_files_in_modpack,
-                ..Default::default()
-            })
+            instance.unknown_file = !is_known_file;
+            instance.external_files_in_modpack = external_files_in_modpack;
+            Ok(instance)
         }
     }
 }
@@ -243,7 +309,6 @@ pub(crate) async fn generate_pack_from_version_id_with_reporter(
     reporter: InstallProgressReporter,
 ) -> crate::Result<CreatePack> {
     let state = State::get().await?;
-    let has_icon_url = icon_url.is_some();
 
     let version = CachedEntry::get_version(
         &version_id,
@@ -358,17 +423,21 @@ pub(crate) async fn generate_pack_from_version_id_with_reporter(
         .version_id(version_id.clone())
         .build();
     reporter.set_context(context).await?;
-    let file = fetch_advanced_with_progress(
-        Method::GET,
-        &url,
-        hash.map(|x| &**x),
-        None,
-        None,
+    let file = crate::util::fetch::fetch_content_file(
+        &state,
+        &[&url],
+        version
+            .files
+            .iter()
+            .find(|file| file.url == url)
+            .and_then(|file| file.hashes.get("sha512"))
+            .map(String::as_str),
+        version
+            .files
+            .iter()
+            .find(|file| file.url == url)
+            .map(|file| u64::from(file.size)),
         Some(&download_meta),
-        None,
-        None,
-        &state.fetch_semaphore,
-        &state.pool,
         progress,
     )
     .await?;
@@ -377,62 +446,28 @@ pub(crate) async fn generate_pack_from_version_id_with_reporter(
         .update(InstallPhaseId::ResolvingPack, None, details.clone())
         .await?;
 
-    let project = CachedEntry::get_project(
-        &version.project_id,
-        None,
-        &state.pool,
-        &state.api_semaphore,
-    )
-    .await?
-    .ok_or_else(|| {
-        crate::ErrorKind::InputError(
-            "Invalid project ID specified!".to_string(),
-        )
-    })?;
-
-    // Only fetch the pack icon when icon_url is provided (new profile).
-    // When installing to an existing profile (e.g. server projects),
-    // icon_url is None and we preserve the profile's existing icon.
-    let icon = if has_icon_url {
-        if let Some(icon_url) = project.icon_url {
-            let state = State::get().await?;
-            reporter
-                .set_context(
-                    InstallErrorContext::new("download modpack icon")
-                        .urls(vec![icon_url.clone()])
-                        .project_id(project_id.clone())
-                        .version_id(version_id.clone())
-                        .build(),
-                )
-                .await?;
-            let icon_bytes = fetch(
-                &icon_url,
-                None,
-                None,
-                None,
-                &state.fetch_semaphore,
-                &state.pool,
+    // When no icon URL is supplied, preserve the instance's existing icon.
+    let icon = if let Some(icon_url) = icon_url {
+        reporter
+            .set_context(
+                InstallErrorContext::new("download modpack icon")
+                    .urls(vec![icon_url.clone()])
+                    .project_id(project_id.clone())
+                    .version_id(version_id.clone())
+                    .build(),
             )
             .await?;
+        let icon_bytes = fetch(
+            &icon_url,
+            None,
+            None,
+            None,
+            &state.fetch_semaphore,
+            &state.pool,
+        )
+        .await?;
 
-            let filename = icon_url.rsplit('/').next();
-
-            if let Some(filename) = filename {
-                Some(
-                    write_cached_icon(
-                        filename,
-                        &state.directories.caches_dir(),
-                        icon_bytes,
-                        &state.io_semaphore,
-                    )
-                    .await?,
-                )
-            } else {
-                None
-            }
-        } else {
-            None
-        }
+        Some(crate::api::instance::cache_icon(icon_bytes, &state).await?)
     } else {
         None
     };
@@ -447,7 +482,7 @@ pub(crate) async fn generate_pack_from_version_id_with_reporter(
     }
 
     Ok(CreatePack {
-        file: CreatePackFile::Bytes(file),
+        file: CreatePackFile::Downloaded(file),
         description: CreatePackDescription {
             icon,
             override_title: Some(title),
@@ -468,8 +503,15 @@ pub async fn generate_pack_from_file(
     let source_filename =
         path.file_name().map(|x| x.to_string_lossy().to_string());
 
+    let state = State::get().await?;
+    let stored_file = state.content_store.store_file(&path).await?;
     Ok(CreatePack {
-        file: CreatePackFile::Path(path),
+        file: CreatePackFile::Downloaded(
+            crate::util::fetch::DownloadedFile::from_stored_file(
+                stored_file,
+                true,
+            ),
+        ),
         description: CreatePackDescription {
             icon: None,
             override_title: None,
@@ -535,7 +577,7 @@ pub async fn set_instance_information(
     } else {
         None
     };
-    let link = match (&description.project_id, &description.version_id) {
+    let pack_link = match (&description.project_id, &description.version_id) {
         (Some(project_id), Some(version_id)) => {
             Some(InstanceLink::ModrinthModpack {
                 project_id: project_id.clone(),
@@ -553,12 +595,34 @@ pub async fn set_instance_information(
         }
         _ => None,
     };
+    let existing_link = crate::api::instance::get(&instance_id)
+        .await?
+        .map(|metadata| metadata.link);
+    let link = match existing_link {
+        Some(
+            link @ (InstanceLink::ServerProject { .. }
+            | InstanceLink::ServerProjectModpack { .. }
+            | InstanceLink::ModrinthHosting { .. }
+            | InstanceLink::SharedInstance { .. }),
+        ) => Some(link),
+        _ => pack_link,
+    };
     let source_kind = match &link {
         Some(InstanceLink::ModrinthModpack { .. }) => {
             Some(ContentSourceKind::ModrinthModpack)
         }
+        Some(
+            InstanceLink::ServerProject { .. }
+            | InstanceLink::ServerProjectModpack { .. },
+        ) => Some(ContentSourceKind::ServerProject),
+        Some(InstanceLink::ModrinthHosting { .. }) => {
+            Some(ContentSourceKind::ModrinthHosting)
+        }
         Some(InstanceLink::ImportedModpack { .. }) => {
             Some(ContentSourceKind::ImportedModpack)
+        }
+        Some(InstanceLink::SharedInstance { .. }) => {
+            Some(ContentSourceKind::SharedInstance)
         }
         _ => None,
     };

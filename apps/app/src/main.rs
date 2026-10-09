@@ -13,7 +13,6 @@ use theseus::AppRuntime;
 use theseus::prelude::*;
 
 mod api;
-mod error;
 
 #[cfg(target_os = "macos")]
 mod macos;
@@ -26,9 +25,12 @@ mod updater_impl_noop;
 // Should be called in launcher initialization
 #[tracing::instrument(skip_all)]
 #[tauri::command]
-async fn initialize_state(app: tauri::AppHandle<AppRuntime>) -> api::Result<()> {
+async fn initialize_state(
+    app: tauri::AppHandle<AppRuntime>,
+    events: tauri::ipc::Channel<tauri::ipc::InvokeResponseBody>,
+) -> api::Result<()> {
     tracing::info!("Initializing app event state...");
-    theseus::EventState::init(app.clone()).await?;
+    theseus::EventState::init(app.clone(), events).await?;
 
     tracing::info!("Initializing app state...");
     State::init(app.config().identifier.clone()).await?;
@@ -38,6 +40,8 @@ async fn initialize_state(app: tauri::AppHandle<AppRuntime>) -> api::Result<()> 
         .allow_directory(state.directories.caches_dir(), true)?;
     app.asset_protocol_scope()
         .allow_directory(state.directories.caches_dir().join("icons"), true)?;
+    app.asset_protocol_scope()
+        .allow_directory(state.directories.icon_dir(), true)?;
     app.fs_scope()
         .allow_directory(state.directories.instances_dir(), true)?;
 
@@ -115,6 +119,28 @@ async fn set_restart_after_pending_update(
 // if Tauri app is called with arguments, then those arguments will be treated as commands
 // ie: deep links or filepaths for .mrpacks
 fn main() {
+    // CEF runs its renderer/GPU/utility processes by re-executing this binary
+    // with a `--type=` switch. They must hand off to CEF before any app
+    // initialization, so this has to be the very first thing in `main()`.
+    #[cfg(feature = "cef")]
+    if env::args().any(|arg| arg.starts_with("--type=")) {
+        tauri::run_cef_helper_process();
+        return;
+    }
+
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .expect("failed to create app async runtime");
+    tauri::async_runtime::set(runtime.handle().clone());
+
+    #[cfg(feature = "export-app-events")]
+    theseus::export_app_event_bindings(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../app-frontend/src/generated/app-events"),
+    )
+    .expect("failed to export app event TypeScript bindings");
+
     /*
         tracing is set basd on the environment variable RUST_LOG=xxx, depending on the amount of logs to show
             ERROR > WARN > INFO > DEBUG > TRACE
@@ -130,15 +156,6 @@ fn main() {
 
     */
 
-    // CEF runs its renderer/GPU/utility processes by re-executing this binary
-    // with a `--type=` switch. They must hand off to CEF before any app
-    // initialization, so this has to be the very first thing in `main()`.
-    #[cfg(feature = "cef")]
-    if env::args().any(|arg| arg.starts_with("--type=")) {
-        tauri::run_cef_helper_process();
-        return;
-    }
-
     let tauri_context = tauri::generate_context!();
 
     let _log_guard = theseus::start_logger(&tauri_context.config().identifier);
@@ -149,6 +166,13 @@ fn main() {
     let mut builder = tauri::Builder::default();
     #[cfg(feature = "cef")]
     let mut builder = tauri::Builder::<tauri::Cef>::new();
+
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder
+            .menu(macos::menu::create)
+            .on_menu_event(macos::menu::handle_event);
+    }
 
     #[cfg(feature = "updater")]
     {
@@ -168,7 +192,7 @@ fn main() {
     builder = builder
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
             if let Some(payload) = args.get(1) {
-                tracing::info!("Handling deep link from arg {payload}");
+                tracing::info!("Handling command-line deep link");
                 let payload = payload.clone();
                 tauri::async_runtime::spawn(api::utils::handle_command(
                     payload,
@@ -184,16 +208,67 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_opener::init());
+
+    #[cfg(target_os = "windows")]
+    {
+        use windows::Win32::UI::WindowsAndMessaging::{
+            SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE,
+            SWP_NOZORDER, SetWindowPos,
+        };
+
+        // Refresh the hidden window's frame before window-state measures its client area.
+        builder = builder.plugin(
+            tauri::plugin::Builder::<_, ()>::new("window-frame")
+                .on_window_ready(|window| {
+                    if window.label() != "main" {
+                        return;
+                    }
+
+                    let hwnd = match window.hwnd() {
+                        Ok(hwnd) => hwnd,
+                        Err(e) => {
+                            tracing::warn!("Failed to get window handle: {e}");
+                            return;
+                        }
+                    };
+
+                    if let Err(e) = unsafe {
+                        SetWindowPos(
+                            hwnd,
+                            None,
+                            0,
+                            0,
+                            0,
+                            0,
+                            SWP_FRAMECHANGED
+                                | SWP_NOACTIVATE
+                                | SWP_NOMOVE
+                                | SWP_NOSIZE
+                                | SWP_NOZORDER,
+                        )
+                    } {
+                        tracing::warn!("Failed to refresh window frame: {e}");
+                    }
+                })
+                .build(),
+        );
+    }
+
+    let window_state_flags = tauri_plugin_window_state::StateFlags::POSITION
+        | tauri_plugin_window_state::StateFlags::SIZE
+        | tauri_plugin_window_state::StateFlags::MAXIMIZED;
+    #[cfg(target_os = "windows")]
+    let window_state_flags =
+        window_state_flags | tauri_plugin_window_state::StateFlags::DECORATIONS;
+
+    builder = builder
         .plugin(
             tauri_plugin_window_state::Builder::default()
                 .with_filename("app-window-state.json")
-                // Use *only* POSITION and SIZE state flags, because saving VISIBLE causes the `visible: false` to not take effect
-                .with_state_flags(
-                    tauri_plugin_window_state::StateFlags::POSITION
-                        | tauri_plugin_window_state::StateFlags::SIZE
-                        | tauri_plugin_window_state::StateFlags::MAXIMIZED,
-                )
+                .with_denylist(&["signin"])
+                // Restoring VISIBLE would override the hidden startup window.
+                .with_state_flags(window_state_flags)
                 .build(),
         )
         .setup(|app| {
@@ -213,7 +288,7 @@ fn main() {
                             .unwrap_or(request);
 
                     tauri::async_runtime::spawn(async move {
-                        tracing::info!("Handling deep link {actual_request}");
+                        tracing::info!("Handling macOS deep link");
 
                         let mut payload = mtx_copy_copy.lock().await;
                         if payload.is_none() {
@@ -229,7 +304,7 @@ fn main() {
             #[cfg(not(target_os = "macos"))]
             app.listen("deep-link://new-url", |url| {
                 let payload = url.payload().to_owned();
-                tracing::info!("Handling deep link {payload}");
+                tracing::info!("Handling deep link");
                 tauri::async_runtime::spawn(api::utils::handle_command(
                     payload,
                 ));
@@ -248,6 +323,7 @@ fn main() {
     builder = builder
         .plugin(api::auth::init())
         .plugin(api::mr_auth::init())
+        .plugin(api::onboarding_checklist::init())
         .plugin(api::import::init())
         .plugin(api::install::init())
         .plugin(api::instance::init())
@@ -256,9 +332,11 @@ fn main() {
         .plugin(api::metadata::init())
         .plugin(api::minecraft_skins::init())
         .plugin(api::process::init())
+        .plugin(api::reports::init())
         .plugin(api::settings::init())
         .plugin(api::shortcuts::init())
         .plugin(api::tags::init())
+        .plugin(api::users::init())
         .plugin(api::utils::init())
         .plugin(api::cache::init())
         .plugin(api::files::init())
@@ -322,7 +400,14 @@ fn main() {
                             }
                         }
 
-                        set_changelog_toast(Some(update.version.clone()));
+						let current_version = &app.package_info().version;
+						let mut version_parts = update.version.split('.');
+						let major = version_parts.next().and_then(|part| part.parse::<u64>().ok());
+						let minor = version_parts.next().and_then(|part| part.parse::<u64>().ok());
+						let is_major_update = major.zip(minor).is_some_and(|version| {
+							version > (current_version.major, current_version.minor)
+						});
+						set_changelog_toast(is_major_update.then(|| update.version.clone()));
                         let update = if should_restart {
                             (**update).clone()
                         } else {

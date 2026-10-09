@@ -9,9 +9,14 @@
 				@update:query="updateQuery"
 			/>
 
-			<ButtonStyled v-if="openModal" :color="createVersionButtonSecondary ? 'standard' : 'green'">
-				<button @click="openModal"><PlusIcon /> Create version</button>
-			</ButtonStyled>
+			<Button
+				v-if="openModal"
+				:type="createVersionButtonSecondary ? 'base' : 'colored'"
+				:color="createVersionButtonSecondary ? undefined : 'green'"
+				@click="openModal"
+			>
+				<PlusIcon /> Create version
+			</Button>
 
 			<Pagination
 				v-if="!openModal"
@@ -115,20 +120,23 @@
 		<template #cell-gameVersions="{ row: version }">
 			<div class="flex min-w-0 w-full max-w-[12rem] flex-wrap gap-1">
 				<TagItem
-					v-for="gameVersion in getDisplayGameVersions(version).slice(0, MAX_GAME_VERSION_TAGS)"
-					:key="`version-tag-${gameVersion}`"
-					v-tooltip="getFilterTooltip(gameVersion)"
+					v-for="gameVersionGroup in getDisplayGameVersions(version).slice(
+						0,
+						MAX_GAME_VERSION_TAGS,
+					)"
+					:key="`version-tag-${gameVersionGroup.label}`"
+					v-tooltip="getFilterTooltip(gameVersionGroup.label)"
 					data-no-row-click
 					class="w-fit max-w-full truncate"
-					:action="() => versionFilters?.toggleFilters('gameVersion', version.game_versions)"
+					:action="() => versionFilters?.toggleFilters('gameVersion', gameVersionGroup.versions)"
 				>
-					<span class="min-w-0 truncate">{{ gameVersion }}</span>
+					<span class="min-w-0 truncate">{{ gameVersionGroup.label }}</span>
 				</TagItem>
-				<Menu
+				<FloatingMenu
 					v-if="getDisplayGameVersions(version).length > MAX_GAME_VERSION_TAGS"
+					trigger="hover"
+					placement="bottom"
 					data-no-row-click
-					:delay="{ hide: 50, show: 0 }"
-					no-auto-focus
 					class="w-full min-w-0 cursor-default"
 				>
 					<TagItem class="w-fit max-w-full truncate" tabindex="0">
@@ -139,16 +147,20 @@
 					<template #popper>
 						<div class="flex max-w-[20rem] flex-wrap gap-1">
 							<TagItem
-								v-for="gameVersion in getDisplayGameVersions(version).slice(MAX_GAME_VERSION_TAGS)"
-								:key="`overflow-version-tag-${gameVersion}`"
+								v-for="gameVersionGroup in getDisplayGameVersions(version).slice(
+									MAX_GAME_VERSION_TAGS,
+								)"
+								:key="`overflow-version-tag-${gameVersionGroup.label}`"
 								class="w-fit max-w-full truncate"
-								:action="() => versionFilters?.toggleFilters('gameVersion', version.game_versions)"
+								:action="
+									() => versionFilters?.toggleFilters('gameVersion', gameVersionGroup.versions)
+								"
 							>
-								<span class="min-w-0 truncate">{{ gameVersion }}</span>
+								<span class="min-w-0 truncate">{{ gameVersionGroup.label }}</span>
 							</TagItem>
 						</div>
 					</template>
-				</Menu>
+				</FloatingMenu>
 			</div>
 		</template>
 
@@ -172,11 +184,11 @@
 						<component :is="getLoaderIcon(platform)" v-if="getLoaderIcon(platform)" />
 						<span class="min-w-0 truncate">{{ getPlatformLabel(platform) }}</span>
 					</TagItem>
-					<Menu
+					<FloatingMenu
 						v-if="version.loaders.length > MAX_PLATFORM_TAGS"
+						trigger="hover"
+						placement="bottom"
 						data-no-row-click
-						:delay="{ hide: 50, show: 0 }"
-						no-auto-focus
 						class="w-full min-w-0 cursor-default"
 					>
 						<TagItem class="w-fit max-w-full truncate" tabindex="0">
@@ -199,7 +211,7 @@
 								</TagItem>
 							</div>
 						</template>
-					</Menu>
+					</FloatingMenu>
 				</template>
 			</div>
 		</template>
@@ -209,8 +221,10 @@
 				<TagItem
 					v-for="(tag, tagIdx) in getEnvironmentTags(version.environment)"
 					:key="`env-tag-${tagIdx}`"
+					v-tooltip="getFilterTooltip(formatMessage(tag.label))"
 					data-no-row-click
 					class="w-fit max-w-full truncate text-center"
+					:action="() => toggleEnvironmentFilter(version.environment)"
 				>
 					<component :is="tag.icon" />
 					<span class="min-w-0 truncate">{{ formatMessage(tag.label).replace('and', '&') }}</span>
@@ -311,21 +325,23 @@
 					<div class="flex flex-col justify-center gap-3">
 						<div class="flex flex-row flex-wrap items-center gap-1.5">
 							<TagItem
-								v-for="gameVersion in getDisplayGameVersions(version).slice(
+								v-for="gameVersionGroup in getDisplayGameVersions(version).slice(
 									0,
 									MAX_GAME_VERSION_TAGS,
 								)"
-								:key="`version-tag-${gameVersion}`"
-								v-tooltip="getFilterTooltip(gameVersion)"
+								:key="`version-tag-${gameVersionGroup.label}`"
+								v-tooltip="getFilterTooltip(gameVersionGroup.label)"
 								class="smart-clickable:allow-pointer-events"
-								:action="() => versionFilters?.toggleFilters('gameVersion', version.game_versions)"
+								:action="
+									() => versionFilters?.toggleFilters('gameVersion', gameVersionGroup.versions)
+								"
 							>
-								{{ gameVersion }}
+								{{ gameVersionGroup.label }}
 							</TagItem>
-							<Menu
+							<FloatingMenu
 								v-if="getDisplayGameVersions(version).length > MAX_GAME_VERSION_TAGS"
-								:delay="{ hide: 50, show: 0 }"
-								no-auto-focus
+								trigger="hover"
+								placement="bottom"
 								class="cursor-default smart-clickable:allow-pointer-events"
 							>
 								<TagItem tabindex="0">
@@ -334,19 +350,20 @@
 								<template #popper>
 									<div class="flex max-w-[20rem] flex-wrap gap-1">
 										<TagItem
-											v-for="gameVersion in getDisplayGameVersions(version).slice(
+											v-for="gameVersionGroup in getDisplayGameVersions(version).slice(
 												MAX_GAME_VERSION_TAGS,
 											)"
-											:key="`overflow-version-tag-${gameVersion}`"
+											:key="`overflow-version-tag-${gameVersionGroup.label}`"
 											:action="
-												() => versionFilters?.toggleFilters('gameVersion', version.game_versions)
+												() =>
+													versionFilters?.toggleFilters('gameVersion', gameVersionGroup.versions)
 											"
 										>
-											{{ gameVersion }}
+											{{ gameVersionGroup.label }}
 										</TagItem>
 									</div>
 								</template>
-							</Menu>
+							</FloatingMenu>
 							<template v-if="version.noModLoader">
 								<TagItem class="border !border-solid border-surface-5"> No mod loader </TagItem>
 							</template>
@@ -362,10 +379,10 @@
 									<component :is="getLoaderIcon(platform)" v-if="getLoaderIcon(platform)" />
 									{{ getPlatformLabel(platform) }}
 								</TagItem>
-								<Menu
+								<FloatingMenu
 									v-if="version.loaders.length > MAX_PLATFORM_TAGS"
-									:delay="{ hide: 50, show: 0 }"
-									no-auto-focus
+									trigger="hover"
+									placement="bottom"
 									class="cursor-default smart-clickable:allow-pointer-events"
 								>
 									<TagItem tabindex="0">
@@ -385,13 +402,15 @@
 											</TagItem>
 										</div>
 									</template>
-								</Menu>
+								</FloatingMenu>
 							</template>
 							<template v-if="showEnvironmentColumn">
 								<TagItem
 									v-for="(tag, tagIdx) in getEnvironmentTags(version.environment)"
 									:key="`env-tag-${tagIdx}`"
-									class="text-center"
+									v-tooltip="getFilterTooltip(formatMessage(tag.label))"
+									class="text-center smart-clickable:allow-pointer-events"
+									:action="() => toggleEnvironmentFilter(version.environment)"
 								>
 									<component :is="tag.icon" />
 									{{ formatMessage(tag.label).replace('and', '&') }}
@@ -445,7 +464,6 @@ import {
 } from '@modrinth/assets'
 import {
 	AutoLink,
-	ButtonStyled,
 	Pagination,
 	SmartClickable,
 	Table,
@@ -457,15 +475,21 @@ import {
 	VersionChannelIndicator,
 	VersionFilterControl,
 } from '@modrinth/ui'
-import { formatVersionsForDisplay, type GameVersionTag, type Version } from '@modrinth/utils'
-import { Menu } from 'floating-vue'
+import {
+	type GameVersionTag,
+	getVersionGroupsForDisplay,
+	type VersionDisplayGroup,
+} from '@modrinth/utils'
 import { computed, type Ref, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+
+import { Button } from '#ui/components/base/buttons'
 
 import { useRelativeTime } from '../../composables'
 import { defineMessages, useVIntl } from '../../composables/i18n'
 import { formatTag } from '../../utils/tag-messages'
-import { getEnvironmentTags } from './settings/environment/environments'
+import FloatingMenu from '../floating/FloatingMenu.vue'
+import { getEnvironmentFilterValue, getEnvironmentTags } from './settings/environment/environments'
 
 const { formatMessage } = useVIntl()
 const formatRelativeTime = useRelativeTime({ style: 'narrow' })
@@ -479,15 +503,12 @@ const formatBytes = useFormatBytes()
 const MAX_GAME_VERSION_TAGS = 5
 const MAX_PLATFORM_TAGS = 3
 
-type VersionWithDisplayUrlEnding = Version & {
+type VersionWithDisplayUrlEnding = Labrinth.Versions.v3.Version & {
 	displayUrlEnding: string
-	environment?: Labrinth.Projects.v3.Environment
-	mrpack_loaders?: string[]
 }
 
 type DisplayVersion = VersionWithDisplayUrlEnding & {
 	noModLoader: boolean
-	files_missing_attribution?: boolean
 }
 
 type VersionTableColumn =
@@ -515,7 +536,7 @@ const props = withDefaults(
 		currentMember?: boolean
 		loaders: Labrinth.Tags.v2.Loader[]
 		gameVersions: GameVersionTag[]
-		versionLink?: (version: Version) => string
+		versionLink?: (version: Labrinth.Versions.v3.Version) => string
 		openModal?: () => void
 		createVersionButtonSecondary?: boolean
 	}>(),
@@ -616,8 +637,8 @@ function hasNoModLoader(loaders: string[]): boolean {
 	)
 }
 
-function getDisplayGameVersions(version: DisplayVersion): string[] {
-	return formatVersionsForDisplay(version.game_versions, props.gameVersions)
+function getDisplayGameVersions(version: DisplayVersion): VersionDisplayGroup[] {
+	return getVersionGroupsForDisplay(version.game_versions, props.gameVersions)
 }
 
 function getFilterTooltip(filter: string): string {
@@ -634,6 +655,13 @@ function getPlatformLabel(platform: string): string {
 
 function getPlatformTooltip(platform: string): string {
 	return getFilterTooltip(formatTag(formatMessage, platform, 'loader'))
+}
+
+function toggleEnvironmentFilter(environment?: Labrinth.Projects.v3.Environment) {
+	const value = getEnvironmentFilterValue(environment)
+	if (value) {
+		versionFilters.value?.toggleFilter('environment', value)
+	}
 }
 
 function isFileRowVisible(version: VersionTableRow): boolean {
@@ -666,13 +694,20 @@ const selectedPlatforms: Ref<string[]> = computed(
 	() => versionFilters.value?.selectedPlatforms ?? [],
 )
 const selectedChannels: Ref<string[]> = computed(() => versionFilters.value?.selectedChannels ?? [])
+const selectedEnvironments: Ref<string[]> = computed(
+	() => versionFilters.value?.selectedEnvironments ?? [],
+)
 
 const filteredVersions = computed(() => {
 	return normalizedVersions.value.filter(
 		(version) =>
 			hasAnySelected(version.game_versions, selectedGameVersions.value) &&
 			hasAnySelected(version.loaders, selectedPlatforms.value) &&
-			isAnySelected(version.version_type, selectedChannels.value),
+			isAnySelected(version.version_type, selectedChannels.value) &&
+			isAnySelected(
+				getEnvironmentFilterValue(version.environment) ?? '',
+				selectedEnvironments.value,
+			),
 	)
 })
 

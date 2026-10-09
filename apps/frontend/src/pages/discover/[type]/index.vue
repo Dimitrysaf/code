@@ -16,11 +16,11 @@ import {
 	BrowseInstallHeader,
 	BrowsePageLayout,
 	BrowseSidebar,
-	commonMessages,
 	CreationFlowModal,
 	defineMessages,
 	formatProjectTypeSentence,
 	injectModrinthClient,
+	injectUserPreferences,
 	PROJECT_DEP_MARKER_QUERY,
 	provideBrowseManager,
 	SelectedProjectsFloatingBar,
@@ -29,6 +29,7 @@ import {
 	useStickyObserver,
 	useVIntl,
 } from '@modrinth/ui'
+import { commonMessages } from '@modrinth/ui/src/utils/common-messages'
 import { cycleValue } from '@modrinth/utils'
 import { useQueryClient } from '@tanstack/vue-query'
 import { useTimeoutFn } from '@vueuse/core'
@@ -37,7 +38,7 @@ import type { LocationQueryRaw } from 'vue-router'
 
 import LogoAnimated from '~/components/brand/LogoAnimated.vue'
 import AdPlaceholder from '~/components/ui/AdPlaceholder.vue'
-import { projectQueryOptions } from '~/composables/queries/project'
+import { projectQueryOptions, warmProjectCheckCaches } from '~/composables/queries/project'
 import { versionQueryOptions } from '~/composables/queries/version'
 import type {
 	ServerInstallModalHandle,
@@ -53,6 +54,7 @@ const debug = useDebugLogger('Discover')
 const { updateDiscoverFilterContext } = useCdnDownloadContext()
 
 const client = injectModrinthClient()
+const { updatePreferences } = injectUserPreferences()
 const queryClient = useQueryClient()
 
 const filtersMenuOpen = ref(false)
@@ -66,15 +68,16 @@ const auth = await useAuth()
 let prefetchTimeout: ReturnType<typeof useTimeoutFn> | null = null
 const HOVER_DURATION_TO_PREFETCH_MS = 500
 
-const handleProjectMouseEnter = (result: Labrinth.Search.v2.ResultSearchProject) => {
-	const slug = result.slug || result.project_id
+const handleProjectMouseEnter = (result: Labrinth.Search.v3.ResultSearchProject) => {
+	const projectId = result.project_id
 	prefetchTimeout = useTimeoutFn(
 		() => {
-			queryClient.prefetchQuery(projectQueryOptions.v2(slug, client))
-			queryClient.prefetchQuery(projectQueryOptions.v3(result.project_id, client))
-			queryClient.prefetchQuery(projectQueryOptions.members(result.project_id, client))
-			queryClient.prefetchQuery(projectQueryOptions.dependencies(result.project_id, client))
-			queryClient.prefetchQuery(projectQueryOptions.versionsV3(result.project_id, client))
+			warmProjectCheckCaches(queryClient, result)
+			queryClient.prefetchQuery(projectQueryOptions.v2(projectId, client))
+			queryClient.prefetchQuery(projectQueryOptions.v3(projectId, client))
+			queryClient.prefetchQuery(projectQueryOptions.members(projectId, client))
+			queryClient.prefetchQuery(projectQueryOptions.dependencies(projectId, client))
+			queryClient.prefetchQuery(projectQueryOptions.versionsV3(projectId, client))
 		},
 		HOVER_DURATION_TO_PREFETCH_MS,
 		{ immediate: false },
@@ -83,12 +86,13 @@ const handleProjectMouseEnter = (result: Labrinth.Search.v2.ResultSearchProject)
 }
 
 const handleServerProjectMouseEnter = (result: Labrinth.Search.v3.ResultSearchProject) => {
-	const slug = result.slug || result.project_id
+	const projectId = result.project_id
 
 	prefetchTimeout = useTimeoutFn(
 		async () => {
-			queryClient.prefetchQuery(projectQueryOptions.v2(slug, client))
-			queryClient.prefetchQuery(projectQueryOptions.v3(slug, client))
+			warmProjectCheckCaches(queryClient, result)
+			queryClient.prefetchQuery(projectQueryOptions.v2(projectId, client))
+			queryClient.prefetchQuery(projectQueryOptions.v3(projectId, client))
 
 			const content = result.minecraft_java_server?.content
 			if (content?.kind === 'modpack' && content.version_id) {
@@ -129,6 +133,17 @@ const resultsDisplayMode = computed<DisplayMode>(() =>
 		: 'list',
 )
 
+const layoutPreferenceKeys = {
+	mod: 'mods',
+	plugin: 'plugins',
+	datapack: 'datapacks',
+	shader: 'shaders',
+	resourcepack: 'resourcepacks',
+	modpack: 'modpacks',
+	server: 'servers',
+	user: 'users',
+} as const satisfies Partial<Record<DisplayLocation, keyof Labrinth.Users.v3.LayoutPreferences>>
+
 const maxResultsForView = ref<Record<DisplayMode, number[]>>({
 	list: [5, 10, 15, 20, 50, 100],
 	grid: [6, 12, 18, 24, 48, 96],
@@ -141,10 +156,21 @@ const currentMaxResultsOptions = computed(
 
 function cycleSearchDisplayMode() {
 	if (!resultsDisplayLocation.value) return
-	cosmetics.value.searchDisplayMode[resultsDisplayLocation.value] = cycleValue(
+	const displayMode = cycleValue(
 		cosmetics.value.searchDisplayMode[resultsDisplayLocation.value],
 		tags.value.projectViewModes.filter((x) => x !== 'grid'),
 	)
+	cosmetics.value.searchDisplayMode[resultsDisplayLocation.value] = displayMode
+
+	const preferenceKey =
+		layoutPreferenceKeys[resultsDisplayLocation.value as keyof typeof layoutPreferenceKeys]
+	if (!preferenceKey) return
+
+	void updatePreferences({
+		layouts: {
+			[preferenceKey]: displayMode === 'list' ? 'rows' : 'grid',
+		} as Partial<Labrinth.Users.v3.LayoutPreferences>,
+	}).catch(() => undefined)
 }
 
 const onboardingModalRef = ref<ServerInstallModalHandle | null>(null)
@@ -161,6 +187,7 @@ const {
 	hideSelectedServerInstalls,
 	installingProjectIds,
 	optimisticallyInstalledProjectIds,
+	queuedServerInstallRootProjectIds,
 	queuedServerInstallProjectIds,
 	queuedServerInstallCount,
 	isInstallingQueuedServerInstalls,
@@ -199,24 +226,6 @@ function getServerModpackContent(project: Labrinth.Search.v3.ResultSearchProject
 	return undefined
 }
 
-type DiscoverProjectSearchHit = Labrinth.Search.v2.ResultSearchProject & {
-	version_id?: string | null
-}
-
-function mapV3ProjectHit(hit: Labrinth.Search.v3.ResultSearchProject): DiscoverProjectSearchHit {
-	return {
-		...hit,
-		project_type: hit.project_types[0] ?? projectTypeId.value,
-		title: hit.name,
-		description: hit.summary,
-		versions: hit.version_id ? [hit.version_id] : [],
-		latest_version: hit.version_id,
-		icon_url: hit.icon_url ?? '',
-		client_side: 'unknown',
-		server_side: 'unknown',
-	}
-}
-
 const hostingContextQuery = computed(() => {
 	const query: LocationQueryRaw = {}
 
@@ -234,6 +243,31 @@ function withHostingContext(path: string) {
 	return hostingContextQuery.value ? { path, query: hostingContextQuery.value } : path
 }
 
+function parseSearchParams(requestParams: string): Labrinth.Search.SearchParams {
+	const params = new URLSearchParams(requestParams.replace(/^\?/, ''))
+
+	return {
+		query: params.get('query') ?? undefined,
+		offset: params.get('offset') ?? undefined,
+		index: params.get('index') ?? undefined,
+		limit: params.get('limit') ?? undefined,
+		new_filters: params.get('new_filters') ?? undefined,
+	}
+}
+
+// Search returns expanded dependency data that no card renders and that isn't part of
+// ResultSearchProject. On modpacks it is ~90% of the response, and everything cached here
+// is serialized into the SSR payload, so drop it before it reaches the query cache.
+function stripUnrenderedFields(
+	hits: Labrinth.Search.v3.ResultSearchProject[],
+): Labrinth.Search.v3.ResultSearchProject[] {
+	return hits.map((hit) => {
+		const { dependencies, dependency_project_ids, compatible_dependency_project_ids, ...rendered } =
+			hit as Labrinth.Search.v3.ResultSearchProject & Record<string, unknown>
+		return rendered as Labrinth.Search.v3.ResultSearchProject
+	})
+}
+
 async function fetchSearch(requestParams: string) {
 	debug('search() called', {
 		requestParams: requestParams.substring(0, 100),
@@ -241,27 +275,25 @@ async function fetchSearch(requestParams: string) {
 		projectTypeId: projectTypeId.value,
 	})
 
-	const raw = await client.request<Labrinth.Search.v3.SearchResults>('/search', {
-		api: 'labrinth',
-		version: 3,
-		method: 'GET',
-		params: Object.fromEntries(new URLSearchParams(requestParams.replace(/^\?/, ''))),
+	const raw = await client.labrinth.projects_v3.search(parseSearchParams(requestParams), {
 		headers: withLabrinthCanaryHeader(),
 	})
 
 	debug('search() response', { total_hits: raw.total_hits, hitCount: raw.hits?.length })
 
+	const hits = stripUnrenderedFields(raw.hits ?? [])
+
 	if (isServerType.value) {
 		return {
 			projectHits: [],
-			serverHits: raw.hits,
+			serverHits: hits,
 			total_hits: raw.total_hits,
 			per_page: raw.hits_per_page,
 		}
 	}
 
 	return {
-		projectHits: raw.hits.map(mapV3ProjectHit),
+		projectHits: hits,
 		serverHits: [],
 		total_hits: raw.total_hits,
 		per_page: raw.hits_per_page,
@@ -277,7 +309,7 @@ async function search(requestParams: string) {
 }
 
 function getCardActions(
-	result: Labrinth.Search.v2.ResultSearchProject | Labrinth.Search.v3.ResultSearchProject,
+	result: Labrinth.Search.v3.ResultSearchProject,
 	currentProjectType: string,
 ): CardAction[] {
 	if (currentProjectType === 'server') return []
@@ -320,6 +352,7 @@ function getCardActions(
 
 	if (serverData.value) {
 		const isQueued = queuedServerInstallProjectIds.value.has(result.project_id)
+		const isQueuedRoot = queuedServerInstallRootProjectIds.value.has(result.project_id)
 		const isInstalled =
 			projectResult.installed ||
 			optimisticallyInstalledProjectIds.value.has(result.project_id) ||
@@ -355,7 +388,8 @@ function getCardActions(
 							? CheckIcon
 							: DownloadIcon,
 				iconClass: isInstalling || isInstallingSelection ? 'animate-spin' : undefined,
-				disabled: !!isInstalled || isInstalling || isInstallingSelection,
+				disabled:
+					!!isInstalled || isInstalling || isInstallingSelection || (isQueued && !isQueuedRoot),
 				color: isQueued && !isInstalling && !isInstallingSelection ? 'green' : 'brand',
 				type: 'outlined',
 				onClick: () => serverInstall(projectResult),
@@ -411,6 +445,14 @@ const advancedFiltersCollapsed = computed({
 	},
 })
 
+const dismissedPhotosensitivityFilterWarning = computed({
+	get: () => flags.value.dismissedPhotosensitivityFilterWarning,
+	set: (value) => {
+		flags.value.dismissedPhotosensitivityFilterWarning = value
+		saveFeatureFlags()
+	},
+})
+
 const projectTypeId = computed(() => projectType.value?.id ?? 'mod')
 
 debug('projectTypeId:', projectTypeId.value)
@@ -431,6 +473,15 @@ const searchState = useBrowseSearch({
 	displayMode: resultsDisplayMode,
 })
 setBrowseSearchState(searchState)
+
+// Warm check caches for every visible hit so clicking a result skips /project/{slug}/check
+watch(
+	[() => searchState.projectHits.value, () => searchState.serverHits.value],
+	([projectHits, serverHits]) => {
+		warmProjectCheckCaches(queryClient, [...projectHits, ...serverHits])
+	},
+	{ immediate: true },
+)
 
 watch(
 	() =>
@@ -492,7 +543,7 @@ provideBrowseManager({
 	tags,
 	projectType: projectTypeId,
 	...searchState,
-	getProjectLink: (result: Labrinth.Search.v2.ResultSearchProject) =>
+	getProjectLink: (result: Labrinth.Search.v3.ResultSearchProject) =>
 		withHostingContext(
 			`/${projectType.value?.id ?? 'project'}/${result.slug ? result.slug : result.project_id}`,
 		),
@@ -520,6 +571,7 @@ provideBrowseManager({
 	serverOnlyLabel: computed(() => formatMessage(commonMessages.serverOnlyLabel)),
 	hiddenFilterTypes: computed(() => (showServerOnlyToggle.value ? ['environment'] : [])),
 	advancedFiltersCollapsed,
+	dismissedPhotosensitivityFilterWarning,
 	displayMode: resultsDisplayMode,
 	cycleDisplayMode: cycleSearchDisplayMode,
 	maxResultsOptions: currentMaxResultsOptions,
@@ -552,7 +604,7 @@ const { isStuck: isInstallHeaderStuck } = useStickyObserver(
 	<div
 		v-if="installContext"
 		ref="stickyInstallHeaderRef"
-		class="sticky top-0 z-20 -mx-6 border-0 border-solid border-divider bg-surface-1 px-6 pt-4"
+		class="sticky top-0 z-20 -mx-6 mb-2 border-0 border-solid border-divider bg-surface-1 px-6 pt-4"
 		:class="[isInstallHeaderStuck ? 'border-t' : '']"
 	>
 		<BrowseInstallHeader divider bottom-padding />
@@ -569,8 +621,11 @@ const { isStuck: isInstallHeaderStuck } = useStickyObserver(
 		"
 	>
 		<section
-			class="flex min-w-0 flex-col gap-3"
-			:class="cosmetics.rightSearchLayout ? 'lg:order-1' : 'lg:order-2'"
+			class="flex min-w-0 flex-col gap-2"
+			:class="[
+				{ 'mt-6 sm:mt-0': !installContext },
+				cosmetics.rightSearchLayout ? 'lg:order-1' : 'lg:order-2',
+			]"
 		>
 			<BrowsePageLayout>
 				<template #display-mode-icon>

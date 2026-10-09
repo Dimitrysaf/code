@@ -2,7 +2,9 @@
 import { onClickOutside } from '@vueuse/core'
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 
-import ButtonStyled from './ButtonStyled.vue'
+import { Button } from '#ui/components/base/buttons'
+
+import { dismissTooltip } from '../../providers/tooltip'
 
 const PANEL_VIEWPORT_MARGIN = 8
 
@@ -152,6 +154,7 @@ function focusPanelContent() {
 async function open() {
 	if (props.disabled || isOpen.value) return
 
+	dismissTooltip()
 	isOpen.value = true
 	emit('open')
 
@@ -249,19 +252,18 @@ defineExpose({
 
 <template>
 	<div class="relative inline-block">
-		<ButtonStyled v-bind="$attrs">
-			<button
-				ref="triggerRef"
-				:class="buttonClass"
-				:disabled="disabled"
-				:aria-expanded="isOpen"
-				aria-haspopup="true"
-				@click="toggle"
-				@keydown="handleTriggerKeydown"
-			>
-				<slot></slot>
-			</button>
-		</ButtonStyled>
+		<Button
+			v-bind="$attrs"
+			ref="triggerRef"
+			:class="buttonClass"
+			:disabled="disabled"
+			:aria-expanded="isOpen"
+			aria-haspopup="true"
+			@click="toggle"
+			@keydown="handleTriggerKeydown"
+		>
+			<slot></slot>
+		</Button>
 
 		<Teleport to="body">
 			<Transition

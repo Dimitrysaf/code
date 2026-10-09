@@ -1,19 +1,20 @@
 use super::ids::*;
 use crate::database::PgTransaction;
-use crate::database::models::DatabaseError;
-use crate::database::redis::RedisPool;
+
 use crate::models::pats::Scopes;
 use ariadne::ids::base62_impl::parse_base62;
 use chrono::{DateTime, Utc};
 use dashmap::DashMap;
+use eyre::{Result, WrapErr};
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
+use xredis::RedisPool;
 
-const PATS_NAMESPACE: &str = "pats:v1";
-const PATS_TOKENS_NAMESPACE: &str = "pats_tokens:v1";
-const PATS_USERS_NAMESPACE: &str = "pats_users:v1";
+const PATS_NAMESPACE: &str = "pats:v4";
+const PATS_TOKENS_NAMESPACE: &str = "pats_tokens:v4";
+const PATS_USERS_NAMESPACE: &str = "pats_users:v4";
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct DBPersonalAccessToken {
@@ -31,7 +32,7 @@ impl DBPersonalAccessToken {
     pub async fn insert(
         &self,
         transaction: &mut PgTransaction<'_>,
-    ) -> Result<(), DatabaseError> {
+    ) -> Result<()> {
         sqlx::query!(
             "
             INSERT INTO pats (
@@ -51,7 +52,8 @@ impl DBPersonalAccessToken {
             self.expires
         )
         .execute(&mut *transaction)
-        .await?;
+        .await
+        .wrap_err("inserting personal access token")?;
 
         Ok(())
     }
@@ -64,12 +66,13 @@ impl DBPersonalAccessToken {
         id: T,
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Option<DBPersonalAccessToken>, DatabaseError>
+    ) -> Result<Option<DBPersonalAccessToken>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
         Self::get_many(&[id], exec, redis)
             .await
+            .wrap_err("fetching personal access token")
             .map(|x| x.into_iter().next())
     }
 
@@ -77,7 +80,7 @@ impl DBPersonalAccessToken {
         pat_ids: &[DBPatId],
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Vec<DBPersonalAccessToken>, DatabaseError>
+    ) -> Result<Vec<DBPersonalAccessToken>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
@@ -85,7 +88,9 @@ impl DBPersonalAccessToken {
             .iter()
             .map(|x| crate::models::ids::PatId::from(*x))
             .collect::<Vec<_>>();
-        DBPersonalAccessToken::get_many(&ids, exec, redis).await
+        DBPersonalAccessToken::get_many(&ids, exec, redis)
+            .await
+            .wrap_err("fetching personal access tokens by ID")
     }
 
     pub async fn get_many<
@@ -96,7 +101,7 @@ impl DBPersonalAccessToken {
         pat_strings: &[T],
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Vec<DBPersonalAccessToken>, DatabaseError>
+    ) -> Result<Vec<DBPersonalAccessToken>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
@@ -125,6 +130,7 @@ impl DBPersonalAccessToken {
                         &slugs,
                     )
                     .fetch(exec)
+                    .map_err(eyre::Report::from)
                     .try_fold(DashMap::new(), |acc, x| {
                         let pat = DBPersonalAccessToken {
                             id: DBPatId(x.id),
@@ -138,13 +144,15 @@ impl DBPersonalAccessToken {
                         };
 
                         acc.insert(x.id, (Some(x.access_token), pat));
-                        async move { Ok(acc) }
+                        async move { eyre::Ok(acc) }
                     })
-                    .await?;
-                    Ok(pats)
+                    .await
+                    .wrap_err("fetching personal access tokens from database")?;
+                    eyre::Ok(pats)
                 },
             )
-            .await?;
+            .await
+            .wrap_err("fetching personal access tokens")?;
 
         Ok(val)
     }
@@ -153,19 +161,20 @@ impl DBPersonalAccessToken {
         user_id: DBUserId,
         exec: E,
         redis: &RedisPool,
-    ) -> Result<Vec<DBPatId>, DatabaseError>
+    ) -> Result<Vec<DBPatId>>
     where
         E: crate::database::Executor<'a, Database = sqlx::Postgres>,
     {
         {
-            let mut redis = redis.connect().await?;
+            let mut redis = redis.connect().await.wrap_err(
+                "connecting to Redis for user personal access tokens",
+            )?;
+            let key = redis.key().entity(PATS_USERS_NAMESPACE, user_id.0);
 
             let res = redis
-                .get_deserialized::<Vec<i64>>(
-                    PATS_USERS_NAMESPACE,
-                    &user_id.0.to_string(),
-                )
-                .await?;
+                .get_deserialized::<Vec<i64>>(&key)
+                .await
+                .wrap_err("fetching user personal access tokens from cache")?;
 
             if let Some(res) = res {
                 return Ok(res.into_iter().map(DBPatId).collect());
@@ -184,40 +193,53 @@ impl DBPersonalAccessToken {
         .fetch(exec)
         .map_ok(|x| DBPatId(x.id))
         .try_collect::<Vec<DBPatId>>()
-        .await?;
+        .await
+        .wrap_err("fetching user personal access tokens from database")?;
 
-        let mut redis = redis.connect().await?;
+        let mut redis = redis.connect().await.wrap_err(
+            "connecting to Redis to cache user personal access tokens",
+        )?;
+        let key = redis.key().entity(PATS_USERS_NAMESPACE, user_id.0);
 
         redis
-            .set_serialized(PATS_USERS_NAMESPACE, user_id.0, &db_pats, None)
-            .await?;
+            .set_serialized(&key, &db_pats, None)
+            .await
+            .wrap_err("caching user personal access tokens")?;
         Ok(db_pats)
     }
 
     pub async fn clear_cache(
         clear_pats: Vec<(Option<DBPatId>, Option<String>, Option<DBUserId>)>,
         redis: &RedisPool,
-    ) -> Result<(), DatabaseError> {
-        let mut redis = redis.connect().await?;
+    ) -> Result<()> {
+        let mut redis = redis.connect().await.wrap_err(
+            "connecting to Redis to clear personal access token cache",
+        )?;
 
         if clear_pats.is_empty() {
             return Ok(());
         }
 
+        let keys = clear_pats
+            .into_iter()
+            .flat_map(|(id, token, user_id)| {
+                [
+                    id.map(|id| redis.key().entity(PATS_NAMESPACE, id.0)),
+                    token.map(|token| {
+                        redis.key().entity(PATS_TOKENS_NAMESPACE, token)
+                    }),
+                    user_id.map(|user_id| {
+                        redis.key().entity(PATS_USERS_NAMESPACE, user_id.0)
+                    }),
+                ]
+                .into_iter()
+                .flatten()
+            })
+            .collect::<Vec<_>>();
         redis
-            .delete_many(clear_pats.into_iter().flat_map(
-                |(id, token, user_id)| {
-                    [
-                        (PATS_NAMESPACE, id.map(|i| i.0.to_string())),
-                        (PATS_TOKENS_NAMESPACE, token),
-                        (
-                            PATS_USERS_NAMESPACE,
-                            user_id.map(|i| i.0.to_string()),
-                        ),
-                    ]
-                },
-            ))
-            .await?;
+            .delete_many(&keys)
+            .await
+            .wrap_err("clearing personal access token cache")?;
 
         Ok(())
     }
@@ -225,7 +247,7 @@ impl DBPersonalAccessToken {
     pub async fn remove(
         id: DBPatId,
         transaction: &mut PgTransaction<'_>,
-    ) -> Result<Option<()>, sqlx::error::Error> {
+    ) -> Result<Option<()>> {
         sqlx::query!(
             "
             DELETE FROM pats WHERE id = $1
@@ -233,8 +255,43 @@ impl DBPersonalAccessToken {
             id as DBPatId,
         )
         .execute(&mut *transaction)
-        .await?;
+        .await
+        .wrap_err("removing personal access token")?;
 
         Ok(Some(()))
+    }
+
+    pub async fn remove_all_for_user(
+        user_id: DBUserId,
+        transaction: &mut PgTransaction<'_>,
+    ) -> Result<Vec<(DBPatId, String)>> {
+        let pats = sqlx::query!(
+            "
+            DELETE FROM pats WHERE user_id = $1 RETURNING id, access_token
+            ",
+            user_id.0
+        )
+        .fetch(&mut *transaction)
+        .map_ok(|x| (DBPatId(x.id), x.access_token))
+        .try_collect()
+        .await
+        .wrap_err("removing user personal access tokens")?;
+
+        Ok(pats)
+    }
+
+    pub async fn clear_user_pats_cache(
+        user_id: DBUserId,
+        pats: Vec<(DBPatId, String)>,
+        redis: &RedisPool,
+    ) -> Result<()> {
+        Self::clear_cache(
+            pats.into_iter()
+                .map(|(id, token)| (Some(id), Some(token), None))
+                .chain(std::iter::once((None, None, Some(user_id))))
+                .collect(),
+            redis,
+        )
+        .await
     }
 }

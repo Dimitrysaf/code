@@ -4,36 +4,42 @@ import {
 	FolderOpenIcon,
 	MoreVerticalIcon,
 	PlayIcon,
+	SparklesIcon,
 	SpinnerIcon,
 	StopCircleIcon,
 } from '@modrinth/assets'
 import {
 	Avatar,
-	ButtonStyled,
+	BulletDivider,
+	Button,
+	type ButtonMenuOption,
 	commonMessages,
+	ContextMenu,
+	defineMessages,
 	injectNotificationManager,
-	OverflowMenu,
 	SmartClickable,
+	TagItem,
+	TeleportOverflowMenu,
 	useFormatDateTime,
 	useRelativeTime,
 	useVIntl,
 } from '@modrinth/ui'
-import { capitalizeString } from '@modrinth/utils'
-import { convertFileSrc } from '@tauri-apps/api/core'
+import { capitalizeString } from '@modrinth/utils/utils'
 import type { Dayjs } from 'dayjs'
-import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, ref, useTemplateRef } from 'vue'
 import { useRouter } from 'vue-router'
 
+import { useAppEvent } from '@/composables/use-app-event'
+import { handleSevereError } from '@/composables/use-error.js'
 import { trackEvent } from '@/helpers/analytics'
-import { get_project } from '@/helpers/cache'
-import { process_listener } from '@/helpers/events'
-import { kill, run } from '@/helpers/instance'
+import { getInstanceIconUrl, kill, run } from '@/helpers/instance'
 import { get_by_instance_id } from '@/helpers/process'
 import type { GameInstance } from '@/helpers/types'
 import { showInstanceInFolder } from '@/helpers/utils'
-import { handleSevereError } from '@/store/error'
+import { injectServerInstall } from '@/providers/server-install'
 
 const { handleError } = injectNotificationManager()
+const { playServerProject } = injectServerInstall()
 const { formatMessage } = useVIntl()
 const formatRelativeTime = useRelativeTime()
 const formatDateTime = useFormatDateTime({
@@ -50,18 +56,39 @@ const emit = defineEmits<{
 const props = defineProps<{
 	instance: GameInstance
 	last_played: Dayjs
+	newlyAdded?: boolean
 }>()
 
-const loadingModpack = ref(!!props.instance.link)
-
-const modpack = ref()
-
-if (props.instance.link) {
-	nextTick().then(async () => {
-		modpack.value = await get_project(props.instance.link?.project_id, 'must_revalidate')
-		loadingModpack.value = false
-	})
-}
+const messages = defineMessages({
+	newInstance: {
+		id: 'app.home.jump-back-in.new-instance',
+		defaultMessage: 'New instance',
+	},
+	neverPlayed: {
+		id: 'app.home.jump-back-in.never-played',
+		defaultMessage: 'Never played',
+	},
+	lockedTooltip: {
+		id: 'app.home.jump-back-in.instance-locked',
+		defaultMessage: 'This instance has been locked',
+	},
+	alreadyOpenTooltip: {
+		id: 'app.home.jump-back-in.instance-open',
+		defaultMessage: 'Instance is already open',
+	},
+	moreOptions: {
+		id: 'app.home.jump-back-in.more-options',
+		defaultMessage: 'More options',
+	},
+	viewInstance: {
+		id: 'app.home.jump-back-in.view-instance',
+		defaultMessage: 'View instance',
+	},
+	instanceActions: {
+		id: 'app.home.jump-back-in.actions.label',
+		defaultMessage: 'Instance actions',
+	},
+})
 
 const instanceIcon = computed(() => props.instance.icon_path)
 
@@ -77,21 +104,36 @@ const loader = computed(() => {
 
 const loading = ref(false)
 const playing = ref(false)
+const installing = computed(() => props.instance.install_stage.includes('installing'))
 
 const play = async (event: MouseEvent) => {
 	event?.stopPropagation()
+	if (playDisabled.value) return
 	loading.value = true
-	await run(props.instance.id)
-		.catch((err) => handleSevereError(err, { instanceId: props.instance.id }))
-		.finally(() => {
+	const instance = props.instance
+	const serverProjectId =
+		instance.link?.type === 'server_project' || instance.link?.type === 'server_project_modpack'
+			? (instance.link.project_id ?? instance.link.server_project_id)
+			: undefined
+	try {
+		if (serverProjectId) {
+			await playServerProject(serverProjectId)
+			const processes = await get_by_instance_id(instance.id)
+			if (processes.length > 0) emit('play')
+		} else {
+			await run(instance.id)
+			emit('play')
 			trackEvent('InstanceStart', {
-				loader: props.instance.loader,
-				game_version: props.instance.game_version,
+				loader: instance.loader,
+				game_version: instance.game_version,
 				source: 'InstanceItem',
 			})
-		})
-	emit('play')
-	loading.value = false
+		}
+	} catch (err) {
+		handleSevereError(err, { instanceId: instance.id })
+	} finally {
+		loading.value = false
+	}
 }
 
 const stop = async (event: MouseEvent) => {
@@ -107,7 +149,7 @@ const stop = async (event: MouseEvent) => {
 	loading.value = false
 }
 
-const unlistenProcesses = await process_listener(async () => {
+useAppEvent('process', async () => {
 	await checkProcess()
 })
 
@@ -121,112 +163,163 @@ onMounted(() => {
 	checkProcess()
 })
 
-onUnmounted(() => {
-	unlistenProcesses()
-})
+const cardOptions = useTemplateRef('cardOptions')
+const showStop = computed(() => playing.value && !loading.value)
+const playDisabled = computed(
+	() => props.instance.quarantined || playing.value || loading.value || installing.value,
+)
+
+const seeInstance = async () => {
+	if (installing.value) return
+	await router.push(`/instance/${encodeURIComponent(props.instance.id)}`)
+}
+
+const overflowOptions = computed((): ButtonMenuOption[] => [
+	{
+		id: 'open-instance',
+		label: formatMessage(messages.viewInstance),
+		icon: EyeIcon,
+		shown: !!props.instance.id,
+		disabled: installing.value,
+		action: seeInstance,
+	},
+	{
+		id: 'open-folder',
+		label: formatMessage(commonMessages.openFolderButton),
+		icon: FolderOpenIcon,
+		action: () => showInstanceInFolder(props.instance.id),
+	},
+])
+
+const contextMenuOptions = computed((): ButtonMenuOption[] => [
+	showStop.value
+		? {
+				id: 'stop',
+				label: formatMessage(commonMessages.stopButton),
+				icon: StopCircleIcon,
+				tone: 'red',
+				action: (event) => stop(event),
+			}
+		: {
+				id: 'play',
+				label: formatMessage(
+					installing.value ? commonMessages.installingLabel : commonMessages.playButton,
+				),
+				icon: installing.value ? SpinnerIcon : PlayIcon,
+				tone: 'brand',
+				disabled: playDisabled.value,
+				tooltip: props.instance.quarantined
+					? formatMessage(messages.lockedTooltip)
+					: playing.value
+						? formatMessage(messages.alreadyOpenTooltip)
+						: undefined,
+				action: (event) => play(event),
+			},
+	{ type: 'divider' },
+	...overflowOptions.value,
+])
+
+function openContextMenu(event: MouseEvent) {
+	cardOptions.value?.open(event, contextMenuOptions.value)
+}
 </script>
 <template>
-	<SmartClickable>
-		<template #clickable>
-			<router-link
-				class="no-click-animation"
-				:to="`/instance/${encodeURIComponent(instance.id)}`"
-			/>
-		</template>
-		<div
-			class="grid grid-cols-[auto_minmax(0,3fr)_minmax(0,4fr)_auto] items-center gap-2 p-3 bg-bg-raised card-shadow rounded-xl smart-clickable:highlight-on-hover"
-		>
-			<Avatar
-				:src="instanceIcon ? convertFileSrc(instanceIcon) : undefined"
-				:tint-by="instance.id"
-				size="48px"
-			/>
-			<div class="flex flex-col col-span-2 justify-between h-full">
-				<div class="flex items-center gap-2">
-					<div class="text-lg text-contrast font-bold truncate smart-clickable:underline-on-hover">
-						{{ instance.name }}
-					</div>
-				</div>
-				<div class="flex items-center gap-2 text-sm text-secondary">
-					<div
-						v-tooltip="instance.last_played ? formatDateTime(instance.last_played) : null"
-						class="w-fit shrink-0"
-						:class="{ 'cursor-help smart-clickable:allow-pointer-events': last_played }"
-					>
-						<template v-if="last_played">
-							{{
-								formatMessage(commonMessages.playedLabel, {
-									ago: formatRelativeTime(last_played.toISOString?.()),
-								})
-							}}
-						</template>
-						<template v-else> Not played yet </template>
-					</div>
-					•
-					<span v-if="modpack" class="flex items-center gap-1 truncate text-secondary">
-						<router-link
-							class="inline-flex items-center gap-1 truncate hover:underline text-secondary smart-clickable:allow-pointer-events"
-							:to="`/project/${modpack.id}`"
+	<div @contextmenu.prevent.stop="openContextMenu">
+		<SmartClickable class="[--active-scale:0.99]">
+			<template v-if="!installing" #clickable>
+				<router-link
+					class="no-click-animation"
+					:to="`/instance/${encodeURIComponent(instance.id)}`"
+				/>
+			</template>
+			<div
+				class="clickable-card grid grid-cols-[auto_minmax(0,3fr)_minmax(0,4fr)_auto] items-center gap-2 border border-surface-4 rounded-[20px] smart-clickable:highlight-on-hover transition-[filter] ease-out [--hover-brightness:1.1] min-h-20 p-3"
+				:class="newlyAdded ? 'border-dashed bg-surface-2' : 'bg-bg-raised border-solid'"
+			>
+				<Avatar
+					:src="getInstanceIconUrl(instanceIcon)"
+					:tint-by="instance.id"
+					no-shadow
+					class="!rounded-[14px]"
+					size="48px"
+					pad-transparent-corners
+				/>
+				<div class="flex flex-col col-span-2 justify-center gap-1 h-full">
+					<div class="flex items-center gap-1.5">
+						<div class="text-contrast truncate text-base font-semibold">
+							{{ instance.name }}
+						</div>
+						<TagItem
+							v-if="newlyAdded"
+							class="!border-green !bg-bg-green !px-2 !font-medium !text-green"
 						>
-							<Avatar :src="modpack.icon_url" size="16px" class="shrink-0" />
-							<span class="truncate">{{ modpack.title }}</span>
-						</router-link>
-						({{ loader }} {{ instance.game_version }})
-					</span>
-					<span v-else-if="loadingModpack" class="flex items-center gap-1 truncate text-secondary">
-						<SpinnerIcon class="animate-spin shrink-0" />
-						<span class="truncate">Loading modpack...</span>
-					</span>
-					<span v-else class="flex items-center gap-1 truncate text-secondary">
-						{{ loader }}
-						{{ instance.game_version }}
-					</span>
+							<SparklesIcon aria-hidden="true" />
+							{{ formatMessage(messages.newInstance) }}
+						</TagItem>
+					</div>
+					<div class="flex items-center gap-1.5 text-sm text-secondary">
+						<span class="flex items-center gap-1 truncate text-secondary">
+							{{ loader }}
+							{{ instance.game_version }}
+						</span>
+						<BulletDivider class="shrink-0" />
+						<div
+							v-tooltip="!newlyAdded ? formatDateTime(last_played.toDate()) : null"
+							class="w-fit shrink-0"
+							:class="{
+								'cursor-help smart-clickable:allow-pointer-events': !newlyAdded,
+							}"
+						>
+							<template v-if="newlyAdded">
+								{{ formatMessage(messages.neverPlayed) }}
+							</template>
+							<template v-else-if="last_played">
+								{{ formatRelativeTime(last_played.toISOString?.()) }}
+							</template>
+							<template v-else>{{ formatMessage(messages.neverPlayed) }}</template>
+						</div>
+					</div>
 				</div>
-			</div>
-			<div class="flex gap-1 justify-end smart-clickable:allow-pointer-events">
-				<ButtonStyled v-if="playing && !loading" color="red">
-					<button @click="stop">
+				<div data-no-card-click class="flex gap-1 justify-end smart-clickable:allow-pointer-events">
+					<Button v-if="showStop" type="colored" color="red" @click="stop">
 						<StopCircleIcon aria-hidden="true" />
 						{{ formatMessage(commonMessages.stopButton) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-else>
-					<button
-						v-tooltip="playing ? 'Instance is already open' : null"
-						:disabled="playing || loading"
+					</Button>
+					<Button
+						v-else
+						v-tooltip="
+							instance.quarantined
+								? formatMessage(messages.lockedTooltip)
+								: playing
+									? formatMessage(messages.alreadyOpenTooltip)
+									: null
+						"
+						:disabled="playDisabled"
+						type="colored"
+						color="green"
 						@click="play"
 					>
-						<SpinnerIcon v-if="loading" class="animate-spin" />
+						<SpinnerIcon v-if="loading || installing" class="animate-spin" />
 						<PlayIcon v-else aria-hidden="true" />
-						{{ formatMessage(commonMessages.playButton) }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled circular type="transparent">
-					<OverflowMenu
-						:options="[
-							{
-								id: 'open-instance',
-								shown: !!instance.id,
-								action: () => router.push(encodeURI(`/instance/${instance.id}`)),
-							},
-							{
-								id: 'open-folder',
-								action: () => showInstanceInFolder(instance.id),
-							},
-						]"
+						{{
+							formatMessage(installing ? commonMessages.installingLabel : commonMessages.playButton)
+						}}
+					</Button>
+					<TeleportOverflowMenu
+						type="quiet"
+						:label="formatMessage(messages.moreOptions)"
+						:options="overflowOptions"
 					>
 						<MoreVerticalIcon aria-hidden="true" />
-						<template #open-instance>
-							<EyeIcon aria-hidden="true" />
-							View instance
-						</template>
-						<template #open-folder>
-							<FolderOpenIcon aria-hidden="true" />
-							{{ formatMessage(commonMessages.openFolderButton) }}
-						</template>
-					</OverflowMenu>
-				</ButtonStyled>
+					</TeleportOverflowMenu>
+				</div>
 			</div>
-		</div>
-	</SmartClickable>
+		</SmartClickable>
+		<ContextMenu ref="cardOptions" :label="formatMessage(messages.instanceActions)" />
+	</div>
 </template>
+<style scoped>
+.clickable-card:has([data-no-card-click]:hover) {
+	--hover-brightness: 1;
+}
+</style>

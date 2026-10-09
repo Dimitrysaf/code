@@ -1,54 +1,148 @@
 <template>
-	<div v-if="subtleLauncherRedirectUri">
-		<iframe
-			:src="subtleLauncherRedirectUri"
-			class="fixed left-0 top-0 z-[9999] m-0 h-full w-full border-0 p-0"
-		></iframe>
-	</div>
+	<LauncherOpening
+		v-if="subtleLauncherRedirectUri || launcherDeeplink"
+		:localhost-url="subtleLauncherRedirectUri"
+		:deeplink-url="launcherDeeplink"
+	/>
 	<div
 		v-else
 		class="universal-card mx-auto flex w-full max-w-[27rem] flex-col gap-6 border border-solid border-surface-5 !p-6"
 	>
-		<template v-if="flow && !subtleLauncherRedirectUri">
-			<div class="flex flex-col items-end gap-4">
-				<div class="flex flex-col gap-1.5">
+		<template v-if="flow">
+			<div class="flex flex-col gap-4" :aria-busy="twoFactorPending">
+				<div class="flex w-full flex-col gap-1.5">
 					<label for="two-factor-code">
-						<span class="label__title">{{ formatMessage(messages.twoFactorCodeLabel) }}</span>
-						<span class="label__description">
+						<span id="two-factor-label" class="label__title">
+							{{ formatMessage(messages.twoFactorCodeLabel) }}
+						</span>
+						<span id="two-factor-description" class="label__description">
 							{{ formatMessage(messages.twoFactorCodeLabelDescription) }}
 						</span>
 					</label>
-					<StyledInput
+					<TwoFactorAuthCodeInput
 						id="two-factor-code"
+						ref="twoFactorInput"
 						v-model="twoFactorCodeModel"
-						:maxlength="11"
-						inputmode="numeric"
-						:placeholder="formatMessage(messages.twoFactorCodeInputPlaceholder)"
-						autocomplete="one-time-code"
-						@keyup.enter="onTwoFactorSignIn()"
+						class="mx-auto mt-3"
+						allow-backup-code
+						autofocus
+						:readonly="twoFactorPending"
+						:error="twoFactorError"
+						aria-labelledby="two-factor-label"
+						:aria-describedby="
+							twoFactorError ? 'two-factor-description two-factor-error' : 'two-factor-description'
+						"
+						@complete="onTwoFactorSignIn"
 					/>
 				</div>
-				<ButtonStyled color="brand">
-					<button @click="onTwoFactorSignIn()">
-						{{ formatMessage(commonMessages.signInButton) }} <RightArrowIcon />
-					</button>
-				</ButtonStyled>
+				<Admonition v-if="twoFactorError" id="two-factor-error" type="critical" role="alert">
+					{{ formatMessage(messages.twoFactorIncorrect) }}
+				</Admonition>
 			</div>
 		</template>
 		<template v-else>
 			<div class="flex flex-col gap-5">
-				<div class="text-center text-2xl font-semibold text-contrast">
-					{{ formatMessage(messages.signInWithLabel) }}
-				</div>
+				<template v-if="accounts.length && !addingAccount">
+					<div class="flex w-full flex-col gap-4">
+						<div class="text-center text-2xl font-semibold text-contrast">
+							{{ formatMessage(messages.chooseAccountLabel) }}
+						</div>
+						<AccountChoiceList
+							:accounts="accounts"
+							:add-account-label="formatMessage(messages.addAccountLabel)"
+							@select="emit('select', $event)"
+							@add="addingAccount = true"
+						/>
+					</div>
+				</template>
+				<template v-else-if="focusedReauthAccount">
+					<div class="text-center text-2xl font-semibold text-contrast">
+						{{ formatMessage(messages.launcherReauthTitle) }}
+					</div>
+					<div class="flex items-center justify-center gap-2 text-center">
+						<Avatar :src="focusedReauthAccount.avatarUrl" size="36px" circle alt="" />
+						<div class="text-lg font-medium text-contrast">
+							{{ focusedReauthAccount.username }}
+						</div>
+					</div>
 
-				<section class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-					<ButtonStyled v-for="provider in oauthProviders" :key="provider.id">
-						<a
-							class="relative w-full !justify-center overflow-visible !shadow-none"
+					<div class="flex flex-col gap-3">
+						<ButtonLink
+							v-if="focusedOauthProvider"
+							type="colored"
+							color="brand"
+							class="!w-full !justify-center"
+							:href="getAuthUrl(focusedOauthProvider.id, redirectTarget)"
+							:aria-label="
+								formatMessage(messages.continueWithProvider, {
+									provider: focusedOauthProvider.name,
+								})
+							"
+							@click="onOAuthProviderClick(focusedOauthProvider.id)"
+						>
+							<component :is="focusedOauthProvider.icon" />
+							{{
+								formatMessage(messages.continueWithProvider, {
+									provider: focusedOauthProvider.name,
+								})
+							}}
+						</ButtonLink>
+						<Button
+							v-else-if="focusedReauthAccount.authMethod === 'passkey'"
+							type="colored"
+							color="brand"
+							class="!w-full !justify-center"
+							@click="onPasskeySignIn"
+						>
+							<UserKeyIcon />
+							{{ formatMessage(messages.continueWithPasskey) }}
+						</Button>
+						<section v-else class="mx-auto flex w-full flex-col gap-2.5">
+							<label for="launcher-reauth-username" class="sr-only">
+								{{ formatMessage(commonMessages.emailUsernameLabel) }}
+							</label>
+							<input
+								id="launcher-reauth-username"
+								class="sr-only"
+								type="text"
+								autocomplete="username"
+								:value="emailModel"
+								tabindex="-1"
+							/>
+
+							<PasswordSignInForm
+								v-model:password="passwordModel"
+								v-model:token="tokenModel"
+								input-id="launcher-reauth-password"
+								:submit-label="formatMessage(commonMessages.continueButton)"
+								:captcha-enabled="globals?.captcha_enabled"
+								:show-captcha="Boolean(passwordModel)"
+								:on-submit="onPasswordSignIn"
+								:on-set-captcha-ref="onSetCaptchaRef"
+							/>
+						</section>
+
+						<Button class="!w-full !justify-center" @click="onCancelReauthenticate">
+							{{ formatMessage(messages.useDifferentAccount) }}
+						</Button>
+					</div>
+				</template>
+				<template v-else>
+					<div class="text-center text-2xl font-semibold text-contrast">
+						{{
+							formatMessage(addingAccount ? messages.launcherReauthTitle : messages.signInWithLabel)
+						}}
+					</div>
+
+					<section class="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+						<ButtonLink
+							v-for="provider in oauthProviders"
+							:key="provider.id"
+							class="relative w-full !justify-center overflow-visible"
 							:class="{
-								'!border !border-[var(--color-green)]': lastSignInProvider === provider.id,
+								'!border !border-[var(--color-green)]': lastSignInOAuthProvider === provider.id,
 							}"
-							:href="getAuthUrl(provider.id, redirectTarget)"
+							:href="getAuthUrl(provider.id, redirectTarget, requestsAppSession)"
 							:aria-label="
 								formatMessage(messages.continueWithProvider, { provider: provider.name })
 							"
@@ -57,17 +151,17 @@
 							<component :is="provider.icon" />
 							<span>{{ provider.name }}</span>
 							<span
-								v-if="lastSignInProvider === provider.id"
+								v-if="lastSignInOAuthProvider === provider.id"
 								class="oauth-provider-last-sign-in-badge"
 							>
 								{{ formatMessage(messages.lastSignInLabel) }}
 							</span>
-						</a>
-					</ButtonStyled>
-					<ButtonStyled>
-						<a
-							class="relative w-full !justify-center overflow-visible !shadow-none sm:col-span-2"
-							:class="{ '!border !border-[var(--color-green)]': lastSignInProvider === 'passkey' }"
+						</ButtonLink>
+						<Button
+							class="relative !w-full !justify-center overflow-visible sm:col-span-2"
+							:class="{
+								'!border !border-[var(--color-green)]': lastSignInOAuthProvider === 'passkey',
+							}"
 							role="button"
 							tabindex="0"
 							@click="onPasskeySignIn"
@@ -76,79 +170,71 @@
 							<UserKeyIcon />
 							<span class="ml-1">{{ formatMessage(messages.continueWithPasskey) }}</span>
 							<span
-								v-if="lastSignInProvider === 'passkey'"
+								v-if="lastSignInOAuthProvider === 'passkey'"
 								class="oauth-provider-last-sign-in-badge"
 							>
 								{{ formatMessage(messages.lastSignInLabel) }}
 							</span>
-						</a>
-					</ButtonStyled>
-				</section>
+						</Button>
+					</section>
 
-				<div class="h-px w-full bg-surface-5"></div>
+					<div class="h-px w-full bg-surface-5"></div>
 
-				<section class="mx-auto flex w-full flex-col gap-2.5">
-					<label for="email" hidden>{{ formatMessage(commonMessages.emailUsernameLabel) }}</label>
-					<StyledInput
-						id="email"
-						v-model="emailModel"
-						:icon="MailIcon"
-						type="text"
-						inputmode="email"
-						autocomplete="username"
-						:placeholder="formatMessage(commonMessages.emailUsernameLabel)"
-						wrapper-class="w-full"
-					/>
+					<section class="mx-auto flex w-full flex-col gap-2.5">
+						<label for="email" hidden>{{ formatMessage(commonMessages.emailUsernameLabel) }}</label>
+						<Input
+							id="email"
+							v-model="emailModel"
+							:icon="MailIcon"
+							type="text"
+							inputmode="email"
+							autocomplete="username"
+							:placeholder="formatMessage(commonMessages.emailUsernameLabel)"
+							wrapper-class="w-full"
+						/>
 
-					<label for="password" hidden>{{ formatMessage(commonMessages.passwordLabel) }}</label>
-					<StyledInput
-						id="password"
-						v-model="passwordModel"
-						:icon="KeyIcon"
-						type="password"
-						autocomplete="current-password"
-						:placeholder="formatMessage(commonMessages.passwordLabel)"
-						wrapper-class="w-full"
-					/>
+						<PasswordSignInForm
+							v-model:password="passwordModel"
+							v-model:token="tokenModel"
+							input-id="password"
+							:submit-label="formatMessage(messages.continueWithEmail)"
+							:captcha-enabled="globals?.captcha_enabled"
+							:show-captcha="Boolean(emailModel && passwordModel)"
+							:on-submit="onPasswordSignIn"
+							:on-set-captcha-ref="onSetCaptchaRef"
+						/>
 
-					<HCaptcha
-						v-if="globals?.captcha_enabled && emailModel && passwordModel"
-						:ref="onSetCaptchaRef"
-						v-model="tokenModel"
-					/>
+						<div class="flex flex-wrap items-center justify-center gap-2.5 !text-base">
+							<NuxtLink
+								class="text-link"
+								:to="{
+									path: '/auth/reset-password',
+									query: routeQuery,
+								}"
+							>
+								{{ formatMessage(messages.forgotPasswordLabel) }}
+							</NuxtLink>
+							<div class="h-1.5 w-1.5 rounded-full bg-surface-5" />
+							<NuxtLink
+								class="inline text-link"
+								:to="{
+									path: '/auth/sign-up',
+									query: routeQuery,
+								}"
+							>
+								{{ formatMessage(messages.createAccountLabel) }}
+							</NuxtLink>
+						</div>
+					</section>
 
-					<ButtonStyled color="brand">
-						<button
-							class="!w-full"
-							:disabled="globals?.captcha_enabled ? !tokenModel : false"
-							@click="onPasswordSignIn()"
-						>
-							{{ formatMessage(messages.continueWithEmail) }} <RightArrowIcon />
-						</button>
-					</ButtonStyled>
-
-					<div class="flex flex-wrap items-center justify-center gap-2.5 !text-base">
-						<NuxtLink
-							class="text-link"
-							:to="{
-								path: '/auth/reset-password',
-								query: routeQuery,
-							}"
-						>
-							{{ formatMessage(messages.forgotPasswordLabel) }}
-						</NuxtLink>
-						<div class="h-1.5 w-1.5 rounded-full bg-surface-5" />
-						<NuxtLink
-							class="inline text-link"
-							:to="{
-								path: '/auth/sign-up',
-								query: routeQuery,
-							}"
-						>
-							{{ formatMessage(messages.createAccountLabel) }}
-						</NuxtLink>
-					</div>
-				</section>
+					<Button
+						v-if="addingAccount && accounts.length"
+						class="!w-full !justify-center"
+						@click="cancelAddAccount"
+					>
+						{{ formatMessage(messages.useExistingAccount) }}
+					</Button>
+				</template>
 			</div>
 		</template>
 	</div>
@@ -160,24 +246,40 @@ import {
 	GitHubColorIcon,
 	GitLabColorIcon,
 	GoogleColorIcon,
-	KeyIcon,
 	MailIcon,
 	MicrosoftColorIcon,
-	RightArrowIcon,
 	SteamColorIcon,
 	UserKeyIcon,
 } from '@modrinth/assets'
-import { ButtonStyled, commonMessages, defineMessages, StyledInput, useVIntl } from '@modrinth/ui'
+import {
+	type AccountChoice,
+	AccountChoiceList,
+	Admonition,
+	Avatar,
+	Button,
+	ButtonLink,
+	commonMessages,
+	defineMessages,
+	Input,
+	useVIntl,
+} from '@modrinth/ui'
 import { useStorage } from '@vueuse/core'
-import { computed } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import type { LocationQuery } from 'vue-router'
 
-import HCaptcha from '@/components/ui/auth/HCaptcha.vue'
+import LauncherOpening from '@/components/ui/auth/LauncherOpening.vue'
+import PasswordSignInForm from '@/components/ui/auth/PasswordSignInForm.vue'
+import TwoFactorAuthCodeInput from '@/components/ui/auth/TwoFactorAuthCodeInput.vue'
 import {
-	getAuthUrl,
 	LAST_SIGN_IN_OAUTH_PROVIDER_STORAGE_KEY,
 	PENDING_SIGN_IN_OAUTH_PROVIDER_STORAGE_KEY,
-} from '@/composables/auth.ts'
+	type StoredAccountAuthMethod,
+} from '@/composables/accounts.ts'
+import { getAuthUrl } from '@/composables/auth.ts'
+import {
+	isLauncherProtocolV2,
+	LAUNCHER_REAUTH_ACCOUNT_STORAGE_KEY,
+} from '@/composables/launcher-auth.ts'
 
 const oauthProviders = [
 	{ id: 'discord', name: 'Discord', icon: DiscordColorIcon },
@@ -195,34 +297,77 @@ interface AuthGlobals {
 	[key: string]: unknown
 }
 
+interface LauncherReauthAccount {
+	id: string
+	username: string
+	avatarUrl?: string | null
+	authMethod?: StoredAccountAuthMethod | null
+}
+
 interface Props {
 	subtleLauncherRedirectUri?: string
+	launcherDeeplink?: string
+	reauthAccount?: LauncherReauthAccount | null
 	flow?: string
 	redirectTarget?: string
 	routeQuery?: LocationQuery
 	globals?: AuthGlobals | null
 	onPasswordSignIn?: () => void
-	onTwoFactorSignIn?: () => void
+	onTwoFactorSignIn?: (code: string) => void
+	twoFactorPending?: boolean
+	twoFactorError?: boolean
 	onPasskeySignIn?: () => void
+	onCancelReauthenticate?: () => void
 	onSetCaptchaRef?: ((captchaRef: unknown) => void) | undefined
+	accounts?: AccountChoice[]
 }
 
 const {
 	subtleLauncherRedirectUri = '',
+	launcherDeeplink = '',
+	reauthAccount = null,
 	flow = '',
 	redirectTarget = '',
 	routeQuery = {},
 	globals = null,
 	onPasswordSignIn = () => {},
 	onTwoFactorSignIn = () => {},
+	twoFactorPending = false,
+	twoFactorError = false,
 	onPasskeySignIn = () => {},
+	onCancelReauthenticate = () => {},
 	onSetCaptchaRef = undefined,
+	accounts = [],
 } = defineProps<Props>()
+
+const addingAccount = ref(false)
+
+const emit = defineEmits<{
+	select: [account: AccountChoice]
+}>()
 
 const emailModel = defineModel<string>('email', { default: '' })
 const passwordModel = defineModel<string>('password', { default: '' })
 const tokenModel = defineModel<string>('token', { default: '' })
+
+function cancelAddAccount() {
+	addingAccount.value = false
+	emailModel.value = ''
+	passwordModel.value = ''
+	tokenModel.value = ''
+}
 const twoFactorCodeModel = defineModel<string>('twoFactorCode', { default: '' })
+const twoFactorInput = ref<InstanceType<typeof TwoFactorAuthCodeInput>>()
+
+watch(
+	() => twoFactorPending,
+	async (pending) => {
+		if (!pending && twoFactorError) {
+			await nextTick()
+			twoFactorInput.value?.focus()
+		}
+	},
+)
 
 const lastSignInOAuthProvider = useStorage<AuthProvider | null>(
 	LAST_SIGN_IN_OAUTH_PROVIDER_STORAGE_KEY,
@@ -236,14 +381,37 @@ const pendingSignInOAuthProvider = useStorage<AuthProvider | null>(
 	undefined,
 	{ initOnMounted: true },
 )
-const lastSignInProvider = computed(() => lastSignInOAuthProvider.value)
+const focusedOauthProvider = computed(() =>
+	oauthProviders.find((provider) => provider.id === reauthAccount?.authMethod),
+)
+const focusedReauthAccount = computed(() => {
+	if (!reauthAccount?.authMethod) return null
+	if (
+		reauthAccount.authMethod === 'password' ||
+		reauthAccount.authMethod === 'passkey' ||
+		focusedOauthProvider.value
+	) {
+		return reauthAccount
+	}
+	return null
+})
+const requestsAppSession = computed(
+	() => isLauncherProtocolV2({ query: routeQuery }) && !reauthAccount,
+)
+
 const onOAuthProviderClick = (provider: AuthProvider) => {
 	pendingSignInOAuthProvider.value = provider
+	if (!reauthAccount || !import.meta.client) return
+	window.sessionStorage.setItem(LAUNCHER_REAUTH_ACCOUNT_STORAGE_KEY, reauthAccount.id)
 }
 
 const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
+	twoFactorIncorrect: {
+		id: 'auth.two-factor.incorrect-code',
+		defaultMessage: 'The two-factor code is incorrect. Try again or use a backup code.',
+	},
 	forgotPasswordLabel: {
 		id: 'auth.sign-in.forgot-password',
 		defaultMessage: 'Forgot password',
@@ -260,9 +428,25 @@ const messages = defineMessages({
 		id: 'auth.sign-in.sign-in-with',
 		defaultMessage: 'Sign into Modrinth',
 	},
-	twoFactorCodeInputPlaceholder: {
-		id: 'auth.sign-in.2fa.placeholder',
-		defaultMessage: 'Enter code...',
+	launcherReauthTitle: {
+		id: 'auth.sign-in.launcher.reauthenticate.title',
+		defaultMessage: 'Sign into Modrinth App',
+	},
+	useDifferentAccount: {
+		id: 'auth.sign-in.reauthenticate.use-different-account',
+		defaultMessage: 'Use a different account',
+	},
+	chooseAccountLabel: {
+		id: 'auth.sign-in.choose-account',
+		defaultMessage: 'Choose an account to use in Modrinth App',
+	},
+	addAccountLabel: {
+		id: 'auth.sign-in.add-account',
+		defaultMessage: 'Add account',
+	},
+	useExistingAccount: {
+		id: 'auth.sign-in.choose-existing-account',
+		defaultMessage: 'Use an existing account',
 	},
 	twoFactorCodeLabel: {
 		id: 'auth.sign-in.2fa.label',

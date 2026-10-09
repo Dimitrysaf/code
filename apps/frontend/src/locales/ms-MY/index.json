@@ -5,8 +5,11 @@
   "action.continue": {
     "message": "Teruskan"
   },
-  "admin.billing.error.not-found": {
-    "message": "Pengguna tidak dijumpai"
+  "ads-consent.accept": {
+    "message": "Terima semua"
+  },
+  "ads-consent.reject": {
+    "message": "Tolak semua"
   },
   "analytics.action.add": {
     "message": "Tambah"
@@ -154,6 +157,9 @@
   },
   "analytics.chart.tooltip.hide-entry": {
     "message": "Sembunyikan {name} dalam graf"
+  },
+  "analytics.chart.tooltip.no-data": {
+    "message": "Tiada data"
   },
   "analytics.chart.tooltip.pinned": {
     "message": "Petua alat carta disemat"
@@ -404,6 +410,9 @@
   "analytics.threshold.countries-above": {
     "message": "Negara di atas"
   },
+  "analytics.threshold.projects-above": {
+    "message": "Projek melebihi"
+  },
   "analytics.title": {
     "message": "Analitik"
   },
@@ -464,23 +473,11 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "Simpan kandungan yang anda suka dan terima kemas kini dengan sekali klik."
-  },
-  "app-marketing.features.follow.title": {
-    "message": "Ikuti projek"
-  },
-  "app-marketing.features.importing.description": {
-    "message": "Import semua profil kegemaran anda daripada pelancar yang anda gunakan sebelum ini, dan mula gunakan Modrinth App dalam beberapa saat!"
-  },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
   },
   "app-marketing.features.importing.multimc-alt": {
     "message": "MultiMC"
-  },
-  "app-marketing.features.importing.title": {
-    "message": "Pengimportan profil"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "Tindakan"
@@ -506,15 +503,6 @@
   "app-marketing.features.mod-management.version": {
     "message": "Versi"
   },
-  "app-marketing.features.offline.description": {
-    "message": "Mainkan mod anda, sama ada anda disambungkan ke internet atau tidak."
-  },
-  "app-marketing.features.offline.title": {
-    "message": "Mod luar talian"
-  },
-  "app-marketing.features.open-source.description": {
-    "message": "Pelancar Modrinth adalah sumber terbuka sepenuhnya. Anda boleh melihat kod sumber pada laman <github-link>GitHub</github-link> kami!"
-  },
   "app-marketing.features.open-source.title": {
     "message": "Sumber terbuka"
   },
@@ -524,9 +512,6 @@
   "app-marketing.features.performance.cpu-percent": {
     "message": "% CPU"
   },
-  "app-marketing.features.performance.description": {
-    "message": "Modrinth App berprestasi lebih baik daripada kebanyakan pengurus mod terkemuka, menggunakan hanya 150 MB RAM!"
-  },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
   },
@@ -535,15 +520,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ MB"
-  },
-  "app-marketing.features.performance.infinite-times-infinite-mb": {
-    "message": "∞ × ∞ MB"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 MB"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -641,8 +617,17 @@
   "auth.authorize.redirect-url": {
     "message": "Anda akan diubah hala ke <redirect-url>{url}</redirect-url>"
   },
+  "auth.create-account.page-title": {
+    "message": "Cipta Akaun"
+  },
+  "auth.create-account.security-check.label": {
+    "message": "Semakan keselamatan"
+  },
   "auth.create-account.username.label": {
     "message": "Nama pengguna"
+  },
+  "auth.create-account.username.placeholder": {
+    "message": "Masukkan nama pengguna"
   },
   "auth.reset-password.method-choice.action": {
     "message": "Hantar e-mel pemulihan"
@@ -677,8 +662,8 @@
   "auth.reset-password.title.long": {
     "message": "Tetap semula kata laluan anda"
   },
-  "auth.sign-in.2fa.placeholder": {
-    "message": "Masukkan kod..."
+  "auth.sign-in.add-account": {
+    "message": "Tambah akaun"
   },
   "auth.sign-in.create-account": {
     "message": "Daftar"
@@ -719,6 +704,9 @@
   "auth.verify-email.failed-verification.title": {
     "message": "Pengesahan e-mel gagal"
   },
+  "auth.verify-email.notification.email-sent.title": {
+    "message": "E-mel telah dihantar"
+  },
   "auth.verify-email.post-verification.description": {
     "message": "Alamat e-mel anda telah berjaya disahkan!"
   },
@@ -727,6 +715,9 @@
   },
   "auth.verify-email.title": {
     "message": "Sahkan E-mel"
+  },
+  "collection.aria-label.upload-icon": {
+    "message": "Muat naik ikon"
   },
   "collection.button.edit-icon": {
     "message": "Sunting ikon"
@@ -796,9 +787,6 @@
   },
   "conversation-thread.action.approve-with-reply": {
     "message": "Luluskan dengan balasan"
-  },
-  "conversation-thread.action.close-thread": {
-    "message": "Tutup bebenang"
   },
   "conversation-thread.action.close-with-reply": {
     "message": "Tutup dengan balasan"
@@ -892,6 +880,51 @@
   },
   "create-project-version.create-modal.stage.add-files.admonition": {
     "message": "Fail tambahan adalah untuk sumber sokongan seperti kod sumber, bukan untuk versi atau varian alternatif."
+  },
+  "create-project-version.create-modal.stage.add-files.details-tab": {
+    "message": "Butiran"
+  },
+  "create-project-version.create-modal.stage.add-files.files-tab": {
+    "message": "Fail"
+  },
+  "create-project-version.create-modal.stage.add-files.metadata-tab": {
+    "message": "Metadata"
+  },
+  "create-project-version.create-modal.stage.add-files.upload-file-aria-label": {
+    "message": "Muat naik fail"
+  },
+  "create-project-version.create-modal.stage.details.details-tab": {
+    "message": "Butiran"
+  },
+  "create-project-version.create-modal.stage.details.files-tab": {
+    "message": "Fail"
+  },
+  "create-project-version.create-modal.stage.details.metadata-tab": {
+    "message": "Metadata"
+  },
+  "create-project-version.create-modal.stage.metadata.details-tab": {
+    "message": "Butiran"
+  },
+  "create-project-version.create-modal.stage.metadata.edit-button": {
+    "message": "Sunting"
+  },
+  "create-project-version.create-modal.stage.metadata.environment": {
+    "message": "Persekitaran"
+  },
+  "create-project-version.create-modal.stage.metadata.files-tab": {
+    "message": "Fail"
+  },
+  "create-project-version.create-modal.stage.metadata.loaders": {
+    "message": "Pemuat"
+  },
+  "create-project-version.create-modal.stage.metadata.metadata-tab": {
+    "message": "Metadata"
+  },
+  "create-project-version.create-modal.stage.metadata.suggested": {
+    "message": "Dicadangkan"
+  },
+  "create-project-version.create-modal.stage.metadata.versions": {
+    "message": "Versi"
   },
   "create.collection.collection-info": {
     "message": "Koleksi baharu anda akan dibuat sebagai koleksi awam dengan {count, plural, =0 {0 projek} other {# projek}}."
@@ -989,6 +1022,9 @@
   "create.project.name-placeholder": {
     "message": "Masukkan nama projek..."
   },
+  "create.project.organization-icon-alt": {
+    "message": "Ikon {name}"
+  },
   "create.project.owner-description": {
     "message": "Tetapkan pemilik projek sebagai diri anda atau organisasi yang anda sertai."
   },
@@ -1021,6 +1057,9 @@
   },
   "create.project.url-label": {
     "message": "URL"
+  },
+  "create.project.user-avatar-alt": {
+    "message": "Avatar Pengguna"
   },
   "create.project.visibility-description": {
     "message": "Keterlihatan projek anda selepas ia diluluskan."
@@ -1357,6 +1396,9 @@
   },
   "dashboard.discord-roles.role.creator": {
     "message": "Pencipta"
+  },
+  "dashboard.discord-roles.role.pride": {
+    "message": "Pride 2026"
   },
   "dashboard.head-title": {
     "message": "Papan Pemuka"
@@ -1820,9 +1862,6 @@
   "hosting-marketing.faq.cpu-kind": {
     "message": "Apakah jenis CPU yang digunakan oleh pelayan Modrinth Hosting?"
   },
-  "hosting-marketing.faq.cpu-kind.answer": {
-    "message": "Pelayan Modrinth Hosting dikuasakan oleh CPU setara AMD Ryzen 7900 dan 7950X3D pada 5+ GHz, digandingkan dengan ingatan DDR5."
-  },
   "hosting-marketing.faq.currency": {
     "message": "Dalam mata wang apa harga-harga tersebut?"
   },
@@ -2144,9 +2183,6 @@
   "layout.action.file-lookup": {
     "message": "Carian fail"
   },
-  "layout.action.lookup-by-email": {
-    "message": "Cari melalui e-mel"
-  },
   "layout.action.manage-affiliates": {
     "message": "Urus pautan afiliasi"
   },
@@ -2162,9 +2198,6 @@
   "layout.action.new-project": {
     "message": "Projek baharu"
   },
-  "layout.action.new-server-project": {
-    "message": "Pelayan baharu"
-  },
   "layout.action.publish": {
     "message": "Terbitkan"
   },
@@ -2176,6 +2209,9 @@
   },
   "layout.action.tech-review": {
     "message": "Semakan teknikal"
+  },
+  "layout.action.user-lookup": {
+    "message": "Carian pengguna"
   },
   "layout.avatar.alt": {
     "message": "Avatar anda"
@@ -2324,14 +2360,20 @@
   "layout.footer.social.discord": {
     "message": "Discord"
   },
-  "layout.footer.social.github": {
-    "message": "GitHub"
-  },
   "layout.footer.social.mastodon": {
     "message": "Mastodon"
   },
+  "layout.footer.social.reddit": {
+    "message": "Reddit"
+  },
   "layout.footer.social.x": {
     "message": "X"
+  },
+  "layout.footer.social.youtube": {
+    "message": "YouTube"
+  },
+  "layout.footer.unknown-commit": {
+    "message": "tidak diketahui"
   },
   "layout.menu-toggle.action": {
     "message": "Togol menu"
@@ -2351,11 +2393,11 @@
   "layout.nav.active-reports": {
     "message": "Laporan yang aktif"
   },
+  "layout.nav.add-account": {
+    "message": "Tambah akaun"
+  },
   "layout.nav.discover": {
     "message": "Temui"
-  },
-  "layout.nav.discover-content": {
-    "message": "Temui kandungan"
   },
   "layout.nav.get-modrinth-app": {
     "message": "Dapatkan Modrinth App"
@@ -2396,6 +2438,12 @@
   "layout.nav.upgrade-to-modrinth-plus": {
     "message": "Naik taraf ke Modrinth+"
   },
+  "modal.shared-instance.open-in-app.managed-by": {
+    "message": "Diurus oleh"
+  },
+  "moderation.exclude-technical-review": {
+    "message": "Kecualikan penilaian teknikal"
+  },
   "moderation.moderate": {
     "message": "Sederhanakan"
   },
@@ -2416,6 +2464,15 @@
   },
   "modpack-scan-modal.new-files": {
     "message": "Fail Baharu"
+  },
+  "modpack-scan-modal.new-groups": {
+    "message": "Kumpulan Baharu"
+  },
+  "modpack-scan-modal.not-scanned": {
+    "message": "Tidak diimbas"
+  },
+  "modpack-scan-modal.scanning": {
+    "message": "Sedang mengimbas..."
   },
   "muralpay.account-type.checking": {
     "message": "Cek"
@@ -2684,104 +2741,26 @@
   "muralpay.warning.wallet-address": {
     "message": "Semak semula alamat dompet anda. Dana yang dihantar ke alamat yang salah tidak boleh dipulihkan."
   },
-  "profile.bio.fallback.creator": {
-    "message": "Seorang pencipta Modrinth."
+  "organization.button.manage": {
+    "message": "Urus"
   },
-  "profile.bio.fallback.user": {
-    "message": "Seorang pengguna Modrinth."
+  "organization.label.downloads": {
+    "message": "muat turun"
   },
-  "profile.button.billing": {
-    "message": "Urus pengebilan pengguna"
+  "organization.label.members": {
+    "message": "ahli"
   },
-  "profile.button.edit-role": {
-    "message": "Sunting peranan"
+  "organization.label.projects": {
+    "message": "projek"
   },
-  "profile.button.info": {
-    "message": "Lihat butiran pengguna"
+  "organization.project-transfer.id-column": {
+    "message": "ID"
   },
-  "profile.button.manage-projects": {
-    "message": "Urus projek"
+  "organization.project-transfer.name-column": {
+    "message": "Nama"
   },
-  "profile.button.remove-affiliate": {
-    "message": "Alih keluar rakan afiliasi"
-  },
-  "profile.button.set-affiliate": {
-    "message": "Tetapkan sebagai rakan afiliasi"
-  },
-  "profile.collection.projects-count": {
-    "message": "{count, plural, other {# projek}}"
-  },
-  "profile.details.label.auth-providers": {
-    "message": "Penyedia pengesahan"
-  },
-  "profile.details.label.email": {
-    "message": "E-mel"
-  },
-  "profile.details.label.email-verified": {
-    "message": "E-mel disahkan"
-  },
-  "profile.details.label.has-password": {
-    "message": "Mempunyai kata laluan"
-  },
-  "profile.details.label.has-totp": {
-    "message": "Mempunyai TOTP"
-  },
-  "profile.details.label.payment-methods": {
-    "message": "Kaedah pembayaran"
-  },
-  "profile.details.tooltip.email-not-verified": {
-    "message": "E-mel tidak disahkan"
-  },
-  "profile.details.tooltip.email-verified": {
-    "message": "E-mel disahkan"
-  },
-  "profile.error.not-found": {
-    "message": "Pengguna tidak dijumpai"
-  },
-  "profile.label.affiliate": {
-    "message": "Afiliasi"
-  },
-  "profile.label.badges": {
-    "message": "Lencana"
-  },
-  "profile.label.collection": {
-    "message": "Koleksi"
-  },
-  "profile.label.joined": {
-    "message": "Telah menyertai"
-  },
-  "profile.label.no-collections": {
-    "message": "Pengguna ini tidak memiliki sebarang koleksi!"
-  },
-  "profile.label.no-collections-auth": {
-    "message": "Anda tidak memiliki sebarang koleksi.\nAdakah anda mahu <create-link>mencipta sebuah koleksi</create-link>?"
-  },
-  "profile.label.no-projects": {
-    "message": "Pengguna ini tidak memiliki sebarang projek!"
-  },
-  "profile.label.no-projects-auth": {
-    "message": "Anda tidak memiliki sebarang projek.\nAdakah anda mahu <create-link>mencipta sebuah projek</create-link>?"
-  },
-  "profile.label.organizations": {
-    "message": "Organisasi"
-  },
-  "profile.label.saving": {
-    "message": "Sedang menyimpan..."
-  },
-  "profile.meta.description": {
-    "message": "Muat turun projek milik {username} di Modrinth"
-  },
-  "profile.meta.description-with-bio": {
-    "message": "{bio} - Muat turun projek milik {username} di Modrinth"
-  },
-  "profile.official-account.bio": {
-    "message": "Akaun pengguna rasmi Modrinth. Dapatkan sokongan di <support-link></support-link> atau melalui e-mel di <email></email>"
-  },
-  "profile.stats.projects-followers": {
-    "message": "{count, plural, other {<stat>{count}</stat> pengikut projek}}"
-  },
-  "profile.user-id": {
-    "message": "ID Pengguna: {id}"
+  "organization.project-transfer.type-column": {
+    "message": "Jenis"
   },
   "project-member-header.error-decline": {
     "message": "Gagal menolak jemputan pasukan"
@@ -2897,23 +2876,8 @@
   "project-type.shader.singular": {
     "message": "Pembayang"
   },
-  "project.about.details.created": {
-    "message": "Dicipta {date}"
-  },
-  "project.about.details.licensed": {
-    "message": "Berlesen {license}"
-  },
-  "project.about.details.published": {
-    "message": "Diterbitkan {date}"
-  },
-  "project.about.details.submitted": {
-    "message": "Diserahkan {date}"
-  },
-  "project.about.details.title": {
-    "message": "Butiran"
-  },
-  "project.about.details.updated": {
-    "message": "Dikemas kini {date}"
+  "project.actions.checking-modpack-archives": {
+    "message": "Sedang menyemak..."
   },
   "project.actions.create-server": {
     "message": "Cipta pelayan"
@@ -2945,8 +2909,8 @@
   "project.description.title": {
     "message": "Keterangan"
   },
-  "project.details.licensed": {
-    "message": "Berlesen"
+  "project.download.download": {
+    "message": "Muat turun"
   },
   "project.download.game-version-unsupported-tooltip": {
     "message": "{title} tidak menyokong {gameVersion} untuk {platform}"
@@ -2999,15 +2963,6 @@
   "project.gallery.title": {
     "message": "Galeri"
   },
-  "project.license.error": {
-    "message": "Teks lesen tidak dapat diambil."
-  },
-  "project.license.loading": {
-    "message": "Sedang memuat teks lesen..."
-  },
-  "project.license.title": {
-    "message": "Lesen"
-  },
   "project.moderation.admonition.approved.body.private": {
     "message": "Projek anda adalah peribadi, yang bermakna ia hanya boleh diakses oleh anda dan orang yang anda jemput."
   },
@@ -3049,9 +3004,6 @@
   },
   "project.moderation.admonition.under-review.body.3": {
     "message": "Anda masih boleh mengubah suai projek anda, ia tidak akan menjejaskan kedudukan anda dalam barisan."
-  },
-  "project.moderation.admonition.under-review.body.4": {
-    "message": "Kami menyasarkan untuk menyemak penyerahan dalam masa 24-48 jam, tetapi sesetengah projek mungkin menghadapi kelewatan. Ini tidak mencerminkan masalah dengan penyerahan anda."
   },
   "project.moderation.admonition.under-review.body.5": {
     "message": "<emphasis>Kami menghargai kesabaran anda sementara penyederhana kami berusaha keras untuk memastikan Modrinth kekal selamat, dan berharap dapat membantu anda berkongsi kandungan anda!💚</emphasis>"
@@ -3101,6 +3053,12 @@
   "project.notification.updated.title": {
     "message": "Projek dikemas kini"
   },
+  "project.settings.disclosures.advertising.description.2": {
+    "message": "Ini tidak terpakai bagi promosi kandungan berkaitan yang tidak mengganggu dan tidak mempunyai nilai kewangan secara langsung (seperti pautan ke profil Modrinth dalam menu konfigurasi anda), serta tidak terpakai bagi iklan pada halaman projek, seperti sepanduk tajaan dalam bahagian keterangan."
+  },
+  "project.settings.disclosures.last-updated.moderator": {
+    "message": "Penyederhana"
+  },
   "project.settings.general.name.description": {
     "message": "Elakkan awalan, akhiran, kurungan atau perihalan tambahan—hanya nama sebenar projek."
   },
@@ -3146,6 +3104,15 @@
   "project.settings.general.url.title": {
     "message": "URL"
   },
+  "project.settings.license.intro": {
+    "message": "Adalah penting untuk memilih lesen yang sesuai bagi {type} anda. Anda boleh memilih satu lesen daripada senarai kami atau menyediakan lesen tersuai. Anda juga boleh menyediakan URL tersuai untuk lesen pilihan anda; jika tidak, teks lesen tersebut akan dipaparkan. Sila rujuk <guide>panduan pelesenan</guide> kami untuk maklumat lanjut."
+  },
+  "project.settings.links.donation-link": {
+    "message": "Pautan"
+  },
+  "project.settings.links.donation-url": {
+    "message": "URL"
+  },
   "project.settings.permissions.attention-needed.description.proj-approved": {
     "message": "Sila berikan bukti bahawa anda mempunyai kebenaran untuk mengedarkan semula semua fail berikut. Setelah selesai, sebarang versi yang ditahan akan diterbitkan secara automatik."
   },
@@ -3154,6 +3121,9 @@
   },
   "project.settings.permissions.empty-state.heading": {
     "message": "Semuanya sudah siap!"
+  },
+  "project.settings.permissions.expand-all": {
+    "message": "Kembangkan semua"
   },
   "project.settings.permissions.fail.description": {
     "message": "Anda mungkin tidak mempunyai kebenaran untuk mengedarkan semula sebahagian daripada kandungan luaran dalam projek anda. Untuk menerbitkan projek ini di Modrinth, sila alih keluar kandungan ini atau berikan bukti bahawa anda mempunyai kebenaran untuk menggunakannya."
@@ -3167,20 +3137,41 @@
   "project.settings.permissions.learn-more": {
     "message": "Ketahui lebih lanjut"
   },
+  "project.settings.permissions.sort.most-files": {
+    "message": "Kebanyakkan fail"
+  },
   "project.settings.permissions.sort.rejected": {
     "message": "Ditolak"
   },
   "project.settings.permissions.sort.status": {
     "message": "Status"
   },
-  "project.settings.title": {
-    "message": "Tetapan"
+  "project.settings.server.languages-label": {
+    "message": "Bahasa"
   },
-  "project.settings.visit-dashboard": {
-    "message": "Kunjungi papan pemuka projek"
+  "project.settings.server.optional-label": {
+    "message": "pilihan"
   },
-  "project.status.archived.message": {
-    "message": "{title} telah diarkibkan. {title} tidak akan menerima sebarang kemas kini lanjut melainkan pengarang memutuskan untuk menyaharkibkan projek."
+  "project.settings.server.region-label": {
+    "message": "Rantau"
+  },
+  "project.settings.tags.title": {
+    "message": "Tag"
+  },
+  "project.versions.copy-id-option": {
+    "message": "Salin ID"
+  },
+  "project.versions.copy-link-option": {
+    "message": "Salin pautan"
+  },
+  "project.versions.delete-button": {
+    "message": "Padam"
+  },
+  "project.versions.edit-files-option": {
+    "message": "Sunting fail"
+  },
+  "project.versions.share-option": {
+    "message": "Kongsi"
   },
   "project.versions.title": {
     "message": "Versi"
@@ -3698,6 +3689,12 @@
   "settings.account.security.passkey.add-modal.name.label": {
     "message": "Nama"
   },
+  "settings.account.security.passkey.add-modal.name.placeholder": {
+    "message": "Kunci laluan saya"
+  },
+  "settings.account.security.passkey.modal.never-used": {
+    "message": "Tidak pernah digunakan"
+  },
   "settings.account.security.password.action.add": {
     "message": "Tambah kata laluan"
   },
@@ -3755,14 +3752,8 @@
   "settings.account.two-factor.error.incorrect-code": {
     "message": "Kod yang dimasukkan salah!"
   },
-  "settings.account.two-factor.field.code.description": {
-    "message": "Sila masukkan kod dua faktor untuk meneruskan."
-  },
   "settings.account.two-factor.field.code.label": {
     "message": "Masukkan kod dua faktor"
-  },
-  "settings.account.two-factor.field.code.placeholder": {
-    "message": "Masukkan kod..."
   },
   "settings.account.two-factor.setup.intro": {
     "message": "Pengesahan dua faktor memastikan akaun anda selamat dengan memerlukan akses kepada peranti kedua untuk log masuk."
@@ -3788,23 +3779,14 @@
   "settings.applications.button.add-redirect-uri": {
     "message": "Tambah URI pengubah hala"
   },
-  "settings.applications.button.cancel": {
-    "message": "Batal"
-  },
   "settings.applications.button.create": {
     "message": "Cipta aplikasi"
   },
   "settings.applications.button.delete": {
     "message": "Padam"
   },
-  "settings.applications.button.edit": {
-    "message": "Sunting"
-  },
   "settings.applications.button.new": {
     "message": "Aplikasi baharu"
-  },
-  "settings.applications.button.save-changes": {
-    "message": "Simpan perubahan"
   },
   "settings.applications.button.upload-icon": {
     "message": "Muat naik ikon"
@@ -3878,14 +3860,8 @@
   "settings.authorizations.about-this-app": {
     "message": "Mengenai aplikasi ini"
   },
-  "settings.authorizations.by": {
-    "message": "oleh"
-  },
   "settings.authorizations.description": {
     "message": "Apabila anda membenarkan aplikasi ini dengan akaun Modrinth anda, anda memberikannya akses kepada akaun anda. Anda boleh mengurus dan menyemak akses kepada akaun anda di sini pada bila-bila masa."
-  },
-  "settings.authorizations.empty-state": {
-    "message": "Kami tidak dapat memaparkan aplikasi yang dibenarkan oleh anda pada masa ini, kami sedang berusaha untuk memperbaikinya. Sila kunjungi laman ini pada tarikh yang akan datang!"
   },
   "settings.authorizations.head-title": {
     "message": "Kebenaran"
@@ -4100,95 +4076,11 @@
   "settings.display.banner.developer-mode.description": {
     "message": "<strong>Mod pembangun</strong> kini aktif. Ini akan membolehkan anda melihat ID dalaman pelbagai perkara di seluruh Modrinth yang mungkin berguna jika anda seorang pembangun yang menggunakan API Modrinth. Klik pada logo Modrinth di bahagian bawah laman sebanyak 5 kali untuk menogol mod pembangun."
   },
-  "settings.display.flags.description": {
-    "message": "Dayakan atau nyahdayakan ciri tertentu pada peranti ini."
-  },
-  "settings.display.flags.title": {
-    "message": "Togol ciri-ciri"
-  },
   "settings.display.notification.developer-mode-deactivated.text": {
     "message": "Mod pembangun telah dinyahdayakan"
   },
   "settings.display.notification.developer-mode-deactivated.title": {
     "message": "Mod pembangun dinyahaktifkan"
-  },
-  "settings.display.project-list-layouts.datapack": {
-    "message": "Laman Pek Data"
-  },
-  "settings.display.project-list-layouts.description": {
-    "message": "Pilih susun atur pilihan anda untuk setiap laman yang memaparkan senarai projek pada peranti ini."
-  },
-  "settings.display.project-list-layouts.mod": {
-    "message": "Laman Mod"
-  },
-  "settings.display.project-list-layouts.mode.gallery": {
-    "message": "Galeri"
-  },
-  "settings.display.project-list-layouts.mode.grid": {
-    "message": "Grid"
-  },
-  "settings.display.project-list-layouts.mode.rows": {
-    "message": "Barisan"
-  },
-  "settings.display.project-list-layouts.modpack": {
-    "message": "Laman Pek Mod"
-  },
-  "settings.display.project-list-layouts.plugin": {
-    "message": "Laman Pemalam"
-  },
-  "settings.display.project-list-layouts.resourcepack": {
-    "message": "Laman Pek Sumber"
-  },
-  "settings.display.project-list-layouts.server": {
-    "message": "Laman Pelayan"
-  },
-  "settings.display.project-list-layouts.shader": {
-    "message": "Laman Pembayang"
-  },
-  "settings.display.project-list-layouts.title": {
-    "message": "Susun atur senarai projek"
-  },
-  "settings.display.project-list-layouts.user": {
-    "message": "Laman profil pengguna"
-  },
-  "settings.display.project-list.layouts.collection": {
-    "message": "Koleksi"
-  },
-  "settings.display.sidebar.advanced-rendering.description": {
-    "message": "Mendayakan pemaparan lanjutan seperti kesan kabur yang boleh menyebabkan masalah prestasi tanpa pemaparan dipercepatkan perkakasan."
-  },
-  "settings.display.sidebar.advanced-rendering.title": {
-    "message": "Pemaparan lanjutan"
-  },
-  "settings.display.sidebar.external-links-new-tab.description": {
-    "message": "Buka pautan yang membawa anda ke luar Modrinth dalam tab baharu. Tidak kira tetapan ini, pautan pada domain yang sama dan dalam keterangan berformat Markdown akan dibuka dalam tab yang sama dan pautan pada iklan dan laman sunting akan dibuka dalam tab baharu."
-  },
-  "settings.display.sidebar.external-links-new-tab.title": {
-    "message": "Buka pautan luaran dalam tab baharu"
-  },
-  "settings.display.sidebar.hide-app-promos.description": {
-    "message": "Menyembunyikan butang \"Dapatkan Modrinth App\" daripada navigasi utama. Laman Modrinth App masih boleh dijumpai pada halaman pendaratan atau dalam pengaki."
-  },
-  "settings.display.sidebar.hide-app-promos.title": {
-    "message": "Sembunyikan promosi Modrinth App"
-  },
-  "settings.display.sidebar.left-aligned-content-sidebar.title": {
-    "message": "Bar sisi carian dijajar kiri pada laman kandungan"
-  },
-  "settings.display.sidebar.right-aligned-content-sidebar.description": {
-    "message": "Menjajarkan bar sisi butiran projek ke sebelah kiri kandungan laman."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.description": {
-    "message": "Menjajarkan bar sisi penapis ke sebelah kanan hasil carian."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.title": {
-    "message": "Bar sisi penapis dijajar kanan pada laman carian"
-  },
-  "settings.display.theme.description": {
-    "message": "Pilih tema warna pilihan anda untuk Modrinth pada peranti ini."
-  },
-  "settings.display.theme.title": {
-    "message": "Tema warna"
   },
   "settings.head-title": {
     "message": "Tetapan paparan"
@@ -4244,27 +4136,6 @@
   "settings.pats.token.never-used": {
     "message": "Tidak pernah digunakan"
   },
-  "settings.profile.bio.description": {
-    "message": "Keterangan ringkas untuk memberitahu semua orang serba sedikit tentang anda."
-  },
-  "settings.profile.bio.title": {
-    "message": "Bio"
-  },
-  "settings.profile.description": {
-    "message": "Maklumat profil anda boleh dilihat secara terbuka pada Modrinth dan melalui <docs-link>API Modrinth</docs-link>."
-  },
-  "settings.profile.head-title": {
-    "message": "Tetapan profil"
-  },
-  "settings.profile.profile-info": {
-    "message": "Maklumat profil"
-  },
-  "settings.profile.profile-picture.title": {
-    "message": "Gambar profil"
-  },
-  "settings.profile.username.description": {
-    "message": "Nama unik (tidak sensitif huruf besar dan kecil) untuk mengenal pasti profil anda."
-  },
   "settings.sessions.action.revoke-session": {
     "message": "Batalkan sesi"
   },
@@ -4313,6 +4184,9 @@
   "version.edit.button": {
     "message": "Sunting"
   },
+  "version.edit.files": {
+    "message": "Sunting fail"
+  },
   "version.environment.none.description": {
     "message": "Persekitaran untuk versi ini belum dinyatakan."
   },
@@ -4324,6 +4198,9 @@
   },
   "version.environment.unknown.title": {
     "message": "Persekitaran yang tidak diketahui"
+  },
+  "version.section.content.dev-info.gradle-snippet": {
+    "message": "build.gradle:"
   },
   "version.section.content.dev-info.maven-description": {
     "message": "Projek di Modrinth tersedia secara automatik melalui repositori Maven untuk digunakan dengan alat binaan JVM seperti <gradle-link>Gradle</gradle-link>. Untuk mengetahui lebih lanjut tentang API Maven Modrinth, <article-link>klik di sini</article-link>."

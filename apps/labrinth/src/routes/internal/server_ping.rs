@@ -1,11 +1,12 @@
 use std::time::Duration;
+use xredis::RedisPool;
 
 use actix_web::{HttpRequest, post, web};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     auth::get_user_from_headers,
-    database::{PgPool, redis::RedisPool},
+    database::PgPool,
     models::pats::Scopes,
     queue::{server_ping, session::AuthQueue},
     routes::ApiError,
@@ -43,7 +44,8 @@ pub async fn ping_minecraft_java(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?;
+    .await
+    .wrap_auth_err("authenticating API request")?;
 
     let timeout = request.timeout_ms.map(Duration::from_millis);
     server_ping::ping_server(&request.address, timeout)

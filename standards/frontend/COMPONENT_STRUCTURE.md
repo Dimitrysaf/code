@@ -1,112 +1,108 @@
 # Component Structure
 
-## Component folders
+For `app-frontend`, choose the feature or shell folder using [Application Structure](app-frontend/APP_FRONTEND_STRUCTURE.md) before organising the component's own files. Keep its supporting code nearby, with larger feature behavior outside the component folder. [App Composables](app-frontend/APP_FRONTEND_COMPOSABLES.md) explains when it helps to separate reactive behavior.
 
-Prefer giving non-trivial components their own folder:
+These app-specific placement rules do not change the website or shared UI folder structure.
+
+## Component Folders
+
+Give a component its own folder when it has local helpers, composables, types, or subcomponents. Do not create a folder containing only `index.vue`; keep that component as a named `.vue` file in its parent folder.
 
 ```
 components/
 └── analytics-chart/
 	├── index.vue
-	├── analytics-chart-header.vue
-	├── analytics-chart-plot.vue
-	├── analytics-chart-data.ts
+	├── header.vue
+	├── plot.vue
+	├── data.ts
 	└── use-analytics-chart.ts
 ```
 
-The folder name should match the public component name in kebab case. The main component in that folder should be `index.vue`.
+Use the public component name in kebab case for the folder name. Use `index.vue` for the main component.
 
-This keeps imports short:
+This structure keeps imports short:
 
 ```ts
 import AnalyticsChart from '@/components/analytics-chart/index.vue'
 ```
 
-If the local resolver supports directory indexes, importing the folder is also fine:
+You can import the folder if the local resolver supports directory indexes:
 
 ```ts
 import AnalyticsChart from '@/components/analytics-chart/'
 ```
 
-Use the explicit `index.vue` import when the TypeScript setup cannot resolve the directory import reliably.
+Use the explicit `index.vue` import if TypeScript cannot resolve the directory import.
 
-## Local implementation files
+## Local Implementation Files
 
-Keep files that only exist to support one component inside that component's folder:
+Keep files for only one component in that component's folder:
 
 ```
 analytics-chart/
 ├── index.vue
-├── analytics-chart-header.vue
-├── analytics-chart-plot.vue
-├── analytics-chart-tooltip.vue
+├── header.vue
+├── plot.vue
+├── tooltip.vue
 ├── chart-ranges.ts
 └── use-chart-hover-state.ts
 ```
 
-Good candidates for local files:
+Use local files for these items:
 
-- Small subcomponents used only by the main component
-- Local composables used only by the main component or its local subcomponents
-- Helpers that split up a large `<script setup>` block
-- Types that describe local component state or props
+- Small subcomponents that only the main component uses.
+- Local composables that only the component folder uses.
+- Helpers that divide a large `<script setup>` block.
+- Types for local component state or props.
 
-This is preferred over allowing a single component file to grow into a large, hard-to-review script block.
+This structure prevents large script blocks that are difficult to review.
 
-## Naming local subcomponents
+## Local Subcomponent Names
 
-Local subcomponents should still have clear names that explain their relationship to the main component:
-
-```
-analytics-chart/
-├── index.vue
-├── analytics-chart-header.vue
-└── analytics-chart-plot.vue
-```
-
-Avoid vague names that make a local component look like a standalone public component:
+Use short names that describe each local component's role. The parent folder already supplies the component name, so `header.vue` is enough inside `analytics-chart/`:
 
 ```
 analytics-chart/
 ├── index.vue
-├── events.vue
-└── header.vue
+├── header.vue
+└── plot.vue
 ```
 
-If a file is local to `analytics-chart`, prefixing it with `analytics-chart-` makes that relationship clear when it appears in search results, editor tabs, and imports.
+Use a more specific name when the role is unclear, such as `date-filter.vue` or `status-filter.vue`. There is no need to repeat the parent name in every filename.
 
 ## Nesting
 
-One level of nesting is usually enough.
+Use one nesting level in most component folders.
 
-Prefer this:
+Use this structure:
 
 ```
 analytics-chart/
 ├── index.vue
-├── analytics-chart-header.vue
-├── analytics-chart-plot.vue
+├── header.vue
+├── plot.vue
 ├── use-chart-hover-state.ts
 └── use-chart-selection.ts
 ```
 
-Avoid this unless a local area has become large enough to justify its own module boundary:
+Use a subfolder only when a local area needs its own module boundary and has supporting files:
 
 ```
 analytics-chart/
 ├── index.vue
-├── header/
-│	└── index.vue
+├── header.vue
 └── plot/
 	├── index.vue
 	└── use-plot-state.ts
 ```
 
-Subfolders are fine when they reduce real complexity, but do not create a folder for every small subcomponent by default. Deep nesting makes the file tree harder to scan and often adds duplicated names without improving ownership.
+Use subfolders when they reduce real complexity. Do not make a folder for each small subcomponent.
 
-## When not to use a folder
+Deep nesting makes the file tree difficult to scan. It also causes duplicate names without clearer ownership.
 
-Small, leaf components can stay as a single `.vue` file:
+## Small Components
+
+Keep small leaf components in single `.vue` files:
 
 ```
 components/
@@ -115,14 +111,16 @@ components/
 └── project-status-pill.vue
 ```
 
-Move a component into a folder once it grows local helpers, local composables, or local subcomponents.
+Move a component into a folder when it gets local helpers, composables, types, or subcomponents. If only `index.vue` remains in a folder, move it back to a named file in the parent folder and update its imports. For example, use `app-shell/route-outlet.vue`, not `app-shell/route-outlet/index.vue`. This rule also applies to large components that have no supporting files.
 
-## Public versus local components
+## Public and Local Components
 
-Only the main `index.vue` should be treated as the public entry point for the folder. Other files in the folder are implementation details unless there is a clear reason to import them from outside.
+For a component with its own folder, use the main `index.vue` as its public entry point. Treat the supporting files as implementation details. A standalone component uses its named `.vue` file as its entry point; it does not need a folder to be public.
 
-If a local subcomponent starts being imported elsewhere, either:
+If another component imports a local subcomponent, use one of these solutions:
 
-- Promote it into its own component folder
-- Move it to the nearest shared component area if it is genuinely reusable
-- Keep it local and pass behavior through the main component if external imports would leak implementation details
+- Promote the subcomponent to a standalone named `.vue` file, or give it its own component folder if it has supporting files.
+- Move the subcomponent to the nearest shared component area when it is reusable.
+- Keep it local and pass behavior through the main component.
+
+Use the last solution when an external import exposes implementation details.

@@ -70,7 +70,9 @@ pub fn start_logger(app_identifier: &str) -> Option<()> {
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer())
         .with(file_layer)
-        .with(env_filter("theseus=info,theseus_gui=info,cef_console=info"))
+        .with(env_filter(
+            "theseus=info,theseus_gui=info,webview=trace,cef_console=info",
+        ))
         .with(tracing_error::ErrorLayer::default())
         .init();
     Some(())
@@ -90,7 +92,7 @@ pub fn start_logger(app_identifier: &str) -> Option<()> {
                 .with_ansi(false)
                 .with_timer(ChronoLocal::rfc_3339()),
         )
-        .with(env_filter("theseus=info,cef_console=info"))
+        .with(env_filter("theseus=info,webview=trace,cef_console=info"))
         .with(tracing_error::ErrorLayer::default())
         .init();
 

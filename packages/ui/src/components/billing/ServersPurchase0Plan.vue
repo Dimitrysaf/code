@@ -3,10 +3,11 @@ import type { Labrinth } from '@modrinth/api-client'
 import { RightArrowIcon } from '@modrinth/assets'
 import { computed } from 'vue'
 
+import { Button } from '#ui/components/base/buttons'
+
 import { useFormatPrice } from '../../composables'
 import { defineMessages, useVIntl } from '../../composables/i18n'
 import { getPriceForInterval, monthsInInterval } from '../../utils/product-utils'
-import ButtonStyled from '../base/ButtonStyled.vue'
 import OptionGroup from '../base/OptionGroup.vue'
 import type { ServerBillingInterval } from './ModrinthServersPurchaseModal.vue'
 import ServersSpecs from './ServersSpecs.vue'
@@ -69,9 +70,9 @@ const messages = defineMessages({
 		id: 'servers.purchase.step.plan.most-popular',
 		defaultMessage: 'Most Popular',
 	},
-	billingSubtitle: {
-		id: 'servers.purchase.step.plan.billing-subtitle',
-		defaultMessage: 'Available in North America, Europe, and Southeast Asia.',
+	hardwareSubtitle: {
+		id: 'servers.purchase.step.plan.hardware-subtitle',
+		defaultMessage: 'Powered by AMD Ryzen 7950X, 9950X, or equivalent, with DDR5 memory.',
 	},
 	customHeading: {
 		id: 'servers.purchase.step.plan.custom.heading',
@@ -164,7 +165,7 @@ function selectCustom() {
 </script>
 
 <template>
-	<div class="flex flex-col items-center gap-2 mb-5 !mt-0">
+	<div class="flex flex-col items-center gap-2 mb-5 pb-1.5 !mt-0">
 		<OptionGroup
 			v-slot="{ option }"
 			v-model="selectedInterval"
@@ -177,7 +178,7 @@ function selectCustom() {
 			</span>
 		</OptionGroup>
 		<div class="text-sm text-secondary text-center">
-			{{ formatMessage(messages.billingSubtitle) }}
+			{{ formatMessage(messages.hardwareSubtitle) }}
 		</div>
 	</div>
 	<Transition
@@ -218,19 +219,19 @@ function selectCustom() {
 				</div>
 			</div>
 			<div class="w-full">
-				<ButtonStyled color="blue">
-					<button
-						class="w-full"
-						:disabled="existingPlan?.id === plansByRam.small.id"
-						@click="selectPlan(plansByRam.small!)"
-					>
-						{{
-							existingPlan?.id === plansByRam.small.id
-								? formatMessage(messages.yourCurrentPlan)
-								: formatMessage(messages.selectPlan)
-						}}
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="blue"
+					class="w-full"
+					:disabled="existingPlan?.id === plansByRam.small.id"
+					@click="selectPlan(plansByRam.small!)"
+				>
+					{{
+						existingPlan?.id === plansByRam.small.id
+							? formatMessage(messages.yourCurrentPlan)
+							: formatMessage(messages.selectPlan)
+					}}
+				</Button>
 			</div>
 			<ServersSpecs
 				v-if="smallSpecs"
@@ -245,9 +246,7 @@ function selectCustom() {
 			<div
 				class="z-10 -mb-3.5 rounded-full text-sm font-medium text-brand whitespace-nowrap absolute -top-3 right-4 bg-surface-3"
 			>
-				<div
-					class="bg-brand-highlight border border-solid border-highlight-green px-2.5 py-0.5 rounded-full"
-				>
+				<div class="bg-brand-highlight border border-solid border-brand px-2.5 py-0.5 rounded-full">
 					{{ formatMessage(messages.mostPopular) }}
 				</div>
 			</div>
@@ -281,19 +280,19 @@ function selectCustom() {
 					</div>
 				</div>
 				<div class="w-full">
-					<ButtonStyled color="brand" class="w-full">
-						<button
-							class="w-full"
-							:disabled="existingPlan?.id === plansByRam.medium.id"
-							@click="selectPlan(plansByRam.medium!)"
-						>
-							{{
-								existingPlan?.id === plansByRam.medium.id
-									? formatMessage(messages.yourCurrentPlan)
-									: formatMessage(messages.selectPlan)
-							}}
-						</button>
-					</ButtonStyled>
+					<Button
+						type="colored"
+						color="brand"
+						class="w-full"
+						:disabled="existingPlan?.id === plansByRam.medium.id"
+						@click="selectPlan(plansByRam.medium!)"
+					>
+						{{
+							existingPlan?.id === plansByRam.medium.id
+								? formatMessage(messages.yourCurrentPlan)
+								: formatMessage(messages.selectPlan)
+						}}
+					</Button>
 				</div>
 				<ServersSpecs
 					v-if="mediumSpecs"
@@ -329,19 +328,19 @@ function selectCustom() {
 				</div>
 			</div>
 			<div class="w-full">
-				<ButtonStyled color="purple" class="w-full">
-					<button
-						class="w-full"
-						:disabled="existingPlan?.id === plansByRam.large.id"
-						@click="selectPlan(plansByRam.large!)"
-					>
-						{{
-							existingPlan?.id === plansByRam.large.id
-								? formatMessage(messages.yourCurrentPlan)
-								: formatMessage(messages.selectPlan)
-						}}
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="purple"
+					class="w-full"
+					:disabled="existingPlan?.id === plansByRam.large.id"
+					@click="selectPlan(plansByRam.large!)"
+				>
+					{{
+						existingPlan?.id === plansByRam.large.id
+							? formatMessage(messages.yourCurrentPlan)
+							: formatMessage(messages.selectPlan)
+					}}
+				</Button>
 			</div>
 			<ServersSpecs
 				v-if="largeSpecs"
@@ -366,11 +365,9 @@ function selectCustom() {
 			</div>
 		</div>
 		<div class="flex flex-col items-end gap-2 shrink-0">
-			<ButtonStyled>
-				<button class="flex items-center gap-2" @click="selectCustom">
-					{{ formatMessage(messages.getStarted) }} <RightArrowIcon class="h-4 w-4" />
-				</button>
-			</ButtonStyled>
+			<Button class="flex items-center gap-2" @click="selectCustom">
+				{{ formatMessage(messages.getStarted) }} <RightArrowIcon class="h-4 w-4" />
+			</Button>
 			<div class="text-sm text-secondary whitespace-nowrap">
 				Starting at {{ formatPrice(customStartingPrice, currency, true) }}/mo
 			</div>

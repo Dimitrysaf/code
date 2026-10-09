@@ -139,6 +139,7 @@ export namespace Archon {
 				| 'file_renamed'
 				| 'file_edited'
 				| 'sftp_login'
+				| 'sftp_credentials_rolled'
 				| 'console_command_executed'
 				| 'console_cleared'
 				| 'backup_created'
@@ -301,13 +302,24 @@ export namespace Archon {
 				environment?: Labrinth.Projects.v3.Environment | null
 			}
 
+			export type AddonStatus =
+				| 'pending'
+				| 'installed'
+				| {
+						failed: {
+							error: string
+						}
+				  }
+
 			export type Addon = {
 				id: string
 				filename: string
 				filesize: number
+				btime?: string
 				disabled: boolean
 				kind: AddonKind
 				from_modpack: boolean
+				status: AddonStatus
 				pack_client_retained: boolean
 				pack_client_depends: boolean
 				has_update: string | null
@@ -323,6 +335,10 @@ export namespace Archon {
 				modloader_version: string | null
 				game_version: string | null
 				modpack: ModpackFields | null
+				installing?: 'loader' | 'modpack'
+				error?: {
+					message: string
+				}
 				addons: Addon[] | null
 			}
 
@@ -558,6 +574,23 @@ export namespace Archon {
 	}
 
 	export namespace Servers {
+		export namespace Internal {
+			export type Lookup = {
+				id: string
+			}
+
+			export type ServerLock = {
+				server_id: string
+				reason: string
+				locked_by?: string
+				created: string
+			}
+
+			export type LockServerRequest = {
+				reason: string
+			}
+		}
+
 		export namespace v0 {
 			export type ServerGetResponse = {
 				servers: Server[]
@@ -624,6 +657,7 @@ export namespace Archon {
 				flows: Flows
 				is_medal: boolean
 				current_user_permissions: UserScope
+				locked_since: string | null
 
 				medal_expires?: string
 			}
@@ -713,6 +747,18 @@ export namespace Archon {
 		}
 
 		export namespace v1 {
+			export type WorldDownloadMethod =
+				| {
+						method_type: 'direct_node_download'
+				  }
+				| {
+						method_type: 'backup'
+						backup_id: string
+				  }
+				| {
+						method_type: 'unavailable'
+				  }
+
 			export type ServerFull = {
 				id: string
 				name: string
@@ -723,6 +769,11 @@ export namespace Archon {
 				tags: string[]
 				location: ServerLocation
 				worlds: WorldFull[]
+			}
+
+			export type SftpCredentials = {
+				sftp_username: string
+				sftp_password: string
 			}
 
 			export type ServerResources = {
@@ -739,6 +790,7 @@ export namespace Archon {
 							region: string
 							region_should_be_user_displayed: boolean
 							hostname: string
+							url_host: string
 							is_decommissioned_node: boolean
 						}
 				  }
@@ -751,6 +803,7 @@ export namespace Archon {
 				name: string
 				created_at: string
 				is_active: boolean
+				download_method: WorldDownloadMethod
 				/**
 				 * @deprecated Prefer `client.archon.backups_queue_v1.list()` for queue-aware backup state.
 				 */
@@ -960,6 +1013,11 @@ export namespace Archon {
 				type: 'server.network.patch'
 				ports: ServerNetworkPort[]
 			}
+			export type ServerSftpPatchEvent = {
+				type: 'server.sftp.patch'
+				sftp_username: string
+				sftp_password: string
+			}
 			export type ServerTransferEvent = {
 				type: 'server.transfer.start' | 'server.transfer.done'
 				target_node: string
@@ -989,6 +1047,78 @@ export namespace Archon {
 				world_id: string
 				spec: Archon.Content.v1.Addons
 			}
+			export type WorldContentPlatform =
+				| 'forge'
+				| 'neoforge'
+				| 'fabric'
+				| 'quilt'
+				| 'paper'
+				| 'purpur'
+				| 'vanilla'
+			export type WorldContentPlatformData = {
+				platform: WorldContentPlatform
+				game_version: string
+				platform_version: string | null
+			}
+			export type WorldContentModpackSource =
+				| 'CurseForge'
+				| {
+						Modrinth: {
+							version_id: string
+							project_id: string
+							mrpack_sha1: string | null
+						}
+				  }
+				| {
+						LocalMrPackFile: {
+							path: string
+							name: string
+							description: string | null
+							version_name: string | null
+						}
+				  }
+			export type WorldContentModpack = {
+				spec: WorldContentModpackSource
+				downloads: number | null
+				followers: number | null
+				icon_url: string | null
+				owner: Archon.Content.v1.ContentOwner | null
+				title: string | null
+				description: string | null
+				version_number: string | null
+				date_published: string | null
+				environment: Labrinth.Projects.v3.Environment | null
+				has_update: string | null
+			}
+			export type WorldContentItem = {
+				parent_directory: string
+				file_sha1: string | null
+				filename: string
+				btime?: string
+				from_modpack: boolean
+				version_id: string | null
+				project_id: string | null
+				pack_client_retained: boolean
+				pack_client_depends: boolean
+				status: Archon.Content.v1.AddonStatus
+				filesize: number | null
+				name: string | null
+				version: Archon.Content.v1.AddonVersion | null
+				owner: Archon.Content.v1.ContentOwner | null
+				has_update: string | null
+				icon_url: string | null
+			}
+			export type WorldContentUpdateEvent = {
+				type: 'world.content.update'
+				world_id: string
+				platform_data: WorldContentPlatformData | null
+				linked_modpack: WorldContentModpack | null
+				installing?: 'loader' | 'modpack'
+				error?: {
+					message: string
+				}
+				content: WorldContentItem[]
+			}
 
 			export type SyncEvent =
 				| ProtocolResetEvent
@@ -1001,12 +1131,14 @@ export namespace Archon {
 				| BackupOperationDoneEvent
 				| ServerPatchEvent
 				| ServerNetworkPatchEvent
+				| ServerSftpPatchEvent
 				| ServerTransferEvent
 				| UsersPatchEvent
 				| WorldPatchEvent
 				| WorldStartupPatchEvent
 				| WorldContentAddonPatchEvent
 				| WorldContentBaseUpdateEvent
+				| WorldContentUpdateEvent
 		}
 	}
 
@@ -1111,6 +1243,53 @@ export namespace Archon {
 				version_id: string
 			}
 
+			export type InstallProgressFileKey = {
+				type: 'file'
+				install_type: 'install' | 'update'
+				project_id: string
+				version_id: string
+				parent_directory: string
+				source_filename: string | null
+				target_filename?: string | null
+			}
+
+			export type InstallProgressModrinthModpackKey = {
+				type: 'modrinth_modpack'
+				project_id: string
+				version_id: string
+			}
+
+			export type InstallProgressLocalModpackKey = {
+				type: 'local_modpack'
+				filename: string
+			}
+
+			export type InstallProgressPlatformKey = {
+				type: 'platform'
+				platform: 'forge' | 'neoforge' | 'fabric' | 'quilt' | 'paper' | 'purpur' | 'vanilla'
+				platform_version: string
+				game_version: string
+			}
+
+			export type InstallProgressKey =
+				| InstallProgressFileKey
+				| InstallProgressModrinthModpackKey
+				| InstallProgressLocalModpackKey
+				| InstallProgressPlatformKey
+
+			export type InstallProgressItem = {
+				world_id: string
+				key: InstallProgressKey
+				id: string
+				progress: number | null
+				error: string | null
+			}
+
+			export type WSInstallProgressEvent = {
+				event: 'install-progress'
+				items: InstallProgressItem[]
+			}
+
 			export type FilesystemOpKind = 'unarchive'
 
 			export type FilesystemOpState =
@@ -1208,6 +1387,7 @@ export namespace Archon {
 				| WSInstallationResultEvent
 				| WSUptimeEvent
 				| WSNewModEvent
+				| WSInstallProgressEvent
 				| WSFilesystemOpsEvent
 
 			export type WSEventType = WSEvent['event']

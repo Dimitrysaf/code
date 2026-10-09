@@ -6,33 +6,39 @@ import {
 	ClockArrowDownIcon,
 	FoldVerticalIcon,
 	PauseIcon,
-	RightArrowIcon,
 	ScaleIcon,
 	SearchIcon,
+	SpinnerIcon,
+	TrashIcon,
 	UnfoldVerticalIcon,
 	XCircleIcon,
 } from '@modrinth/assets'
+import { Button } from '@modrinth/ui'
 import {
 	Admonition,
-	ButtonStyled,
 	Combobox,
 	type ComboboxOption,
 	commonMessages,
+	commonProjectSettingsMessages,
+	ConfirmModal,
 	createAttributionGroupTitle,
 	defineMessage,
 	defineMessages,
 	EmptyState,
 	ExternalProjectPermissionsCard,
 	injectModrinthClient,
+	injectNotificationManager,
 	injectProjectPageContext,
+	Input,
 	IntlFormatted,
-	StyledInput,
 	useVIntl,
 } from '@modrinth/ui'
 import { isStaff } from '@modrinth/utils'
-import { useQuery } from '@tanstack/vue-query'
-import { computed, ref, watch } from 'vue'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/vue-query'
+import { computed, ref, useTemplateRef, watch } from 'vue'
 
+import ValidationMessage from '~/components/ValidationMessage.vue'
+import { useProjectNagMessages } from '~/composables/project-nag-validation'
 import { setupAttributionModerationProvider } from '~/providers/setup/attribution-moderation'
 
 setupAttributionModerationProvider()
@@ -45,8 +51,15 @@ const isModerator = computed(() => {
 })
 
 const { formatMessage } = useVIntl()
-const { projectV2: project } = injectProjectPageContext()
+const { projectV2: project, refreshProjectValidation } = injectProjectPageContext()
+const permissionsValidation = useProjectNagMessages('permissions')
 const { labrinth } = injectModrinthClient()
+const { addNotification } = injectNotificationManager()
+const queryClient = useQueryClient()
+const deleteAllGroupsModalRef =
+	useTemplateRef<InstanceType<typeof ConfirmModal>>('deleteAllGroupsModalRef')
+
+useProjectSettingsHeadTitle(commonProjectSettingsMessages.permissions)
 
 type SortType = 'status' | 'most_files' | 'recently_edited' | 'rejected'
 
@@ -369,6 +382,47 @@ const messages = defineMessages({
 		defaultMessage:
 			'{count, plural, =0 {No attributions need approval} one {# attribution needs approval} other {# attributions need approval}}',
 	},
+	deleteAllGroups: {
+		id: 'project.settings.permissions.delete-all-groups',
+		defaultMessage: 'Delete all groups',
+	},
+	deleteAllGroupsConfirmationTitle: {
+		id: 'project.settings.permissions.delete-all-groups-confirmation.title',
+		defaultMessage: 'Delete all attribution groups?',
+	},
+	deleteAllGroupsConfirmationDescription: {
+		id: 'project.settings.permissions.delete-all-groups-confirmation.description',
+		defaultMessage:
+			'This will permanently delete all {count, plural, one {# attribution group} other {# attribution groups}} for this project and all files inside them. This action cannot be undone.',
+	},
+	deleteAllGroupsSuccess: {
+		id: 'project.settings.permissions.delete-all-groups-success',
+		defaultMessage: 'All attribution groups were deleted.',
+	},
+	deleteAllGroupsError: {
+		id: 'project.settings.permissions.delete-all-groups-error',
+		defaultMessage: 'Could not delete all attribution groups',
+	},
+})
+
+const deleteAllGroupsMutation = useMutation({
+	mutationFn: () => labrinth.attribution_internal.deleteAllGroups(project.value.id),
+	onSuccess: async () => {
+		await queryClient.invalidateQueries({ queryKey: ['project-attribution', project.value.id] })
+		await refreshProjectValidation()
+		addNotification({
+			type: 'success',
+			title: formatMessage(messages.deleteAllGroups),
+			text: formatMessage(messages.deleteAllGroupsSuccess),
+		})
+	},
+	onError: (error: Error) => {
+		addNotification({
+			type: 'error',
+			title: formatMessage(messages.deleteAllGroupsError),
+			text: error.message,
+		})
+	},
 })
 
 function defaultCardCollapsed(group: Labrinth.Attribution.Internal.AttributionGroup): boolean {
@@ -412,12 +466,27 @@ function toggleAllCardsCollapsed() {
 	cardCollapsedById.value = next
 }
 
+function showDeleteAllGroupsConfirmation() {
+	deleteAllGroupsModalRef.value?.show()
+}
+
 function dismissInfoBanner() {
 	flags.value.dismissedExternalProjectsInfo = true
 	saveFeatureFlags()
 }
 </script>
 <template>
+	<ValidationMessage :check="permissionsValidation" class="mb-4" />
+	<ConfirmModal
+		v-if="isModerator"
+		ref="deleteAllGroupsModalRef"
+		:title="formatMessage(messages.deleteAllGroupsConfirmationTitle)"
+		:description="
+			formatMessage(messages.deleteAllGroupsConfirmationDescription, { count: totalGroups })
+		"
+		:proceed-label="formatMessage(messages.deleteAllGroups)"
+		@proceed="deleteAllGroupsMutation.mutate()"
+	/>
 	<Admonition
 		v-if="!flags.dismissedExternalProjectsInfo && !isModerator"
 		type="info"
@@ -433,13 +502,6 @@ function dismissInfoBanner() {
 				</nuxt-link>
 			</template>
 		</IntlFormatted>
-		<template v-if="false" #actions>
-			<div class="flex">
-				<ButtonStyled color="blue">
-					<a> {{ formatMessage(messages.learnMore) }} <RightArrowIcon /> </a>
-				</ButtonStyled>
-			</div>
-		</template>
 	</Admonition>
 	<template v-if="pending">
 		<div class="flex flex-col gap-3">
@@ -500,8 +562,8 @@ function dismissInfoBanner() {
 			/>
 		</template>
 		<div class="flex flex-col gap-2">
-			<div class="grid grid-cols-[1fr_auto_auto] gap-2">
-				<StyledInput
+			<div class="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]">
+				<Input
 					v-model="searchQuery"
 					type="text"
 					autocomplete="off"
@@ -517,9 +579,10 @@ function dismissInfoBanner() {
 				<div>
 					<Combobox
 						v-model="currentSortType"
-						class="!w-full flex-grow sm:!w-[220px] sm:flex-grow-0 [&>span]:h-[40px]"
+						class="!w-full flex-grow sm:!w-[220px] sm:flex-grow-0"
 						:options="sortTypes"
 						:placeholder="formatMessage(commonMessages.sortByLabel)"
+						trigger-size="lg"
 					>
 						<template #selected>
 							<span class="flex flex-row gap-2 align-middle font-semibold">
@@ -544,16 +607,30 @@ function dismissInfoBanner() {
 						</template>
 					</Combobox>
 				</div>
-				<ButtonStyled>
-					<button type="button" class="!h-[40px]" @click="toggleAllCardsCollapsed">
-						<UnfoldVerticalIcon
-							v-if="allCardsCollapsed"
-							class="size-5 flex-shrink-0 text-secondary"
-						/>
-						<FoldVerticalIcon v-else class="size-5 flex-shrink-0 text-secondary" />
-						{{ expandCollapseAllLabel }}
-					</button>
-				</ButtonStyled>
+				<Button native-type="button" size="lg" @click="toggleAllCardsCollapsed">
+					<UnfoldVerticalIcon
+						v-if="allCardsCollapsed"
+						class="size-5 flex-shrink-0 text-secondary"
+					/>
+					<FoldVerticalIcon v-else class="size-5 flex-shrink-0 text-secondary" />
+					{{ expandCollapseAllLabel }}
+				</Button>
+				<Button
+					v-if="isModerator"
+					type="outlined"
+					native-type="button"
+					size="lg"
+					class="!text-red !shadow-[inset_0_0_0_1px_var(--color-red)] [&>svg]:!text-red"
+					:disabled="deleteAllGroupsMutation.isPending.value"
+					@click="showDeleteAllGroupsConfirmation"
+				>
+					<SpinnerIcon
+						v-if="deleteAllGroupsMutation.isPending.value"
+						class="size-5 flex-shrink-0 animate-spin"
+					/>
+					<TrashIcon v-else class="size-5 flex-shrink-0" />
+					{{ formatMessage(messages.deleteAllGroups) }}
+				</Button>
 			</div>
 		</div>
 		<div v-if="isModerator" class="mt-4 flex flex-wrap items-center gap-3">

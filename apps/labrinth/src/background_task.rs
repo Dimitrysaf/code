@@ -2,7 +2,6 @@ use crate::database;
 use crate::database::PgPool;
 use crate::database::models::ids::DBUserId;
 use crate::database::models::notification_item::NotificationBuilder;
-use crate::database::redis::RedisPool;
 use crate::file_hosting::FileHost;
 use crate::models::notifications::NotificationBody;
 use crate::queue::analytics::cache::cache_analytics;
@@ -19,7 +18,8 @@ use crate::util::anrok;
 use actix_web::web;
 use clap::ValueEnum;
 use eyre::WrapErr;
-use tracing::info;
+use tracing::{info, instrument};
+use xredis::RedisPool;
 
 #[derive(ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
 #[clap(rename_all = "kebab_case")]
@@ -32,6 +32,7 @@ pub enum BackgroundTask {
     IndexBilling,
     IndexSubscriptions,
     IncrementalIndexSearch,
+    DelphiFileScan,
     Migrations,
     Mail,
     /// Queries server project analytics (e.g. number of verified plays in last
@@ -50,6 +51,7 @@ pub enum BackgroundTask {
 
 impl BackgroundTask {
     #[allow(clippy::too_many_arguments)]
+    #[instrument(skip_all, fields(background_task = ?self))]
     pub async fn run(
         self,
         pool: PgPool,
@@ -105,6 +107,9 @@ impl BackgroundTask {
                     kafka_client,
                 )
                 .await
+            }
+            DelphiFileScan => {
+                crate::queue::delphi_scan::run(pool, kafka_client).await
             }
             Mail => run_email(email_queue).await,
             CacheAnalytics => {
@@ -167,6 +172,9 @@ pub async fn update_bank_balances(pool: PgPool) -> eyre::Result<()> {
 
 pub async fn run_migrations() -> eyre::Result<()> {
     database::check_for_migrations().await?;
+    crate::clickhouse::run_migrations()
+        .await
+        .wrap_err("failed to run ClickHouse migrations")?;
     Ok(())
 }
 
@@ -176,7 +184,7 @@ pub async fn index_search(
     search_backend: web::Data<dyn SearchBackend>,
 ) -> eyre::Result<()> {
     info!("Indexing local database");
-    search_backend.index_projects(ro_pool, redis_pool).await
+    search_backend.rebuild_index(ro_pool, redis_pool).await
 }
 
 pub async fn release_scheduled(pool: PgPool) -> eyre::Result<()> {
@@ -259,12 +267,11 @@ pub async fn discord_role_email_campaign(
         .await
         .wrap_err("failed to begin Discord role email campaign transaction")?;
 
-    let lock_acquired = sqlx::query_scalar!(
-        r#"SELECT pg_try_advisory_xact_lock(hashtextextended('discord_role_email_campaign', 0)) AS "lock_acquired!""#,
-    )
-    .fetch_one(&mut txn)
-    .await
-    .wrap_err("failed to acquire Discord role email campaign lock")?;
+    let lock_acquired =
+        crate::database::advisory_lock::AdvisoryLock::DiscordRoleEmailCampaign
+            .try_acquire(&mut txn)
+            .await
+            .wrap_err("failed to acquire Discord role email campaign lock")?;
 
     if !lock_acquired {
         info!("Discord role email campaign is already running");
@@ -386,11 +393,11 @@ mod version_updater {
 
     use crate::database::PgPool;
     use crate::database::models::legacy_loader_fields::MinecraftGameVersion;
-    use crate::database::redis::RedisPool;
     use chrono::{DateTime, Utc};
     use serde::Deserialize;
     use thiserror::Error;
     use tracing::warn;
+    use xredis::RedisPool;
 
     #[derive(Deserialize)]
     struct InputFormat<'a> {
@@ -411,8 +418,8 @@ mod version_updater {
     pub enum VersionIndexingError {
         #[error("Network error while updating game versions list: {0}")]
         NetworkError(#[from] reqwest::Error),
-        #[error("Database error while updating game versions list: {0}")]
-        DatabaseError(#[from] crate::database::models::DatabaseError),
+        #[error("internal error while updating game versions list: {0}")]
+        InternalError(#[from] eyre::Report),
     }
 
     pub async fn update_versions(

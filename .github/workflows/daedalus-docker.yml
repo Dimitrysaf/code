@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - 'main'
+      - 'prod'
     paths:
       - .github/workflows/daedalus-docker.yml
       - 'apps/daedalus_client/**'
@@ -25,96 +26,30 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && github.ref != 'refs/heads/prod' }}
 
+env:
+  INTERNAL: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+
 jobs:
-  skip-if-clean:
-    name: Skip if merge_queue produces no diff
-    runs-on: ubuntu-latest
-    outputs:
-      skip: ${{ steps.check.outputs.skip }}
-      internal: ${{ steps.check-internal.outputs.internal }}
-    if: ${{ always() }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-
-      - name: Check if workflow runs on an internal branch
-        id: check-internal
-        env:
-          EVENT_NAME: ${{ github.event_name }}
-          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
-          REPO: ${{ github.repository }}
-        run: |
-          if [ "$EVENT_NAME" != "pull_request" ] || [ "$HEAD_REPO" = "$REPO" ]; then
-            echo "internal=true" >> $GITHUB_OUTPUT
-          else
-            echo "internal=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Merge Queue CI Check Skipper
-        id: merge-queue-ci-skipper
-        uses: ./.github/merge-queue-ci-skipper
-        with:
-          secret: ${{ secrets.GH_ACCESS_TOKEN }}
-
-      - name: Check merge_group synthetic commit
-        id: check
-        run: |
-          # PR mode: never skip
-          if [ "${{ github.event_name }}" != "merge_group" ]; then
-            echo "skip=false" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          if [ "${{ steps.merge-queue-ci-skipper.outputs.skip-check }}" = "true" ]; then
-            echo "skip=true" >> $GITHUB_OUTPUT
-          else
-            echo "skip=false" >> $GITHUB_OUTPUT
-          fi
-
-  docker:
-    runs-on: ${{ needs.skip-if-clean.outputs.internal == 'true' && 'blacksmith-4vcpu-ubuntu-2404' || 'ubuntu-latest' }}
-    env:
-      SCCACHE_DIR: ${{ needs.skip-if-clean.outputs.internal == 'true' && '/mnt/sccache' || '' }}
-      SCCACHE_CACHE_SIZE: ${{ needs.skip-if-clean.outputs.internal == 'true' && '10G' || '' }}
-      RUSTC_WRAPPER: ${{ needs.skip-if-clean.outputs.internal == 'true' && 'sccache' || '' }}
-    needs: [skip-if-clean]
-    if: ${{ needs.skip-if-clean.outputs.skip != 'true' }}
+  build:
+    name: Build daedalus_client
+    runs-on: ${{ (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) && 'namespace-profile-medium-amd64' || 'ubuntu-latest' }}
     steps:
       - name: Check out code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        if: env.INTERNAL != 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check out code (Namespace)
+        if: env.INTERNAL == 'true'
+        uses: namespacelabs/nscloud-checkout-action@66f2dc6f6c42a8ac6c4e53473c4840006822831e # v9.0.1
 
       - name: Setup Rust toolchain
-        uses: actions-rust-lang/setup-rust-toolchain@2b1f5e9b395427c92ee4e3331786ca3c37afe2d7 # v1.16.0
+        uses: actions-rust-lang/setup-rust-toolchain@166cdcfd11aee3cb47222f9ddb555ce30ddb9659 # v1.17.0
         with:
           rustflags: ''
           cache: false
 
       - name: Setup mold
         uses: rui314/setup-mold@9c9c13bf4c3f1adef0cc596abc155580bcb04444 # v1 / Mold 2.41.0
-
-      - name: Cache Cargo registry and index
-        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            ~/.cargo/bin
-          key: ${{ runner.os }}-${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Ensure sccache directory exists
-        if: needs.skip-if-clean.outputs.internal == 'true'
-        run: sudo mkdir -p /mnt/sccache && sudo chown $(id -u):$(id -g) /mnt/sccache
-
-      - name: Mount sccache disk cache
-        if: needs.skip-if-clean.outputs.internal == 'true'
-        uses: useblacksmith/stickydisk@13af8883542ca949a717e70fef89d15edbb29d88 # v1.2.0
-        with:
-          key: ${{ github.repository }}-daedalus-sccache
-          path: /mnt/sccache
-
-      - name: Setup sccache
-        if: needs.skip-if-clean.outputs.internal == 'true'
-        uses: mozilla-actions/sccache-action@9e7fa8a12102821edf02ca5dbea1acd0f89a2696 # v0.0.10
 
       - name: Build daedalus_client
         run: cargo build --release --package daedalus_client
@@ -124,38 +59,30 @@ jobs:
           mkdir -p apps/daedalus_client/docker-stage
           cp target/release/daedalus_client apps/daedalus_client/docker-stage/daedalus_client
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@4d04d5d9486b7bd6fa91e7baf45bbb4f8b9deedd # v4.0.0
-
-      - name: Generate Docker image metadata
-        id: docker-meta
-        uses: docker/metadata-action@030e881283bb7a6894de51c315a6bfe6a94e05cf # v6.0.0
-        env:
-          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+      - name: Upload Docker context
+        if: env.INTERNAL == 'true'
+        uses: namespace-actions/upload-artifact@f6ccaacc655aec41b93af180d1d7eef21af862d2 # v1.0.3
         with:
-          images: ghcr.io/modrinth/daedalus
-          labels: |
-            org.opencontainers.image.title=daedalus
-            org.opencontainers.image.description=Modrinth game metadata query client
-            org.opencontainers.image.licenses=MIT
-          annotations: |
-            org.opencontainers.image.title=daedalus
-            org.opencontainers.image.description=Modrinth game metadata query client
-            org.opencontainers.image.licenses=MIT
+          name: daedalus-docker-context
+          retention-days: 1
+          path: apps/daedalus_client/docker-stage
 
-      - name: Login to GitHub Packages
-        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 # v4.1.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  docker-build:
+    needs: [build]
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    uses: SparkUniverse/workflows/.github/workflows/docker-build.yaml@main
+    with:
+      image-name: daedalus
+      dockerfile-path: apps/daedalus_client/Dockerfile
+      artifacts-name: daedalus-docker-context
 
-      - name: Build and push
-        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f # v7.1.0
-        with:
-          context: ./apps/daedalus_client/docker-stage
-          file: ./apps/daedalus_client/Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.docker-meta.outputs.tags }}
-          labels: ${{ steps.docker-meta.outputs.labels }}
-          annotations: ${{ steps.docker-meta.outputs.annotations }}
+  deploy:
+    needs: [docker-build]
+    if: ${{ github.ref == 'refs/heads/prod' && github.event_name == 'push' }}
+    uses: SparkUniverse/workflows/.github/workflows/argo-update.yaml@main
+    secrets:
+      ARGOCD_DEPLOY_KEY: ${{ secrets.ARGOCD_DEPLOY_KEY }}
+    with:
+      application-set: launcher-meta
+      branch: main
+      environment-name: production

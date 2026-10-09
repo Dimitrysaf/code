@@ -3,6 +3,7 @@ import { autoToHTML } from '@sfirew/minecraft-motd-parser'
 import { invoke } from '@tauri-apps/api/core'
 import dayjs from 'dayjs'
 
+import type { InstancePayload } from '@/generated/app-events/InstancePayload'
 import { get_full_path } from '@/helpers/instance'
 import { openPath } from '@/helpers/utils'
 
@@ -28,11 +29,17 @@ export type SingleplayerWorld = BaseWorld & {
 export type ServerWorld = BaseWorld & {
 	type: 'server'
 	index: number
+	server_id?: string
+	source?: ServerSource
 	address: string
 	pack_status: ServerPackStatus
 	project_id?: string
 	content_kind?: string
 }
+
+export type ServerSource = 'user_synced' | 'modpack' | 'linked_server_project' | 'local_desynced'
+
+export type DesyncServerMode = 'keep_in_other_instances' | 'remove_from_other_instances'
 
 export type World = SingleplayerWorld | ServerWorld
 
@@ -42,6 +49,14 @@ export type WorldWithInstance = {
 
 export type SingleplayerGameMode = 'survival' | 'creative' | 'adventure' | 'spectator'
 export type ServerPackStatus = 'enabled' | 'disabled' | 'prompt'
+
+export async function desync_server(
+	instanceId: string,
+	serverId: string,
+	mode: DesyncServerMode,
+): Promise<void> {
+	return await invoke('plugin:worlds|desync_server', { instanceId, serverId, mode })
+}
 
 export type ServerStatus = {
 	// https://minecraft.wiki/w/Text_component_format
@@ -231,6 +246,32 @@ export function isServerWorld(world: World): world is ServerWorld {
 	return world.type === 'server'
 }
 
+const MINECRAFT_FORMATTING_CODE = /\u00A7[0-9A-FK-ORX]/gi
+
+export function stripMinecraftFormatting(text: string): string {
+	return text.replace(MINECRAFT_FORMATTING_CODE, '').replace(/\u00A7/g, '')
+}
+
+export function getWorldDisplayName(world: World): string {
+	const name = stripMinecraftFormatting(world.name).trim()
+	if (name) {
+		return name
+	}
+	if (world.type === 'server') {
+		return world.address
+	}
+	return world.path
+}
+
+export function worldNameMatchesQuery(name: string, query: string): boolean {
+	const normalizedQuery = query.trim().toLocaleLowerCase()
+	if (!normalizedQuery) return true
+	return (
+		name.toLocaleLowerCase().includes(normalizedQuery) ||
+		stripMinecraftFormatting(name).toLocaleLowerCase().includes(normalizedQuery)
+	)
+}
+
 const DEFAULT_MINECRAFT_SERVER_PORT = 25565
 
 function parseServerPort(port: string): number | null {
@@ -257,17 +298,6 @@ function parseServerHost(address: string): string {
 	}
 
 	return trimmedAddress.toLowerCase()
-}
-
-function isIPv4Host(host: string): boolean {
-	const segments = host.split('.')
-	if (segments.length !== 4) return false
-
-	return segments.every((segment) => {
-		if (!/^\d+$/.test(segment)) return false
-		const value = Number.parseInt(segment, 10)
-		return value >= 0 && value <= 255
-	})
 }
 
 /**
@@ -306,28 +336,6 @@ export function normalizeServerAddress(address: string): string {
 
 	return `${host}:${port}`
 }
-
-/**
- * Domain key used for deduping server entries by removing a single leading subdomain.
- * Example: test.cobblemon.gg and cobblemon.gg map to cobblemon.gg
- */
-export function getServerDomainKey(address: string): string {
-	const normalizedAddress = normalizeServerAddress(address)
-	if (!normalizedAddress) return ''
-
-	const separator = normalizedAddress.lastIndexOf(':')
-	if (separator <= 0 || separator === normalizedAddress.length - 1) return normalizedAddress
-
-	const host = normalizedAddress.slice(0, separator).replace(/\.+$/, '')
-	if (!host) return normalizedAddress
-	if (host.includes(':') || isIPv4Host(host)) return normalizedAddress
-
-	const segments = host.split('.').filter(Boolean)
-	if (segments.length <= 2) return host
-
-	return segments.slice(1).join('.')
-}
-
 export function resolveManagedServerWorld(
 	worlds: World[],
 	managedName: string | null | undefined,
@@ -363,16 +371,16 @@ export function getServerAddress(javaServer?: { address?: string | null } | null
 
 export async function ensureManagedServerWorldExists(
 	instanceId: string,
-	serverName: string,
+	serverName: string | null,
 	serverAddress: string | null,
 ) {
-	if (!instanceId || !serverAddress) return
+	if (!instanceId || !serverName || !serverAddress) return
 	try {
-		const worlds = await get_instance_worlds(instanceId)
-		const managedWorld = resolveManagedServerWorld(worlds, serverName, serverAddress)
-		if (!managedWorld) {
-			await add_server_to_instance(instanceId, serverName, serverAddress, 'prompt')
-		}
+		await invoke('plugin:worlds|ensure_managed_server_in_instance', {
+			instanceId,
+			name: serverName,
+			address: serverAddress,
+		})
 	} catch (err) {
 		console.error('Failed to ensure managed server world exists:', err)
 	}
@@ -435,11 +443,12 @@ export async function refreshServerData(
 	}
 }
 
-export function refreshServers(
+export async function refreshServers(
 	worlds: World[],
 	serverData: Record<string, ServerData>,
 	protocolVersion: ProtocolVersion | null,
-) {
+	ping = true,
+): Promise<void> {
 	const servers = worlds.filter(isServerWorld)
 	servers.forEach((server) => {
 		if (!serverData[server.address]) {
@@ -451,9 +460,14 @@ export function refreshServers(
 		}
 	})
 
-	// noinspection ES6MissingAwait - handled by refreshServerData
-	Object.keys(serverData).forEach((address) =>
-		refreshServerData(serverData[address], protocolVersion, address),
+	if (!ping) {
+		return
+	}
+
+	await Promise.all(
+		Object.keys(serverData).map((address) =>
+			refreshServerData(serverData[address], protocolVersion, address),
+		),
 	)
 }
 
@@ -526,18 +540,4 @@ export function hasWorldQuickPlaySupport(gameVersions: GameVersion[], currentVer
 	return versionIndex !== -1 && targetIndex !== -1 && versionIndex <= targetIndex
 }
 
-export type InstanceEvent = { instance_id: string } & (
-	| {
-			event: 'servers_updated'
-	  }
-	| {
-			event: 'world_updated'
-			world: string
-	  }
-	| {
-			event: 'server_joined'
-			host: string
-			port: number
-			timestamp: string
-	  }
-)
+export type InstanceEvent = InstancePayload

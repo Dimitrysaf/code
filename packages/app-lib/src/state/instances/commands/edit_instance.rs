@@ -1,5 +1,6 @@
 use crate::state::instances::{
-    ContentSourceKind, Instance, InstanceLaunchOverrides, InstanceLink,
+    ContentSourceKind, Instance, InstanceIconConfig, InstanceLaunchOverrides,
+    InstanceLink, InstanceTabVisibility,
     adapters::sqlite::{content_rows, instance_rows},
 };
 use crate::state::{
@@ -21,8 +22,14 @@ pub struct EditInstance {
         with = "serde_with::rust::double_option"
     )]
     pub icon_path: Option<Option<String>>,
+    #[serde(
+        default,
+        skip_serializing_if = "Option::is_none",
+        with = "serde_with::rust::double_option"
+    )]
+    pub icon_config: Option<Option<InstanceIconConfig>>,
     pub update_channel: Option<ReleaseChannel>,
-    pub groups: Option<Vec<String>>,
+    pub group_ids: Option<Vec<String>>,
     pub link: Option<InstanceLink>,
     pub launch_overrides: Option<InstanceLaunchOverridesPatch>,
     pub content_set_patch: Option<AppliedContentSetPatch>,
@@ -75,6 +82,7 @@ pub struct InstanceLaunchOverridesPatch {
     )]
     pub game_resolution: Option<Option<WindowSize>>,
     pub hooks: Option<Hooks>,
+    pub visible_tabs: Option<InstanceTabVisibility>,
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
@@ -102,11 +110,41 @@ pub(crate) async fn edit_instance(
     patch: EditInstance,
     pool: &SqlitePool,
 ) -> crate::Result<Instance> {
+    let state = crate::State::get_if_initialized();
+    let _runtime_lease = if patch.launch_overrides.is_some()
+        || patch.content_set_patch.is_some()
+    {
+        match state.as_ref() {
+            Some(state) => {
+                Some(state.content_store.runtime_cache_lock.read().await)
+            }
+            None => None,
+        }
+    } else {
+        None
+    };
+    let modifies_content =
+        patch.link.is_some() || patch.content_set_patch.is_some();
+    let should_mark_shared_instance_stale = patch.link.is_some()
+        || patch.content_set_patch.as_ref().is_some_and(|patch| {
+            patch.source_kind.is_some()
+                || patch.game_version.is_some()
+                || patch.loader.is_some()
+                || patch.loader_version.is_some()
+        });
     let mut instance = instance_rows::get_instance_by_id(instance_id, pool)
         .await?
         .ok_or_else(|| {
             crate::ErrorKind::InputError("Unknown instance".to_string())
         })?;
+    if modifies_content
+        && instance_rows::is_instance_quarantined(instance_id, pool).await?
+    {
+        return Err(crate::ErrorKind::InputError(
+            "Content in quarantined instances cannot be changed.".to_string(),
+        )
+        .into());
+    }
     let now = Utc::now();
 
     apply_instance_patch(&mut instance, &patch, now);
@@ -145,7 +183,7 @@ pub(crate) async fn edit_instance(
         None => None,
     };
 
-    let mut tx = pool.begin().await?;
+    let mut tx = pool.begin_with("BEGIN IMMEDIATE").await?;
     instance_rows::update_instance(&instance, &mut tx).await?;
 
     if let Some(content_set) = content_set.as_mut() {
@@ -157,9 +195,13 @@ pub(crate) async fn edit_instance(
             .await?;
     }
 
-    if let Some(groups) = &patch.groups {
-        instance_rows::replace_instance_groups(&instance.id, groups, &mut tx)
-            .await?;
+    if let Some(group_ids) = &patch.group_ids {
+        instance_rows::replace_instance_groups(
+            &instance.id,
+            group_ids,
+            &mut tx,
+        )
+        .await?;
     }
 
     if let Some(overrides) = launch_overrides.as_mut() {
@@ -167,7 +209,23 @@ pub(crate) async fn edit_instance(
             .await?;
     }
 
+    if let Some(icon_config) = &patch.icon_config {
+        instance_rows::update_instance_icon_config(
+            &instance.id,
+            icon_config.as_ref(),
+            &mut tx,
+        )
+        .await?;
+    } else if patch.icon_path.is_some() {
+        instance_rows::update_instance_icon_config(&instance.id, None, &mut tx)
+            .await?;
+    }
+
     tx.commit().await?;
+
+    if should_mark_shared_instance_stale {
+        super::mark_shared_instance_stale(instance_id, pool).await?;
+    }
 
     Ok(instance)
 }
@@ -254,6 +312,9 @@ fn apply_launch_overrides_patch(
     }
     if let Some(hooks) = patch.hooks {
         overrides.hooks = hooks;
+    }
+    if let Some(visible_tabs) = patch.visible_tabs {
+        overrides.visible_tabs = visible_tabs;
     }
 
     overrides

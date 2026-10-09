@@ -1,43 +1,47 @@
 <template>
 	<div class="flex items-center gap-1">
-		<ButtonStyled v-if="showClear && hasLogs" type="transparent">
-			<button
-				v-tooltip="clearDisabled ? clearDisabledTooltip : undefined"
-				:disabled="clearDisabled"
-				@click="emit('clear')"
-			>
-				<XIcon />
-				Clear
-			</button>
-		</ButtonStyled>
-		<ButtonStyled v-if="showDelete" type="transparent" hover-color-fill="background" color="red">
-			<button
-				v-tooltip="deleteDisabled ? deleteDisabledTooltip : undefined"
-				:disabled="deleteDisabled"
-				@click="emit('delete')"
-			>
-				<TrashIcon />
-				Delete
-			</button>
-		</ButtonStyled>
-		<ButtonStyled v-if="hasLogs" type="transparent">
-			<button
-				v-tooltip="shareDisabled ? shareDisabledTooltip : undefined"
-				:disabled="shareDisabled || sharing"
-				@click="emit('share')"
-			>
-				<SpinnerIcon v-if="sharing" class="animate-spin" />
-				<ShareIcon v-else />
-				Share
-			</button>
-		</ButtonStyled>
-		<ButtonStyled type="transparent">
-			<button @click="emit('toggle-fullscreen')">
-				<ContractIcon v-if="fullscreen" />
-				<ExpandIcon v-else />
-				{{ fullscreen ? 'Collapse' : 'Expand' }}
-			</button>
-		</ButtonStyled>
+		<Button
+			v-if="showClear && hasLogs"
+			v-tooltip="clearDisabled ? clearDisabledTooltip : undefined"
+			type="quiet"
+			class="!text-sm !font-medium"
+			:disabled="clearDisabled"
+			@click="emit('clear')"
+		>
+			<XIcon aria-hidden="true" />
+			{{ formatMessage(commonMessages.clearButton) }}
+		</Button>
+		<Button
+			v-if="showDelete"
+			v-tooltip="deleteDisabled ? deleteDisabledTooltip : undefined"
+			type="quiet"
+			class="!text-sm !font-medium"
+			color="red"
+			interaction="filled"
+			:disabled="deleteDisabled"
+			@click="emit('delete')"
+		>
+			<TrashIcon aria-hidden="true" />
+			{{ formatMessage(commonMessages.deleteLabel) }}
+		</Button>
+		<Button
+			v-if="hasLogs"
+			v-tooltip="shareDisabled ? shareDisabledTooltip : undefined"
+			type="quiet"
+			class="!text-sm !font-medium"
+			:disabled="shareDisabled"
+			:loading="sharing"
+			@click="emit('share')"
+		>
+			<SpinnerIcon v-if="sharing" class="animate-spin" aria-hidden="true" />
+			<ShareIcon v-else aria-hidden="true" />
+			{{ formatMessage(messages.share) }}
+		</Button>
+		<Button type="quiet" class="!text-sm !font-medium" @click="emit('toggle-fullscreen')">
+			<ContractIcon v-if="fullscreen" aria-hidden="true" />
+			<ExpandIcon v-else aria-hidden="true" />
+			{{ formatMessage(fullscreen ? messages.collapse : messages.expand) }}
+		</Button>
 	</div>
 </template>
 
@@ -51,7 +55,25 @@ import {
 	XIcon,
 } from '@modrinth/assets'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import { Button } from '#ui/components/base/buttons'
+import { defineMessages, useVIntl } from '#ui/composables/i18n'
+import { commonMessages } from '#ui/utils/common-messages'
+
+const { formatMessage } = useVIntl()
+const messages = defineMessages({
+	share: {
+		id: 'console.actions.share',
+		defaultMessage: 'Share',
+	},
+	collapse: {
+		id: 'console.actions.collapse',
+		defaultMessage: 'Collapse',
+	},
+	expand: {
+		id: 'console.actions.expand',
+		defaultMessage: 'Expand',
+	},
+})
 
 defineProps<{
 	showClear?: boolean

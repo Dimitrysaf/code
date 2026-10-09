@@ -4,8 +4,13 @@ import type { Component } from 'vue'
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
+import Admonition from '#ui/components/base/Admonition.vue'
+import Avatar from '#ui/components/base/Avatar.vue'
+import { IconButton } from '#ui/components/base/buttons'
 import PageHeader from '#ui/components/base/page-header/index.vue'
-import LoaderIcon from '#ui/components/servers/icons/LoaderIcon.vue'
+import PageHeaderMetadata from '#ui/components/base/page-header/metadata/index.vue'
+import PageHeaderMetadataItem from '#ui/components/base/page-header/metadata/page-header-metadata-item.vue'
+import TagIcon from '#ui/components/base/TagIcon.vue'
 import { useServerImage } from '#ui/composables/use-server-image'
 import { formatLoaderLabel } from '#ui/utils/loaders'
 
@@ -13,7 +18,7 @@ import SelectedProjectsLeaveModal from './components/SelectedProjectsLeaveModal.
 import { injectBrowseManager } from './providers/browse-manager'
 import type { BrowseInstallContext } from './types'
 
-const MEDAL_ICON_URL = 'https://cdn-raw.modrinth.com/medal_icon.webp'
+const MEDAL_ICON_URL = 'https://cdn.modrinth.com/medal_icon.webp'
 
 const router = useRouter()
 const props = defineProps<{
@@ -46,33 +51,7 @@ const iconSrc = computed(() => {
 	return fetchedIcon.value ?? installContext.value?.iconSrc ?? null
 })
 
-const leadingItems = computed(() => {
-	const context = installContext.value
-	if (!context) return []
-
-	return [
-		{
-			id: 'back',
-			type: 'button' as const,
-			icon: LeftArrowIcon,
-			ariaLabel: context.backLabel,
-			tooltip: context.backLabel,
-			onClick: handleBack,
-		},
-		...(iconSrc.value
-			? [
-					{
-						id: 'icon',
-						type: 'avatar' as const,
-						src: iconSrc.value,
-						alt: context.name,
-						avatarSize: '48px',
-						class: 'shrink-0',
-					},
-				]
-			: []),
-	]
-})
+const isInstanceIcon = computed(() => !installContext.value?.serverId)
 
 const metadataItems = computed(() => {
 	const context = installContext.value
@@ -100,8 +79,8 @@ const metadataItems = computed(() => {
 		items.push({
 			id: 'loader',
 			label: loaderLabel,
-			icon: LoaderIcon,
-			iconProps: { loader: loaderName },
+			icon: TagIcon,
+			iconProps: { tag: loaderName, enforceType: 'loader' },
 			class: '!text-primary',
 		})
 	}
@@ -162,13 +141,48 @@ async function handleSelectedProjectsLeaveResult(
 		/>
 		<PageHeader
 			:title="installContext.name"
-			:leading="leadingItems"
-			:metadata="metadataItems"
 			:divider="props.divider ?? false"
 			:bottom-padding="props.bottomPadding ?? false"
 			main-class="items-center"
 			title-class="leading-8"
 			truncate-title
-		/>
+		>
+			<template #leading>
+				<IconButton
+					v-tooltip="installContext.backLabel"
+					size="xl"
+					:label="installContext.backLabel"
+					native-type="button"
+					@click="handleBack"
+				>
+					<LeftArrowIcon />
+				</IconButton>
+				<Avatar
+					v-if="iconSrc"
+					:src="iconSrc"
+					:alt="installContext.name"
+					size="48px"
+					class="shrink-0"
+					:pad-transparent-corners="isInstanceIcon"
+				/>
+			</template>
+
+			<template v-if="metadataItems.length" #metadata>
+				<PageHeaderMetadata>
+					<PageHeaderMetadataItem
+						v-for="item in metadataItems"
+						:key="item.id"
+						:icon="item.icon"
+						:icon-props="item.iconProps"
+						:class="item.class"
+					>
+						{{ item.label }}
+					</PageHeaderMetadataItem>
+				</PageHeaderMetadata>
+			</template>
+		</PageHeader>
+		<Admonition v-if="installContext.warning" type="warning" class="mt-4 mb-1">
+			{{ installContext.warning }}
+		</Admonition>
 	</template>
 </template>

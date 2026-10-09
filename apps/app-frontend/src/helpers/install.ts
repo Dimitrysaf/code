@@ -1,7 +1,27 @@
 import { invoke } from '@tauri-apps/api/core'
 
-import { install_job_listener } from './events'
-import type { InstanceLink, InstanceLoader } from './types'
+import type { InstallErrorView } from '@/generated/app-events/InstallErrorView'
+import type { InstallJavaStep } from '@/generated/app-events/InstallJavaStep'
+import type { InstallJobSnapshot } from '@/generated/app-events/InstallJobSnapshot'
+import type { InstallJobStatus } from '@/generated/app-events/InstallJobStatus'
+import type { InstallPhaseId } from '@/generated/app-events/InstallPhaseId'
+import type { InstallProgress } from '@/generated/app-events/InstallProgress'
+import type { InstallProgressSecondary } from '@/generated/app-events/InstallProgressSecondary'
+import type { SharedInstanceUnavailableReason } from '@/generated/app-events/SharedInstanceUnavailableReason'
+import type { AppEvents } from '@/providers/app-events'
+
+import type { InstanceIconConfig, InstanceLink, InstanceLoader } from './types'
+
+export type {
+	InstallErrorView,
+	InstallJavaStep,
+	InstallJobSnapshot,
+	InstallJobStatus,
+	InstallPhaseId,
+	InstallProgress,
+	InstallProgressSecondary,
+	SharedInstanceUnavailableReason,
+}
 
 export interface PackLocationVersionId {
 	type: 'fromVersionId'
@@ -36,6 +56,7 @@ export interface InstallCreateInstanceRequest {
 	loader: InstanceLoader
 	loaderVersion: string | null
 	iconPath: string | null
+	iconConfig?: InstanceIconConfig | null
 	link?: InstanceLink | null
 }
 
@@ -45,111 +66,93 @@ export interface InstallPostInstallEdit {
 	link?: InstanceLink | null
 }
 
-export type InstallJobStatus =
-	| 'queued'
-	| 'running'
-	| 'succeeded'
-	| 'failed'
-	| 'interrupted'
-	| 'canceled'
-
-export type InstallPhaseId =
-	| 'preparing_instance'
-	| 'resolving_pack'
-	| 'downloading_pack_file'
-	| 'reading_pack_manifest'
-	| 'downloading_content'
-	| 'extracting_overrides'
-	| 'resolving_minecraft'
-	| 'resolving_loader'
-	| 'preparing_java'
-	| 'downloading_minecraft'
-	| 'running_loader_processors'
-	| 'finalizing'
-	| 'rolling_back'
-
-export interface InstallProgress {
-	current: number
-	total: number
-	secondary?: InstallProgressSecondary | null
+export interface SharedInstanceInstallPreview {
+	sharedInstanceId: string
+	version: number
+	name: string
+	iconUrl?: string | null
+	gameVersion: string
+	loader: InstanceLoader
+	modCount: number
+	externalFileCount: number
+	modpackVersionId?: string | null
+	contentVersionIds: string[]
+	externalFiles: SharedInstanceExternalFilePreview[]
 }
 
-export interface InstallProgressSecondary {
-	current: number
-	total: number
+export interface SharedInstanceInviteInstallPreview {
+	sharedInstanceId: string
+	managerId?: string | null
+	serverManagerName?: string | null
+	serverManagerIconUrl?: string | null
+	instanceIconUrl?: string | null
+	preview: SharedInstanceInstallPreview
 }
 
-export type InstallJavaStep =
-	| 'resolving'
-	| 'fetching_metadata'
-	| 'downloading'
-	| 'extracting'
-	| 'validating'
-
-export interface InstallErrorView {
-	code: string
-	phase?: InstallPhaseId | null
-	message: string
-	api?: {
-		error: string
-		status?: number | null
-		method?: string | null
-		url?: string | null
-		route?: string | null
-	} | null
-	context?: {
-		operation: string
-		source_path?: string | null
-		target_path?: string | null
-		file_path?: string | null
-		entry_path?: string | null
-		urls?: string[]
-		expected_hash?: string | null
-		expected_size?: number | null
-		project_id?: string | null
-		version_id?: string | null
-		minecraft_version?: string | null
-		loader?: string | null
-		java_version?: number | null
-		os?: string | null
-		arch?: string | null
-	} | null
+export interface SharedInstanceExternalFilePreview {
+	fileName: string
+	fileType: string
 }
 
-export interface InstallJobSnapshot {
-	job_id: string
-	instance_id?: string | null
-	kind:
-		| 'create_instance'
-		| 'create_modpack_instance'
-		| 'import_instance'
-		| 'duplicate_instance'
-		| 'install_existing_instance'
-		| 'install_pack_to_existing_instance'
-	status: InstallJobStatus
-	target:
-		| { type: 'new_instance'; instance_id?: string | null }
-		| { type: 'existing_instance'; instance_id: string }
-	phase: InstallPhaseId
-	progress?: InstallProgress | null
-	details:
-		| { type: 'empty' }
-		| { type: 'instance'; name: string }
-		| { type: 'minecraft'; game_version: string; loader: InstanceLoader }
-		| { type: 'java'; major_version: number; step: InstallJavaStep }
-		| {
-				type: 'modpack'
-				project_id?: string | null
-				version_id?: string | null
-				title?: string | null
-		  }
-		| { type: 'import'; launcher_type: string; instance_folder: string }
-	display?: { title: string; icon?: string | null } | null
-	error?: InstallErrorView | null
-	rollback_error?: InstallErrorView | null
-	created: string
-	modified: string
-	finished?: string | null
+export interface SharedInstanceUpdatePreview {
+	sharedInstanceId: string
+	currentVersion?: number | null
+	latestVersion: number
+	updateAvailable: boolean
+	diffs: SharedInstanceUpdateDiff[]
+}
+
+export interface SharedInstanceUpdateDiff {
+	type:
+		| 'added'
+		| 'removed'
+		| 'updated'
+		| 'modpack_linked'
+		| 'modpack_updated'
+		| 'modpack_unlinked'
+		| 'game_version_updated'
+		| 'loader_updated'
+		| 'config_files_updated'
+	projectId?: string | null
+	projectName?: string | null
+	fileName?: string | null
+	currentVersionName?: string | null
+	newVersionName?: string | null
+	configFileCount?: number | null
+	disabled?: boolean
+}
+
+export const SHARED_INSTANCE_UNAVAILABLE_ERROR_CODE = 'shared_instance_unavailable'
+export const SHARED_INSTANCES_API_ERROR_CODE = 'shared_instances_api_error'
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === 'object' && value !== null
+}
+
+export function isSharedInstanceUnavailableError(error: unknown) {
+	return getSharedInstanceUnavailableReason(error) !== null
+}
+
+export function isSharedInstancesApiError(error: unknown) {
+	return isRecord(error) && error.code === SHARED_INSTANCES_API_ERROR_CODE
+}
+
+export function getSharedInstanceUnavailableReason(
+	error: unknown,
+): SharedInstanceUnavailableReason | null {
+	if (!isRecord(error) || error.code !== SHARED_INSTANCE_UNAVAILABLE_ERROR_CODE) return null
+	return error.reason === 'deleted' ||
+		error.reason === 'access_revoked' ||
+		error.reason === 'quarantined'
+		? error.reason
+		: null
+}
+
+export function getErrorMessage(error: unknown): string {
+	if (typeof error === 'string') return error
+	if (error instanceof Error) return error.message || 'Unknown error'
+	if (isRecord(error) && typeof error.message === 'string') return error.message
+	return 'Unknown error'
 }
 
 export async function install_get_modpack_preview(location: CreatePackLocation) {
@@ -169,6 +172,58 @@ export async function install_create_modpack_instance(
 	return await invoke<InstallJobSnapshot>('plugin:install|install_create_modpack_instance', {
 		location,
 		postInstallEdit,
+	})
+}
+
+export async function install_get_shared_instance_preview(sharedInstanceId: string, name: string) {
+	return await invoke<SharedInstanceInstallPreview>(
+		'plugin:install|install_get_shared_instance_preview',
+		{
+			sharedInstanceId,
+			name,
+		},
+	)
+}
+
+export async function install_accept_shared_instance_invite(inviteId: string) {
+	return await invoke<SharedInstanceInviteInstallPreview>(
+		'plugin:install|install_accept_shared_instance_invite',
+		{
+			inviteId,
+		},
+	)
+}
+
+export async function install_get_shared_instance_update_preview(instanceId: string) {
+	return await invoke<SharedInstanceUpdatePreview | null>(
+		'plugin:install|install_get_shared_instance_update_preview',
+		{
+			instanceId,
+		},
+	)
+}
+
+export async function install_shared_instance(
+	sharedInstanceId: string,
+	name: string,
+	managerId?: string | null,
+	serverManagerName?: string | null,
+	serverManagerIconUrl?: string | null,
+	instanceIconUrl?: string | null,
+) {
+	return await invoke<InstallJobSnapshot>('plugin:install|install_shared_instance', {
+		sharedInstanceId,
+		name,
+		managerId,
+		serverManagerName,
+		serverManagerIconUrl,
+		instanceIconUrl,
+	})
+}
+
+export async function install_update_shared_instance(instanceId: string) {
+	return await invoke<InstallJobSnapshot>('plugin:install|install_update_shared_instance', {
+		instanceId,
 	})
 }
 
@@ -209,6 +264,16 @@ export async function install_pack_to_existing_instance(
 	})
 }
 
+export async function install_bulk_update_content(
+	instanceId: string,
+	updates: { project_path: string; version_id: string }[],
+) {
+	return await invoke<InstallJobSnapshot>('plugin:install|install_bulk_update_content', {
+		instanceId,
+		updates,
+	})
+}
+
 export async function install_job_list(includeFinished: boolean) {
 	return await invoke<InstallJobSnapshot[]>('plugin:install|install_job_list', { includeFinished })
 }
@@ -223,6 +288,14 @@ export async function install_job_retry(jobId: string) {
 
 export async function install_job_cancel(jobId: string) {
 	return await invoke<InstallJobSnapshot>('plugin:install|install_job_cancel', { jobId })
+}
+
+export async function install_job_pause(jobId: string) {
+	return await invoke<InstallJobSnapshot>('plugin:install|install_job_pause', { jobId })
+}
+
+export async function install_job_resume(jobId: string) {
+	return await invoke<InstallJobSnapshot>('plugin:install|install_job_resume', { jobId })
 }
 
 export async function install_job_dismiss(jobId: string) {
@@ -249,10 +322,11 @@ export function isInstallJobFinished(status: InstallJobStatus) {
 function settleInstallJob(job: InstallJobSnapshot) {
 	if (job.status === 'succeeded') return job
 
-	throw new Error(job.error?.message ?? `Install job ${job.job_id} ${job.status}`)
+	if (job.error) throw job.error
+	throw new Error(`Install job ${job.job_id} ${job.status}`)
 }
 
-export async function wait_for_install_job(jobId: string) {
+export async function wait_for_install_job(events: AppEvents, jobId: string) {
 	const current = await install_job_get(jobId)
 	if (isInstallJobFinished(current.status)) return settleInstallJob(current)
 
@@ -287,16 +361,7 @@ export async function wait_for_install_job(jobId: string) {
 			reject(err)
 		}
 
-		install_job_listener(resolveJob)
-			.then((listener) => {
-				if (finished) {
-					listener()
-					return
-				}
-
-				unlisten = listener
-				install_job_get(jobId).then(resolveJob).catch(rejectWait)
-			})
-			.catch(rejectWait)
+		unlisten = events.on('install_job', resolveJob)
+		install_job_get(jobId).then(resolveJob).catch(rejectWait)
 	})
 }

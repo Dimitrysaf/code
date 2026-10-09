@@ -33,7 +33,7 @@
 			<div class="z-[5] flex w-full flex-col gap-8">
 				<div class="flex flex-col gap-4">
 					<div
-						class="relative h-fit w-fit rounded-full bg-highlight-green px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
+						class="relative h-fit w-fit rounded-full bg-brand-highlight px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
 					>
 						{{ formatMessage(commonMessages.betaRelease) }}
 					</div>
@@ -50,33 +50,35 @@
 					<div
 						class="flex w-full flex-col items-center gap-5 text-center align-middle sm:w-fit sm:flex-row"
 					>
-						<ButtonStyled color="brand" size="large">
-							<nuxt-link class="w-fit" to="#plan">
-								<GameIcon aria-hidden="true" />
-								{{
-									hasServers
-										? formatMessage(messages.startANewServer)
-										: formatMessage(messages.startYourServer)
-								}}
-							</nuxt-link>
-						</ButtonStyled>
-						<ButtonStyled v-if="hasServers" type="outlined" size="large">
-							<nuxt-link class="w-fit" to="/hosting/manage">
-								<BoxIcon aria-hidden="true" /> {{ formatMessage(messages.manageYourServers) }}
-							</nuxt-link>
-						</ButtonStyled>
+						<ButtonLink type="colored" color="brand" size="xl" class="w-fit" to="#plan">
+							<GameIcon aria-hidden="true" />
+							{{
+								hasServers
+									? formatMessage(messages.startANewServer)
+									: formatMessage(messages.startYourServer)
+							}}
+						</ButtonLink>
+						<ButtonLink
+							v-if="hasServers"
+							type="outlined"
+							size="xl"
+							class="w-fit"
+							to="/hosting/manage"
+						>
+							<BoxIcon aria-hidden="true" /> {{ formatMessage(messages.manageYourServers) }}
+						</ButtonLink>
 					</div>
 				</div>
 			</div>
 
 			<div
-				class="absolute left-[55%] top-56 z-[5] hidden h-full max-h-[calc(100vh-10rem)] w-full rotate-1 xl:block"
+				class="top-70 absolute left-[55%] z-[5] hidden h-full max-h-[calc(100vh-25rem)] w-full xl:block"
 			>
 				<img
-					src="https://cdn.modrinth.com/servers/panel-right-dark.webp"
+					src="https://cdn-raw.modrinth.com/hosting-landing/hosting-panel.webp"
 					alt=""
 					aria-hidden="true"
-					class="pointer-events-none h-full w-fit select-none"
+					class="pointer-events-none h-full w-auto select-none"
 				/>
 			</div>
 
@@ -108,7 +110,7 @@
 			<div class="faded-brand-line absolute left-0 top-0 h-[1px] w-full"></div>
 			<div class="relative mx-auto flex w-full max-w-7xl flex-col gap-8">
 				<div
-					class="relative w-fit rounded-full bg-highlight-green px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
+					class="relative w-fit rounded-full bg-brand-highlight px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
 				>
 					{{ formatMessage(messages.whyModrinthHosting) }}
 				</div>
@@ -152,7 +154,7 @@
 					</div>
 
 					<div class="relative flex flex-col gap-4 rounded-2xl bg-bg p-6 text-left md:p-12">
-						<LoaderIcon loader="fabric" class="size-8 text-brand" />
+						<TagIcon tag="fabric" enforce-type="loader" class="size-8 text-brand" />
 						<h2 class="m-0 text-lg font-bold">{{ formatMessage(messages.yourFavoriteMods) }}</h2>
 						<h3 class="m-0 text-base font-normal text-secondary">
 							{{ formatMessage(messages.yourFavoriteModsDescription) }}
@@ -161,7 +163,7 @@
 				</div>
 				<div class="relative">
 					<img
-						src="https://cdn.modrinth.com/servers/installation-dark.webp"
+						src="https://cdn-raw.modrinth.com/hosting-landing/hosting-content.webp"
 						alt=""
 						class="hidden w-full rounded-2xl sm:block"
 					/>
@@ -236,7 +238,7 @@
 			<div class="faded-brand-line absolute left-0 top-0 h-[1px] w-full"></div>
 			<div class="relative mx-auto flex w-full max-w-7xl flex-col gap-8">
 				<div
-					class="relative w-fit rounded-full bg-highlight-green px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
+					class="relative w-fit rounded-full bg-brand-highlight px-3 py-1 text-sm font-bold text-brand backdrop-blur-lg"
 				>
 					{{ formatMessage(messages.includedWithYourServer) }}
 				</div>
@@ -321,17 +323,19 @@
 							border: 1px solid rgba(12, 107, 52, 0.55);
 							box-shadow: 0px 12px 38.1px rgba(27, 217, 106, 0.13);
 						"
-						class="relative flex flex-col gap-4 overflow-hidden rounded-2xl p-6 text-left sm:backdrop-blur-xl md:p-12"
+						class="relative flex flex-col gap-4 overflow-hidden rounded-2xl text-left sm:backdrop-blur-xl"
 					>
-						<h2 class="m-0 text-lg font-bold">{{ formatMessage(messages.fileManager) }}</h2>
-						<h3 class="m-0 text-base font-normal">
-							{{ formatMessage(messages.fileManagerDescription) }}
-						</h3>
+						<div class="flex flex-col gap-4 p-6 pb-0 md:p-12 md:pb-0">
+							<h2 class="m-0 text-lg font-bold">{{ formatMessage(messages.fileManager) }}</h2>
+							<h3 class="m-0 text-base font-normal">
+								{{ formatMessage(messages.fileManagerDescription) }}
+							</h3>
+						</div>
 
 						<img
-							src="https://cdn.modrinth.com/servers/content-dark.webp"
+							src="https://cdn-raw.modrinth.com/hosting-landing/hosting-files.webp"
 							alt=""
-							class="absolute -bottom-12 -right-[15%] hidden max-w-2xl rounded-2xl bg-brand p-4 lg:block"
+							class="ml-6"
 						/>
 					</div>
 				</div>
@@ -538,9 +542,6 @@
 					</template>
 					<span v-else></span>
 				</div>
-
-				<MedalPlanPromotion v-if="flags.enableMedalPromotion" />
-
 				<ul class="m-0 flex w-full grid-cols-3 flex-col gap-8 p-0 lg:grid">
 					<ServerPlanSelector
 						:capacity="capacityStatuses?.small?.available"
@@ -603,12 +604,10 @@
 					</div>
 
 					<div class="flex w-full flex-col-reverse gap-2 md:w-auto md:flex-col md:items-center">
-						<ButtonStyled color="standard" size="large">
-							<button class="w-full md:w-fit" @click="selectProduct('custom')">
-								{{ formatMessage(messages.getStartedButton) }}
-								<RightArrowIcon class="shrink-0" />
-							</button>
-						</ButtonStyled>
+						<Button size="xl" class="w-full md:w-fit" @click="selectProduct('custom')">
+							{{ formatMessage(messages.getStartedButton) }}
+							<RightArrowIcon class="shrink-0" />
+						</Button>
 						<p v-if="lowestPrice" class="m-0 text-sm">
 							{{
 								formatMessage(messages.startingAtPrice, {
@@ -634,14 +633,17 @@ import {
 	VersionIcon,
 } from '@modrinth/assets'
 import {
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	commonMessages,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
 	IntlFormatted,
-	LoaderIcon,
 	ModrinthServersPurchaseModal,
+	OptionGroup,
+	TagIcon,
+	useDebugLogger,
 	useFormatPrice,
 	useVIntl,
 } from '@modrinth/ui'
@@ -649,14 +651,13 @@ import { monthsInInterval } from '@modrinth/ui/src/utils/billing.ts'
 import { useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 
-import OptionGroup from '~/components/ui/OptionGroup.vue'
-import MedalPlanPromotion from '~/components/ui/servers/marketing/MedalPlanPromotion.vue'
 import ServerPlanSelector from '~/components/ui/servers/marketing/ServerPlanSelector.vue'
 import { products } from '~/generated/state.json'
 
 const route = useRoute()
 const router = useRouter()
 const client = injectModrinthClient()
+const debug = useDebugLogger('Hosting')
 
 const { setAffiliateCode, getAffiliateCode } = useAffiliates()
 
@@ -677,7 +678,6 @@ if (affiliateCode.value) {
 const { addNotification } = injectNotificationManager()
 const { formatMessage } = useVIntl()
 const formatPrice = useFormatPrice()
-const flags = useFeatureFlags()
 
 const messages = defineMessages({
 	errorFetchingPaymentDataTitle: {
@@ -865,7 +865,7 @@ const messages = defineMessages({
 	faqCpuKindAnswer: {
 		id: 'hosting-marketing.faq.cpu-kind.answer',
 		defaultMessage:
-			'Modrinth Hosting servers are powered by AMD Ryzen 7900 and 7950X3D equivalent CPUs at 5+ GHz, paired with DDR5 memory.',
+			'Modrinth Hosting servers are powered by AMD Ryzen 7950X or 9950X equivalent, paired with DDR5 memory.',
 	},
 	faqBurstThreads: {
 		id: 'hosting-marketing.faq.burst-threads',
@@ -1198,7 +1198,7 @@ const selectProduct = async (product) => {
 	}
 
 	await refreshCapacity()
-	console.log(capacityStatuses.value)
+	debug(capacityStatuses.value)
 
 	if ((product === 'custom' && isCustomAtCapacity.value) || isAtCapacity.value) {
 		addNotification({

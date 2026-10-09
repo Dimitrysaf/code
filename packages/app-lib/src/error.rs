@@ -22,8 +22,33 @@ pub struct LabrinthError {
     pub route: Option<String>,
 }
 
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[cfg_attr(
+    feature = "export-ts",
+    derive(ts_rs::TS, postcard_bindgen::PostcardBindings)
+)]
+#[serde(rename_all = "snake_case")]
+pub enum SharedInstanceUnavailableReason {
+    Deleted,
+    AccessRevoked,
+    Quarantined,
+}
+
+impl std::fmt::Display for SharedInstanceUnavailableReason {
+    fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Deleted => write!(fmt, "deleted"),
+            Self::AccessRevoked => write!(fmt, "access_revoked"),
+            Self::Quarantined => write!(fmt, "quarantined"),
+        }
+    }
+}
+
 #[derive(thiserror::Error, Debug)]
 pub enum ErrorKind {
+    #[error("Pack sync inputs changed during preparation")]
+    PackSyncChanged,
+
     #[error("{0:?}")]
     Any(eyre::Report),
 
@@ -102,6 +127,12 @@ pub enum ErrorKind {
 
     #[error("Invalid input: {0}")]
     InputError(String),
+
+    #[error("Shared instance unavailable: {0}")]
+    SharedInstanceUnavailable(SharedInstanceUnavailableReason),
+
+    #[error("Shared instances API request failed: {0}")]
+    SharedInstancesApiError(String),
 
     #[error("Join handle error: {0}")]
     JoinError(#[from] tokio::task::JoinError),
@@ -231,6 +262,15 @@ impl std::error::Error for Error {
 impl std::fmt::Display for Error {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(fmt, "{}", self.source)
+    }
+}
+
+impl Clone for Error {
+    fn clone(&self) -> Self {
+        Self {
+            raw: Arc::clone(&self.raw),
+            source: Arc::clone(&self.raw).in_current_span(),
+        }
     }
 }
 

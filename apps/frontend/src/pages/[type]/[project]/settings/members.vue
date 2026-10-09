@@ -33,7 +33,7 @@
 				</span>
 			</span>
 			<div class="input-group">
-				<StyledInput
+				<Input
 					id="username"
 					v-model="currentUsername"
 					placeholder="Username"
@@ -41,33 +41,33 @@
 					@keypress.enter="inviteTeamMember()"
 				/>
 				<label for="username" class="hidden">Username</label>
-				<ButtonStyled color="brand">
-					<button
-						:disabled="(currentMember?.permissions & MANAGE_INVITES) !== MANAGE_INVITES"
-						@click="inviteTeamMember()"
-					>
-						<UserPlusIcon />
-						Invite
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="brand"
+					:disabled="(currentMember?.permissions & MANAGE_INVITES) !== MANAGE_INVITES"
+					@click="inviteTeamMember()"
+				>
+					<UserPlusIcon />
+					Invite
+				</Button>
 			</div>
 			<div class="adjacent-input">
 				<span class="label">
 					<span class="label__title">Leave project</span>
 					<span class="label__description"> Remove yourself as a member of this project. </span>
 				</span>
-				<ButtonStyled color="red">
-					<button
-						:disabled="currentMember?.is_owner"
-						:title="
-							currentMember?.is_owner ? 'You cannot leave the project if you are the owner!' : ''
-						"
-						@click="leaveProject()"
-					>
-						<UserXIcon />
-						Leave project
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="red"
+					:disabled="currentMember?.is_owner"
+					:title="
+						currentMember?.is_owner ? 'You cannot leave the project if you are the owner!' : ''
+					"
+					@click="leaveProject()"
+				>
+					<UserXIcon />
+					Leave project
+				</Button>
 			</div>
 		</Card>
 		<div
@@ -90,43 +90,45 @@
 				<div class="side-buttons">
 					<Badge v-if="member.accepted" type="accepted" />
 					<Badge v-else type="pending" />
-					<ButtonStyled circular>
-						<button
-							class="dropdown-icon"
-							@click="
-								openTeamMembers.indexOf(member.user.id) === -1
-									? openTeamMembers.push(member.user.id)
-									: (openTeamMembers = openTeamMembers.filter((it) => it !== member.user.id))
-							"
-						>
-							<DropdownIcon />
-						</button>
-					</ButtonStyled>
+					<IconButton
+						label="Toggle details"
+						class="dropdown-icon"
+						@click="
+							openTeamMembers.indexOf(member.user.id) === -1
+								? openTeamMembers.push(member.user.id)
+								: (openTeamMembers = openTeamMembers.filter((it) => it !== member.user.id))
+						"
+					>
+						<DropdownIcon />
+					</IconButton>
 				</div>
 			</div>
 			<div class="content">
 				<div class="adjacent-input">
-					<label :for="`member-${allTeamMembers[index].user.username}-role`">
+					<label :for="`member-${allTeamMembers[index].user.username}-role`" class="w-fit">
 						<span class="label__title">Role</span>
 						<span class="label__description">
 							The title of the role that this member plays for this project.
 						</span>
 					</label>
-					<StyledInput
+					<Input
 						:id="`member-${allTeamMembers[index].user.username}-role`"
 						v-model="allTeamMembers[index].role"
 						:disabled="(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER"
 					/>
 				</div>
 				<div class="adjacent-input">
-					<label :for="`member-${allTeamMembers[index].user.username}-monetization-weight`">
+					<label
+						:for="`member-${allTeamMembers[index].user.username}-monetization-weight`"
+						class="w-fit"
+					>
 						<span class="label__title">Monetization weight</span>
 						<span class="label__description">
 							Relative to all other members' monetization weights, this determines what portion of
 							this project's revenue goes to this member.
 						</span>
 					</label>
-					<StyledInput
+					<Input
 						:id="`member-${allTeamMembers[index].user.username}-monetization-weight`"
 						v-model="allTeamMembers[index].payouts_split"
 						type="number"
@@ -229,30 +231,32 @@
 					</div>
 				</template>
 				<div class="input-group">
-					<ButtonStyled color="brand">
-						<button
-							:disabled="(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER"
-							@click="updateTeamMember(index)"
-						>
-							<SaveIcon />
-							Save changes
-						</button>
-					</ButtonStyled>
-					<ButtonStyled v-if="!member.is_owner" color="red">
-						<button
-							:disabled="(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER"
-							@click="removeTeamMember(index)"
-						>
-							<UserXIcon />
-							Remove member
-						</button>
-					</ButtonStyled>
-					<ButtonStyled v-if="!member.is_owner && currentMember?.is_owner && member.accepted">
-						<button @click="openTransferModal(index, $event)">
-							<TransferIcon />
-							Transfer ownership
-						</button>
-					</ButtonStyled>
+					<Button
+						type="colored"
+						color="brand"
+						:disabled="(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER"
+						@click="updateTeamMember(index)"
+					>
+						<SaveIcon />
+						Save changes
+					</Button>
+					<Button
+						v-if="!member.is_owner"
+						type="colored"
+						color="red"
+						:disabled="(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER"
+						@click="removeTeamMember(index)"
+					>
+						<UserXIcon />
+						Remove member
+					</Button>
+					<Button
+						v-if="!member.is_owner && currentMember?.is_owner && member.accepted"
+						@click="openTransferModal(index, $event)"
+					>
+						<TransferIcon />
+						Transfer ownership
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -269,9 +273,11 @@
 					</nuxt-link>
 					. You may override them below.
 				</p>
-				<nuxt-link
+				<ButtonLink
+					type="quiet"
+					interaction="none"
 					:to="`/organization/${organization.slug}`"
-					class="universal-card button-base recessed org"
+					class="universal-card recessed org !h-auto !w-full !shrink !items-stretch !justify-start !whitespace-normal !p-[var(--spacing-card-bg)]"
 				>
 					<Avatar :src="organization.icon_url" :alt="organization.name" size="md" />
 					<div class="details">
@@ -293,7 +299,7 @@
 							</div>
 						</span>
 					</div>
-				</nuxt-link>
+				</ButtonLink>
 			</div>
 			<p v-else>
 				This project is not managed by an organization. If you are the member of any organizations,
@@ -308,19 +314,20 @@
 					force-direction="up"
 					:disabled="!currentMember?.is_owner || organizationOptions.length === 0"
 				/>
-				<ButtonStyled color="brand">
-					<button :disabled="!selectedOrganization" @click="openTransferToOrgModal($event)">
-						<CheckIcon />
-						<span class="w-max"> Transfer management </span>
-					</button>
-				</ButtonStyled>
+				<Button
+					type="colored"
+					color="brand"
+					:disabled="!selectedOrganization"
+					@click="openTransferToOrgModal($event)"
+				>
+					<CheckIcon />
+					<span class="w-max"> Transfer management </span>
+				</Button>
 			</div>
-			<ButtonStyled v-if="organization">
-				<button @click="$refs.modal_remove.show()">
-					<OrganizationIcon />
-					Remove from organization
-				</button>
-			</ButtonStyled>
+			<Button v-if="organization" @click="$refs.modal_remove.show()">
+				<OrganizationIcon />
+				Remove from organization
+			</Button>
 		</section>
 		<div
 			v-for="(member, index) in allOrgMembers"
@@ -342,23 +349,22 @@
 				<div class="side-buttons">
 					<Badge v-if="member.accepted" type="accepted" />
 					<Badge v-else type="pending" />
-					<ButtonStyled circular>
-						<button
-							class="dropdown-icon"
-							@click="
-								openTeamMembers.indexOf(member.user.id) === -1
-									? openTeamMembers.push(member.user.id)
-									: (openTeamMembers = openTeamMembers.filter((it) => it !== member.user.id))
-							"
-						>
-							<DropdownIcon />
-						</button>
-					</ButtonStyled>
+					<IconButton
+						label="Toggle details"
+						class="dropdown-icon"
+						@click="
+							openTeamMembers.indexOf(member.user.id) === -1
+								? openTeamMembers.push(member.user.id)
+								: (openTeamMembers = openTeamMembers.filter((it) => it !== member.user.id))
+						"
+					>
+						<DropdownIcon />
+					</IconButton>
 				</div>
 			</div>
 			<div class="content">
 				<div class="adjacent-input">
-					<label :for="`member-${allOrgMembers[index].user.username}-override-perms`">
+					<label :for="`member-${allOrgMembers[index].user.username}-override-perms`" class="w-fit">
 						<span class="label__title">Override values</span>
 						<span class="label__description">
 							Override organization default values and assign custom permissions, roles, and
@@ -372,13 +378,13 @@
 					/>
 				</div>
 				<div class="adjacent-input">
-					<label :for="`member-${allOrgMembers[index].user.username}-role`">
+					<label :for="`member-${allOrgMembers[index].user.username}-role`" class="w-fit">
 						<span class="label__title">Role</span>
 						<span class="label__description">
 							The title of the role that this member plays for this project.
 						</span>
 					</label>
-					<StyledInput
+					<Input
 						:id="`member-${allOrgMembers[index].user.username}-role`"
 						v-model="allOrgMembers[index].role"
 						:disabled="
@@ -388,14 +394,17 @@
 					/>
 				</div>
 				<div class="adjacent-input">
-					<label :for="`member-${allOrgMembers[index].user.username}-monetization-weight`">
+					<label
+						:for="`member-${allOrgMembers[index].user.username}-monetization-weight`"
+						class="w-fit"
+					>
 						<span class="label__title">Monetization weight</span>
 						<span class="label__description">
 							Relative to all other members' monetization weights, this determines what portion of
 							this project's revenue goes to this member.
 						</span>
 					</label>
-					<StyledInput
+					<Input
 						:id="`member-${allOrgMembers[index].user.username}-monetization-weight`"
 						v-model="allOrgMembers[index].payouts_split"
 						type="number"
@@ -527,18 +536,18 @@
 
 					we don't allow clicking the button in that last case.
 					-->
-					<ButtonStyled color="brand">
-						<button
-							:disabled="
-								(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER ||
-								(!allOrgMembers[index].oldOverride && !allOrgMembers[index].override)
-							"
-							@click="updateOrgMember(index)"
-						>
-							<SaveIcon />
-							Save changes
-						</button>
-					</ButtonStyled>
+					<Button
+						type="colored"
+						color="brand"
+						:disabled="
+							(currentMember?.permissions & EDIT_MEMBER) !== EDIT_MEMBER ||
+							(!allOrgMembers[index].oldOverride && !allOrgMembers[index].override)
+						"
+						@click="updateOrgMember(index)"
+					>
+						<SaveIcon />
+						Save changes
+					</Button>
 				</div>
 			</div>
 		</div>
@@ -560,15 +569,18 @@ import {
 import {
 	Avatar,
 	Badge,
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	Card,
 	Checkbox,
 	Combobox,
+	commonProjectSettingsMessages,
 	ConfirmModal,
+	IconButton,
 	injectModrinthClient,
 	injectNotificationManager,
 	injectProjectPageContext,
-	StyledInput,
+	Input,
 	Toggle,
 } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
@@ -586,6 +598,8 @@ const {
 	currentMember,
 	invalidate,
 } = injectProjectPageContext()
+
+useProjectSettingsHeadTitle(commonProjectSettingsMessages.members)
 
 const isServerProject = computed(() => projectV3.value?.minecraft_server != null)
 

@@ -149,6 +149,8 @@ export default defineNuxtPlugin({
 	async setup(nuxtApp) {
 		const locale = useState<string>('i18n-locale', () => DEFAULT_LOCALE)
 
+		useHead({ htmlAttrs: { lang: () => locale.value } })
+
 		function t(key: string, values?: Record<string, unknown>): string {
 			const currentLocale = locale.value
 			const localeMessages = messageCache.get(currentLocale)
@@ -178,7 +180,10 @@ export default defineNuxtPlugin({
 			return msg
 		}
 
-		async function setLocale(newLocale: string): Promise<void> {
+		async function setLocale(
+			newLocale: string,
+			{ persist = true }: { persist?: boolean } = {},
+		): Promise<void> {
 			debug('setLocale: called', { newLocale, currentLocale: locale.value })
 
 			if (!LOCALES.some((l) => l.code === newLocale)) {
@@ -197,7 +202,12 @@ export default defineNuxtPlugin({
 			})
 
 			locale.value = newLocale
-			useCookie('locale', { maxAge: 31536000, path: '/' }).value = newLocale
+			if (persist) {
+				// Awaiting loadLocale above drops the Nuxt context on the server, where useCookie needs it
+				nuxtApp.runWithContext(() => {
+					useCookie('locale', { maxAge: 31536000, path: '/' }).value = newLocale
+				})
+			}
 		}
 
 		// Detect initial locale (cookie > Accept-Language > default)

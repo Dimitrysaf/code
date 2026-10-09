@@ -50,6 +50,7 @@ impl InstallProgressReporter {
         &self,
         context: InstallErrorContext,
     ) -> crate::Result<()> {
+        super::control::checkpoint(self.job_id).await?;
         self.update_context(Some(context), true).await
     }
 
@@ -57,6 +58,7 @@ impl InstallProgressReporter {
         &self,
         context: InstallErrorContext,
     ) -> crate::Result<()> {
+        super::control::checkpoint(self.job_id).await?;
         self.update_context(Some(context), false).await
     }
 
@@ -128,6 +130,7 @@ impl InstallProgressReporter {
         details: InstallPhaseDetails,
         events: Vec<InstallJobEventKind>,
     ) -> crate::Result<()> {
+        super::control::checkpoint(self.job_id).await?;
         let app_state = crate::State::get().await?;
         let mut state = self.state.lock().await;
         let phase_started = state.job.progress.phase != phase
@@ -200,13 +203,19 @@ pub async fn emit_install_job(
 ) -> crate::Result<()> {
     #[cfg(feature = "tauri")]
     {
-        use tauri::Emitter;
-
-        let event_state = crate::EventState::get()?;
-        event_state
-            .app
-            .emit("install_job", snapshot)
-            .map_err(crate::event::EventError::from)?;
+        let result: crate::Result<()> = (|| {
+            let event_state = crate::EventState::get();
+            event_state.send(crate::event::AppEvent::InstallJob(
+                std::sync::Arc::new(snapshot.clone()),
+            ))?;
+            Ok(())
+        })();
+        if let Err(error) = result {
+            tracing::warn!(
+                "Failed to emit install job {} update: {error}",
+                snapshot.job_id
+            );
+        }
     }
 
     Ok(())

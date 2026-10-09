@@ -45,7 +45,7 @@
 			<label class="text-md font-semibold text-contrast" for="create-account-username">
 				{{ formatMessage(messages.usernameOptionalLabel) }}
 			</label>
-			<StyledInput
+			<Input
 				id="create-account-username"
 				v-model="usernameModel"
 				type="text"
@@ -84,16 +84,16 @@
 			<label for="create-account-consent">I agree to receive account updates by email</label>
 		</div>
 
-		<ButtonStyled color="brand">
-			<button
-				class="!w-full font-bold"
-				:disabled="globals?.captcha_enabled ? !tokenModel : false"
-				@click="onCompleteSignUpClick"
-			>
-				{{ formatMessage(messages.completeSignUpButton) }}
-				<RightArrowIcon />
-			</button>
-		</ButtonStyled>
+		<Button
+			type="colored"
+			color="brand"
+			class="!w-full font-bold"
+			:disabled="globals?.captcha_enabled ? !tokenModel : false"
+			@click="onCompleteSignUpClick"
+		>
+			{{ formatMessage(messages.completeSignUpButton) }}
+			<RightArrowIcon />
+		</Button>
 	</div>
 </template>
 
@@ -101,12 +101,12 @@
 import { RightArrowIcon } from '@modrinth/assets'
 import {
 	Admonition,
-	ButtonStyled,
+	Button,
 	Checkbox,
 	DatePicker,
 	defineMessages,
 	injectNotificationManager,
-	StyledInput,
+	Input,
 	useVIntl,
 } from '@modrinth/ui'
 import { computed, ref } from 'vue'
@@ -244,7 +244,7 @@ const messages = defineMessages({
 		defaultMessage: 'Please enter a valid date of birth. Year cannot be 0000.',
 	},
 	under13HelperText: {
-		id: 'auth.create-account.date-of-birth.under13-helper',
+		id: 'auth.create-account.date-of-birth.not-meet-age-requirement',
 		defaultMessage: 'You do not meet the age requirement to create an account at Modrinth.',
 	},
 	ageRequirementWarningTitle: {

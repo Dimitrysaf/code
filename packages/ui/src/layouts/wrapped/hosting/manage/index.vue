@@ -1,8 +1,12 @@
 <template>
 	<div
 		data-pyro-server-list-root
-		class="relative mx-auto mb-6 flex w-full flex-col p-6"
-		:class="serverList.length ? 'min-h-screen' : 'min-h-[calc(100vh-14.5rem)]'"
+		class="relative mx-auto flex w-full flex-col p-6"
+		:class="
+			serverList.length && !showEmptyState
+				? 'min-h-screen mb-6'
+				: 'min-h-[calc(100vh-14.5rem)] h-full py-0'
+		"
 	>
 		<ServersGuestPlanModal
 			ref="guestPlanModal"
@@ -75,14 +79,17 @@
 						</li>
 					</ul>
 				</div>
-				<ButtonStyled size="large" type="standard" color="brand">
-					<AutoLink class="mt-6 !w-full" to="https://support.modrinth.com">{{
-						formatMessage(messages.contactSupportButton)
-					}}</AutoLink>
-				</ButtonStyled>
-				<ButtonStyled size="large" @click="() => router.go(0)">
-					<button class="mt-3 !w-full">{{ formatMessage(messages.reloadButton) }}</button>
-				</ButtonStyled>
+				<ButtonLink
+					type="colored"
+					color="brand"
+					size="xl"
+					class="mt-6 !w-full"
+					to="https://support.modrinth.com"
+					>{{ formatMessage(messages.contactSupportButton) }}</ButtonLink
+				>
+				<Button size="xl" class="mt-3 !w-full" @click="() => router.go(0)">{{
+					formatMessage(messages.reloadButton)
+				}}</Button>
 			</div>
 		</div>
 
@@ -95,7 +102,7 @@
 					{{ formatMessage(messages.serversTitle) }}
 				</h1>
 				<div class="flex w-full flex-row items-center justify-end gap-2 md:mb-0">
-					<StyledInput
+					<Input
 						id="search"
 						v-model="searchInput"
 						:icon="SearchIcon"
@@ -106,12 +113,10 @@
 						:placeholder="formatMessage(messages.searchPlaceholder, { count: filteredData.length })"
 						wrapper-class="w-full md:w-72"
 					/>
-					<ButtonStyled type="standard" color="brand">
-						<button @click="openPurchaseModal">
-							<PlusIcon />
-							{{ formatMessage(messages.newServerButton) }}
-						</button>
-					</ButtonStyled>
+					<Button type="colored" color="brand" @click="openPurchaseModal">
+						<PlusIcon />
+						{{ formatMessage(messages.newServerButton) }}
+					</Button>
 				</div>
 			</div>
 
@@ -133,7 +138,7 @@
 				<div
 					v-else-if="showEmptyState"
 					key="empty"
-					class="flex h-full flex-col items-center justify-center gap-8 grow max-h-[1100px]"
+					class="flex h-full flex-col items-center justify-center gap-8 grow"
 				>
 					<ServerListEmpty
 						:logged-in="loggedIn"
@@ -174,6 +179,7 @@
 								v-for="server in ownedFilteredData.filter((s) => s.is_medal)"
 								:key="`owned-medal-${server.server_id}`"
 								v-bind="server"
+								:on-download-world="getWorldDownload(server.server_id, serverFullList)"
 								@upgrade="openMedalUpgradeModal"
 							/>
 							<ServerListing
@@ -183,7 +189,7 @@
 								:cancellation-date="serverBillingMap.get(server.server_id)?.cancellationDate"
 								:is-provisioning="serverBillingMap.get(server.server_id)?.isProvisioning"
 								:on-resubscribe="serverBillingMap.get(server.server_id)?.onResubscribe"
-								:on-download-backup="serverBillingMap.get(server.server_id)?.onDownloadBackup"
+								:on-download-world="getWorldDownload(server.server_id, serverFullList)"
 							/>
 						</TransitionGroup>
 						<div v-else class="text-secondary">
@@ -231,20 +237,20 @@
 import type { Archon, Labrinth } from '@modrinth/api-client'
 import { HammerIcon, LoaderCircleIcon, PlusIcon, SearchIcon } from '@modrinth/assets'
 import {
-	AutoLink,
-	ButtonStyled,
 	CopyCode,
 	defineMessages,
+	hasAvailableWorldDownload,
 	injectAuth,
 	injectModrinthClient,
 	injectNotificationManager,
+	Input,
 	IntlFormatted,
+	isWithinServerResubscribeWindow,
 	ModrinthServersPurchaseModal,
 	ResubscribeModal,
 	ServerListEmpty,
 	ServersGuestPlanModal,
-	StyledInput,
-	useServerBackupDownload,
+	useServerWorldDownload,
 	useVIntl,
 } from '@modrinth/ui'
 import { useQuery, useQueryClient } from '@tanstack/vue-query'
@@ -255,6 +261,7 @@ import type Stripe from 'stripe'
 import { type ComponentPublicInstance, computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
+import { Button, ButtonLink } from '#ui/components/base/buttons'
 import ServersUpgradeModalWrapper from '#ui/components/billing/ServersUpgradeModalWrapper.vue'
 import type { ServerListingOwner } from '#ui/components/servers/access'
 import MedalServerListing from '#ui/components/servers/marketing/MedalServerListing.vue'
@@ -331,6 +338,10 @@ const messages = defineMessages({
 	handleErrorTitle: {
 		id: 'servers.manage.handle-error.title',
 		defaultMessage: 'An error occurred',
+	},
+	unknownError: {
+		id: 'servers.manage.error.unknown',
+		defaultMessage: 'Unknown error',
 	},
 	purchaseUnavailableTitle: {
 		id: 'servers.manage.purchase-unavailable.title',
@@ -553,14 +564,14 @@ function sortServers(array: Archon.Servers.v0.Server[]): Archon.Servers.v0.Serve
 	})
 }
 
-// files expire 30 days after cancellation
-function filesExpired(server: Archon.Servers.v0.Server): boolean {
-	if (server.status !== 'suspended' || server.suspension_reason !== 'cancelled') return false
+function shouldShowServer(server: Archon.Servers.v0.Server): boolean {
+	if (server.status !== 'suspended' || server.suspension_reason !== 'cancelled') return true
 	const cancellationDate = serverBillingMap.value.get(server.server_id)?.cancellationDate
-	if (!cancellationDate) return false
-	const cancellation = new Date(cancellationDate)
-	const thirtyDaysLater = new Date(cancellation.getTime() + 30 * 24 * 60 * 60 * 1000)
-	return new Date() > thirtyDaysLater
+	if (!cancellationDate || !serverFullList.value) return true
+	return (
+		isWithinServerResubscribeWindow(cancellationDate) ||
+		hasAvailableWorldDownload(server.server_id, serverFullList.value)
+	)
 }
 
 function isServerOwnedByCurrentUser(server: Archon.Servers.v0.Server): boolean {
@@ -578,11 +589,13 @@ function getServerOwner(server: Archon.Servers.v0.Server): ServerListingOwner | 
 }
 
 const ownedServerList = computed<ServerWithOwner[]>(() =>
-	serverList.value.filter((server) => !filesExpired(server) && isServerOwnedByCurrentUser(server)),
+	serverList.value.filter(
+		(server) => shouldShowServer(server) && isServerOwnedByCurrentUser(server),
+	),
 )
 const sharedServerList = computed<ServerWithOwner[]>(() =>
 	serverList.value
-		.filter((server) => !filesExpired(server) && !isServerOwnedByCurrentUser(server))
+		.filter((server) => shouldShowServer(server) && !isServerOwnedByCurrentUser(server))
 		.map((server) => ({
 			...server,
 			owner: getServerOwner(server),
@@ -628,7 +641,7 @@ watch(serverResponse, (response) => {
 
 const { addNotification } = injectNotificationManager()
 const queryClient = useQueryClient()
-const { getLatestBackupDownload } = useServerBackupDownload()
+const { getWorldDownload } = useServerWorldDownload()
 
 function handlePurchaseSuccess() {
 	startNewServerPolling(serverResponse.value?.servers ?? [])
@@ -677,7 +690,9 @@ function handleError(err: unknown) {
 }
 
 function formatFetchError(error: unknown) {
-	return error instanceof Error && error.message ? error.message : 'Unknown error'
+	return error instanceof Error && error.message
+		? error.message
+		: formatMessage(messages.unknownError)
 }
 
 function handleSignIn() {
@@ -766,7 +781,6 @@ type ServerBillingInfo = {
 	cancellationDate?: string | null
 	isProvisioning?: boolean
 	onResubscribe?: () => void
-	onDownloadBackup?: (() => void) | null
 }
 
 type ResubscribeRequest = {
@@ -918,12 +932,12 @@ const serverBillingMap = computed(() => {
 				(charge?.status === 'processing' || charge?.status === 'open'),
 		}
 
-		info.onDownloadBackup = getLatestBackupDownload(serverId, serverFullList.value)
-
 		if (charge?.status === 'cancelled') {
 			info.cancellationDate = charge.due
 
-			info.onResubscribe = () => openResubscribeModal(serverId, sub, charge)
+			if (isWithinServerResubscribeWindow(charge.due)) {
+				info.onResubscribe = () => openResubscribeModal(serverId, sub, charge)
+			}
 		}
 
 		map.set(serverId, info)

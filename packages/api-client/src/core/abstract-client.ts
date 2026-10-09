@@ -43,6 +43,7 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 	public readonly launchermeta!: InferredClientModules['launchermeta']
 	public readonly paper!: InferredClientModules['paper']
 	public readonly purpur!: InferredClientModules['purpur']
+	public readonly sharedinstances!: InferredClientModules['sharedinstances']
 
 	constructor(config: ClientConfig) {
 		super()
@@ -50,6 +51,7 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 			timeout: 10000,
 			labrinthBaseUrl: 'https://api.modrinth.com',
 			archonBaseUrl: 'https://archon.modrinth.com',
+			sharedInstancesBaseUrl: 'https://shared-instances.modrinth.com',
 			...config,
 		}
 		this.features = config.features ?? []
@@ -123,6 +125,8 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 			baseUrl = this.resolveBaseUrl(this.config.labrinthBaseUrl!)
 		} else if (options.api === 'archon') {
 			baseUrl = this.resolveBaseUrl(this.config.archonBaseUrl!)
+		} else if (options.api === 'sharedinstances') {
+			baseUrl = this.resolveBaseUrl(this.config.sharedInstancesBaseUrl!)
 		} else {
 			baseUrl = options.api
 		}
@@ -158,6 +162,7 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 			return result
 		} catch (error) {
 			const apiError = this.normalizeError(error, context)
+			apiError.url ??= context.url
 			await this.config.hooks?.onError?.(apiError, context)
 
 			throw apiError
@@ -170,6 +175,8 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 			baseUrl = this.resolveBaseUrl(this.config.labrinthBaseUrl!)
 		} else if (options.api === 'archon') {
 			baseUrl = this.resolveBaseUrl(this.config.archonBaseUrl!)
+		} else if (options.api === 'sharedinstances') {
+			baseUrl = this.resolveBaseUrl(this.config.sharedInstancesBaseUrl!)
 		} else {
 			baseUrl = options.api
 		}
@@ -197,6 +204,7 @@ export abstract class AbstractModrinthClient extends AbstractUploadClient {
 			)
 		} catch (error) {
 			const apiError = this.normalizeError(error, context)
+			apiError.url ??= context.url
 			await this.config.hooks?.onError?.(apiError, context)
 
 			throw apiError

@@ -20,7 +20,7 @@
 				<label class="text-md font-semibold text-contrast" for="email">
 					{{ formatMessage(commonMessages.emailLabel) }}
 				</label>
-				<StyledInput
+				<Input
 					id="email"
 					v-model="email"
 					:icon="MailIcon"
@@ -38,15 +38,15 @@
 				<HCaptcha ref="captcha" v-model="token" />
 			</div>
 
-			<ButtonStyled color="brand">
-				<button
-					class="!w-full"
-					:disabled="(globals?.captcha_enabled ? !token : false) || !email"
-					@click="recovery"
-				>
-					<SendIcon /> {{ formatMessage(methodChoiceMessages.action) }}
-				</button>
-			</ButtonStyled>
+			<Button
+				type="colored"
+				color="brand"
+				class="!w-full"
+				:disabled="(globals?.captcha_enabled ? !token : false) || !email"
+				@click="recovery"
+			>
+				<SendIcon /> {{ formatMessage(methodChoiceMessages.action) }}
+			</Button>
 		</template>
 		<template v-else-if="step === 'passed_challenge'">
 			<Admonition :type="'info'">
@@ -61,7 +61,7 @@
 
 			<div class="flex flex-col gap-2.5">
 				<label for="password" hidden>{{ formatMessage(commonMessages.passwordLabel) }}</label>
-				<StyledInput
+				<Input
 					id="password"
 					v-model="newPassword"
 					:icon="KeyIcon"
@@ -74,7 +74,7 @@
 				<label for="confirm-password" hidden>
 					{{ formatMessage(commonMessages.passwordLabel) }}
 				</label>
-				<StyledInput
+				<Input
 					id="confirm-password"
 					v-model="confirmNewPassword"
 					:icon="KeyIcon"
@@ -84,11 +84,9 @@
 					wrapper-class="w-full"
 				/>
 
-				<ButtonStyled color="brand">
-					<button class="!w-full" @click="changePassword">
-						{{ formatMessage(postChallengeMessages.action) }}
-					</button>
-				</ButtonStyled>
+				<Button type="colored" color="brand" class="!w-full" @click="changePassword">
+					{{ formatMessage(postChallengeMessages.action) }}
+				</Button>
 			</div>
 		</template>
 	</div>
@@ -97,12 +95,12 @@
 import { KeyIcon, MailIcon, SendIcon } from '@modrinth/assets'
 import {
 	Admonition,
-	ButtonStyled,
+	Button,
 	commonMessages,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
-	StyledInput,
+	Input,
 	useVIntl,
 } from '@modrinth/ui'
 import { useQuery } from '@tanstack/vue-query'
@@ -220,7 +218,7 @@ useHead({
 
 const auth = await useAuth()
 if (auth.value.user) {
-	await navigateTo('/dashboard')
+	await navigateTo(`/user/${auth.value.user.username}`)
 }
 
 const route = useNativeRoute()

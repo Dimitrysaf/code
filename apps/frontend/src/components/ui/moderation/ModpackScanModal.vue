@@ -1,8 +1,18 @@
 <script setup lang="ts">
 import type { Labrinth } from '@modrinth/api-client'
-import { FolderSearchIcon, StarIcon, TrashIcon } from '@modrinth/assets'
 import {
-	ButtonStyled,
+	FolderSearchIcon,
+	RotateCounterClockwiseIcon,
+	SpinnerIcon,
+	StarIcon,
+	TrashIcon,
+} from '@modrinth/assets'
+import { Button, IconButton } from '@modrinth/ui'
+import {
+	Combobox,
+	type ComboboxOption,
+	commonMessages,
+	ConfirmModal,
 	defineMessages,
 	injectModrinthClient,
 	injectNotificationManager,
@@ -11,6 +21,7 @@ import {
 	type TableColumn,
 	useVIntl,
 } from '@modrinth/ui'
+import { renderString } from '@modrinth/utils'
 import { useQueryClient } from '@tanstack/vue-query'
 import { computed, ref, useTemplateRef } from 'vue'
 
@@ -65,11 +76,36 @@ const messages = defineMessages({
 	},
 	scanError: {
 		id: 'modpack-scan-modal.scan-error',
-		defaultMessage: 'Some files failed to scan: {error}',
+		defaultMessage: 'Some files failed to scan: \n\n{error}',
 	},
-	clearAllGroups: {
-		id: 'modpack-scan-modal.clear-all-groups',
-		defaultMessage: 'Clear All Groups',
+	batchPlaceholder: {
+		id: 'modpack-scan-modal.batch.placeholder',
+		defaultMessage: 'Batch amount',
+	},
+	batchLabel: {
+		id: 'modpack-scan-modal.batch.label',
+		defaultMessage: '{amount} per batch',
+	},
+	deleteAllGroups: {
+		id: 'project.settings.permissions.delete-all-groups',
+		defaultMessage: 'Delete all groups',
+	},
+	deleteAllGroupsConfirmationTitle: {
+		id: 'project.settings.permissions.delete-all-groups-confirmation.title',
+		defaultMessage: 'Delete all attribution groups?',
+	},
+	deleteAllGroupsConfirmationDescription: {
+		id: 'modpack-scan-modal.delete-all-groups-confirmation.description',
+		defaultMessage:
+			'This will permanently delete all attribution groups for this project and all files inside them. This action cannot be undone.',
+	},
+	deleteAllGroupsSuccess: {
+		id: 'modpack-scan-modal.delete-all-groups.success',
+		defaultMessage: 'All groups cleared successfully.',
+	},
+	deleteAllGroupsError: {
+		id: 'modpack-scan-modal.delete-all-groups.error',
+		defaultMessage: 'Failed to clear all groups: {error}',
 	},
 })
 
@@ -94,16 +130,41 @@ const client = injectModrinthClient()
 const queryClient = useQueryClient()
 const { addNotification } = injectNotificationManager()
 const modalRef = useTemplateRef<InstanceType<typeof NewModal>>('modalRef')
+const clearModalRef = useTemplateRef<InstanceType<typeof ConfirmModal>>('clearModalRef')
 const { formatMessage } = useVIntl()
 
-const rows = ref<ScanRow[]>([])
+const rows = ref<Record<string, ScanRow>>({})
 const isLoadingVersions = ref(false)
 const isScanning = ref(false)
 const isClearing = ref(false)
 const versionLoadError = ref<string | null>(null)
-const scanError = ref<string | null>(null)
 const requestId = ref(0)
 const scanRequestId = ref(0)
+
+const DEFAULT_BATCH_AMOUNT = 10
+const batchAmountOptions: ComboboxOption<number>[] = [
+	{ value: 1, label: '1' },
+	{ value: 5, label: '5' },
+	{ value: 10, label: '10' },
+	{ value: 20, label: '20' },
+	{ value: 50, label: '50' },
+]
+const batchAmountValues = batchAmountOptions.map((opt) => opt.value)
+const batchAmountCookie = useCookie<number>('moderation-modpack-scan-batch', {
+	default: () => DEFAULT_BATCH_AMOUNT,
+	maxAge: 60 * 60 * 24 * 365,
+	sameSite: 'lax',
+	path: '/',
+})
+const batchAmount = computed({
+	get() {
+		const value = Number(batchAmountCookie.value)
+		return batchAmountValues.includes(value) ? value : DEFAULT_BATCH_AMOUNT
+	},
+	set(value: number) {
+		batchAmountCookie.value = value
+	},
+})
 
 const columns = computed<TableColumn<ScanTableColumn>[]>(() => [
 	{ key: 'filename', label: formatMessage(messages.packFileName), width: '60%' },
@@ -111,8 +172,25 @@ const columns = computed<TableColumn<ScanTableColumn>[]>(() => [
 	{ key: 'newGroups', label: formatMessage(messages.newGroups), align: 'center', width: '20%' },
 ])
 
-const scannedCount = computed(() => rows.value.filter((row) => row.scan || row.error).length)
+const scannedCount = computed(
+	() => Object.entries(rows.value).filter(([_, row]) => row.scan || row.error).length,
+)
 const isBusy = computed(() => isLoadingVersions.value || isScanning.value || isClearing.value)
+const titleButtonsDisabled = computed(() => isBusy.value || Object.keys(rows.value).length === 0)
+const rescanButtonsDisabled = computed(() => isLoadingVersions.value || isClearing.value)
+
+const rowErrors = computed(() =>
+	Object.entries(rows.value)
+		.filter(([_, row]) => row.error)
+		.map(([_, row]) => row),
+)
+
+const rowScanError = computed(() => {
+	if (rowErrors.value.length === 0) return undefined
+	return formatMessage(messages.scanError, {
+		error: rowErrors.value.map((r) => `\n - ${r.filename}`).join(''),
+	})
+})
 
 function getErrorMessage(error: unknown) {
 	if (error instanceof Error) {
@@ -129,12 +207,27 @@ function getErrorMessage(error: unknown) {
 	return String(error)
 }
 
+async function runWithConcurrency<T>(
+	items: T[],
+	limit: number,
+	task: (item: T) => Promise<void>,
+): Promise<void> {
+	const queue = [...items]
+	const workers = Array.from({ length: limit }, async () => {
+		while (queue.length) {
+			const item = queue.shift()
+			if (item === undefined) return
+			await task(item)
+		}
+	})
+	await Promise.all(workers)
+}
+
 async function fetchAllVersions() {
 	const currentRequestId = ++requestId.value
 	isLoadingVersions.value = true
 	versionLoadError.value = null
-	scanError.value = null
-	rows.value = []
+	rows.value = {}
 
 	try {
 		const versions = await client.labrinth.versions_v2.getProjectVersions(props.project_id)
@@ -142,17 +235,20 @@ async function fetchAllVersions() {
 			return
 		}
 
-		rows.value = versions
+		const filteredVersions = versions
 			.flatMap((version) => version.files)
 			.filter((file): file is Labrinth.Versions.v2.VersionFile & { id: string } => Boolean(file.id))
-			.map((file) => ({
-				id: file.id,
-				filename: file.filename,
-				primary: file.primary,
+
+		for (const version of filteredVersions) {
+			rows.value[version.id] = {
+				id: version.id,
+				filename: version.filename,
+				primary: version.primary,
 				isScanning: false,
 				newFiles: undefined,
 				newGroups: undefined,
-			}))
+			}
+		}
 	} catch (error) {
 		if (currentRequestId === requestId.value) {
 			versionLoadError.value = formatMessage(messages.loadVersionsError, {
@@ -166,55 +262,50 @@ async function fetchAllVersions() {
 	}
 }
 
-async function fetchAllScans() {
-	if (isBusy.value) {
-		return
-	}
+async function fetchScan(id: string) {
+	rows.value[id].isScanning = true
+	try {
+		const scan = await client.labrinth.attribution_internal.scanFile(id)
 
-	const currentScanRequestId = ++scanRequestId.value
+		rows.value[id].scan = scan
+		rows.value[id].newFiles = scan.new_attribution_files
+		rows.value[id].newGroups = scan.new_attribution_groups
+
+		rows.value[id].error = undefined
+	} catch (error) {
+		rows.value[id].error = getErrorMessage(error)
+	} finally {
+		rows.value[id].isScanning = false
+	}
+}
+
+async function fetchAllScans() {
+	if (isBusy.value) return
+
 	isScanning.value = true
-	scanError.value = null
-	rows.value = rows.value.map((row) => ({
-		...row,
-		scan: undefined,
-		isScanning: false,
-		error: undefined,
-		newFiles: undefined,
-		newGroups: undefined,
-	}))
+
+	Object.entries(rows.value).map(([id, row]) => {
+		rows.value[id] = {
+			...row,
+			scan: undefined,
+			isScanning: false,
+			error: undefined,
+			newFiles: undefined,
+			newGroups: undefined,
+		}
+	})
 
 	try {
-		for (const row of rows.value) {
-			if (currentScanRequestId !== scanRequestId.value) {
-				return
-			}
-
-			row.isScanning = true
-			try {
-				const scan = await client.labrinth.attribution_internal.scanFile(row.id)
-				if (currentScanRequestId !== scanRequestId.value) {
-					return
-				}
-
-				row.scan = scan
-				row.newFiles = scan.new_attribution_files
-				row.newGroups = scan.new_attribution_groups
-			} catch (error) {
-				if (currentScanRequestId !== scanRequestId.value) {
-					return
-				}
-
-				row.error = getErrorMessage(error)
-				scanError.value = formatMessage(messages.scanError, { error: row.error })
-			} finally {
-				row.isScanning = false
-			}
-		}
+		await runWithConcurrency(Object.keys(rows.value), batchAmount.value, async (id: string) => {
+			await fetchScan(id)
+		})
 	} finally {
-		if (currentScanRequestId === scanRequestId.value) {
-			isScanning.value = false
-		}
+		isScanning.value = false
 	}
+}
+
+function showConfirmClearGroups() {
+	clearModalRef.value?.show()
 }
 
 async function clearAllGroups() {
@@ -229,18 +320,15 @@ async function clearAllGroups() {
 		const groups = await client.labrinth.attribution_internal.listProjectAttribution(
 			props.project_id,
 		)
-
-		for (const group of groups) {
-			await client.labrinth.attribution_internal.deleteGroup(group.id)
-		}
+		await client.labrinth.attribution_internal.deleteGroups(groups.map((group) => group.id))
 
 		await queryClient.invalidateQueries({ queryKey: ['project-attribution', props.project_id] })
 	} catch (error) {
 		failed = true
 		addNotification({
 			type: 'error',
-			title: 'An error occurred',
-			text: `Failed to clear all groups: ${getErrorMessage(error)}`,
+			title: formatMessage(messages.failed),
+			text: formatMessage(messages.deleteAllGroupsError, { error: getErrorMessage(error) }),
 		})
 	} finally {
 		isClearing.value = false
@@ -249,8 +337,8 @@ async function clearAllGroups() {
 	if (!failed) {
 		addNotification({
 			type: 'success',
-			title: 'Success',
-			text: 'All groups cleared successfully.',
+			title: formatMessage(commonMessages.successLabel),
+			text: formatMessage(messages.deleteAllGroupsSuccess),
 		})
 	}
 }
@@ -258,7 +346,7 @@ async function clearAllGroups() {
 function show() {
 	scanRequestId.value++
 	isScanning.value = false
-	rows.value = []
+	rows.value = {}
 	void fetchAllVersions()
 	modalRef.value?.show()
 }
@@ -270,6 +358,14 @@ defineExpose({ show, hide })
 </script>
 
 <template>
+	<ConfirmModal
+		ref="clearModalRef"
+		:title="formatMessage(messages.deleteAllGroupsConfirmationTitle)"
+		:description="formatMessage(messages.deleteAllGroupsConfirmationDescription)"
+		:proceed-label="formatMessage(commonMessages.clearButton)"
+		@proceed="clearAllGroups"
+	/>
+
 	<NewModal
 		ref="modalRef"
 		width="60vw"
@@ -283,43 +379,59 @@ defineExpose({ show, hide })
 					{{
 						formatMessage(messages.title, {
 							scanned: scannedCount,
-							total: rows.length,
+							total: Object.keys(rows).length,
 						})
 					}}
 				</span>
 				<div class="flex items-center gap-2">
-					<ButtonStyled circular>
-						<button
-							v-tooltip="formatMessage(messages.clearAllGroups)"
-							:disabled="isBusy || rows.length === 0"
-							@click="clearAllGroups"
-						>
-							<TrashIcon aria-hidden="true" />
-						</button>
-					</ButtonStyled>
-					<ButtonStyled circular>
-						<button
-							v-tooltip="formatMessage(messages.scanAllFiles)"
-							:disabled="isBusy || rows.length === 0"
-							@click="fetchAllScans"
-						>
-							<FolderSearchIcon aria-hidden="true" />
-						</button>
-					</ButtonStyled>
+					<Combobox
+						v-model="batchAmount"
+						:options="batchAmountOptions"
+						:disabled="titleButtonsDisabled"
+						:placeholder="formatMessage(messages.batchPlaceholder)"
+					>
+						<template #selected>
+							<span class="flex flex-row gap-2 align-middle font-semibold">
+								<span class="truncate text-contrast">{{
+									formatMessage(messages.batchLabel, { amount: batchAmount })
+								}}</span>
+							</span>
+						</template>
+					</Combobox>
+					<IconButton
+						v-tooltip="formatMessage(messages.deleteAllGroups)"
+						type="base"
+						:label="formatMessage(messages.deleteAllGroups)"
+						:disabled="titleButtonsDisabled"
+						class="[&:not(:disabled):focus-visible>svg]:!text-red [&:not(:disabled):hover>svg]:!text-red"
+						@click="showConfirmClearGroups"
+					>
+						<TrashIcon v-if="!isClearing" aria-hidden="true" />
+						<SpinnerIcon v-else class="animate-spin" />
+					</IconButton>
+					<IconButton
+						v-tooltip="formatMessage(messages.scanAllFiles)"
+						:label="formatMessage(messages.scanAllFiles)"
+						:disabled="titleButtonsDisabled"
+						@click="fetchAllScans"
+					>
+						<FolderSearchIcon v-if="!isScanning" aria-hidden="true" />
+						<SpinnerIcon v-else class="animate-spin" />
+					</IconButton>
 				</div>
 			</div>
 		</template>
 
 		<div class="w-full">
 			<div
-				v-if="versionLoadError || scanError"
-				class="mb-3 rounded-xl bg-highlight-red p-3 text-red"
+				v-if="versionLoadError || rowScanError"
+				class="mb-3 rounded-xl bg-highlight-red px-4 py-1 text-red"
 			>
-				{{ versionLoadError || scanError }}
+				<div v-html="renderString((versionLoadError || rowScanError) ?? '')"></div>
 			</div>
 			<Table
 				:columns="columns"
-				:data="rows"
+				:data="Object.entries(rows).map(([_, row]) => row)"
 				row-key="id"
 				:row-below-visible="
 					(row) => Boolean(row.scan?.scanned_file_names && row.scan.scanned_file_names.length > 0)
@@ -334,16 +446,32 @@ defineExpose({ show, hide })
 				</template>
 				<template #cell-newFiles="{ row }">
 					<span v-if="row.isScanning">{{ formatMessage(messages.scanning) }}</span>
-					<span v-else-if="row.error" v-tooltip="row.error" class="text-red">
-						{{ formatMessage(messages.failed) }}
+					<span v-else-if="row.error" v-tooltip="row.error" class="flex justify-center">
+						<Button
+							type="outlined"
+							:disabled="rescanButtonsDisabled"
+							class="justify-self-center !text-red !shadow-[inset_0_0_0_1px_var(--color-red)] hover:!bg-red hover:!text-[var(--color-accent-contrast)] focus-visible:!bg-red focus-visible:!text-[var(--color-accent-contrast)] [&>svg]:!text-red"
+							@click="() => fetchScan(row.id)"
+						>
+							<RotateCounterClockwiseIcon />
+							{{ formatMessage(messages.failed) }}
+						</Button>
 					</span>
 					<span v-else-if="row.scan">{{ row.scan.new_attribution_files }}</span>
 					<span v-else>{{ formatMessage(messages.notScanned) }}</span>
 				</template>
 				<template #cell-newGroups="{ row }">
 					<span v-if="row.isScanning">{{ formatMessage(messages.scanning) }}</span>
-					<span v-else-if="row.error" v-tooltip="row.error" class="text-red">
-						{{ formatMessage(messages.failed) }}
+					<span v-else-if="row.error" v-tooltip="row.error" class="flex justify-center">
+						<Button
+							type="outlined"
+							:disabled="rescanButtonsDisabled"
+							class="justify-self-center !text-red !shadow-[inset_0_0_0_1px_var(--color-red)] hover:!bg-red hover:!text-[var(--color-accent-contrast)] focus-visible:!bg-red focus-visible:!text-[var(--color-accent-contrast)] [&>svg]:!text-red"
+							@click="() => fetchScan(row.id)"
+						>
+							<RotateCounterClockwiseIcon />
+							{{ formatMessage(messages.failed) }}
+						</Button>
 					</span>
 					<span v-else-if="row.scan">{{ row.scan.new_attribution_groups }}</span>
 					<span v-else>{{ formatMessage(messages.notScanned) }}</span>
@@ -360,7 +488,7 @@ defineExpose({ show, hide })
 							</summary>
 							<div class="flex flex-wrap gap-1 pt-2">
 								<span
-									v-for="name of row.scan?.scanned_file_names ?? []"
+									v-for="name in row.scan?.scanned_file_names ?? []"
 									:key="name"
 									v-tooltip="name"
 									class="flex items-center gap-1 text-wrap rounded-full bg-button-bg px-2 py-0.5 text-xs font-medium text-contrast"

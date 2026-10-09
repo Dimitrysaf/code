@@ -5,9 +5,6 @@
   "action.continue": {
     "message": "Fortsett"
   },
-  "admin.billing.error.not-found": {
-    "message": "Bruker ikke funnet"
-  },
   "analytics.action.add": {
     "message": "Legg til"
   },
@@ -371,23 +368,11 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "Lagre innhold du liker og motta oppdateringer med ett klikk."
-  },
-  "app-marketing.features.follow.title": {
-    "message": "Følg prosjekter"
-  },
-  "app-marketing.features.importing.description": {
-    "message": "Importer alle dine favorittprofiler fra launcheren du brukte tidligere, og kom i gang med Modrinth-appen på noen sekunder!"
-  },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
   },
   "app-marketing.features.importing.multimc-alt": {
     "message": "MultiMC"
-  },
-  "app-marketing.features.importing.title": {
-    "message": "Importer profiler"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "Handlinger"
@@ -413,15 +398,6 @@
   "app-marketing.features.mod-management.version": {
     "message": "Versjon"
   },
-  "app-marketing.features.offline.description": {
-    "message": "Spill moddene dine, enten du er tilkoblet internett eller ikke."
-  },
-  "app-marketing.features.offline.title": {
-    "message": "Offlinemodus"
-  },
-  "app-marketing.features.open-source.description": {
-    "message": "Modrinths launcher er helt åpen kildekode. Du kan se kildekoden på vår <github-link>GitHub</github-link>!"
-  },
   "app-marketing.features.open-source.title": {
     "message": "Åpen kildekode"
   },
@@ -431,9 +407,6 @@
   "app-marketing.features.performance.cpu-percent": {
     "message": "% CPU"
   },
-  "app-marketing.features.performance.description": {
-    "message": "Modrinth-appen yter bedre enn mange av de ledende mod-launcherne og bruker kun 150 MB med RAM!"
-  },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
   },
@@ -442,15 +415,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ MB"
-  },
-  "app-marketing.features.performance.infinite-times-infinite-mb": {
-    "message": "∞ × ∞ MB"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 MB"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -578,9 +542,6 @@
   "auth.create-account.date-of-birth.required.title": {
     "message": "Fødselsdato kreves"
   },
-  "auth.create-account.date-of-birth.under13-helper": {
-    "message": "Du oppfyller ikke aldersgrensa for å opprette en konto hos Modrinth."
-  },
   "auth.create-account.info-panel.source-code-link": {
     "message": "Relevant kildekode"
   },
@@ -637,9 +598,6 @@
   },
   "auth.sign-in.2fa.label": {
     "message": "Tofaktor-autentisering"
-  },
-  "auth.sign-in.2fa.placeholder": {
-    "message": "Skriv inn kode..."
   },
   "auth.sign-in.continue-with-email": {
     "message": "Fortsett med e-post"
@@ -796,9 +754,6 @@
   },
   "conversation-thread.action.approve-with-reply": {
     "message": "Godkjenn med svar"
-  },
-  "conversation-thread.action.close-thread": {
-    "message": "Lukk tråden"
   },
   "conversation-thread.action.close-with-reply": {
     "message": "Lukk med svar"
@@ -1751,9 +1706,6 @@
   "hosting-marketing.faq.cpu-kind": {
     "message": "Hvilke CPU-typer kjører Modrinth Hosting-serverne på?"
   },
-  "hosting-marketing.faq.cpu-kind.answer": {
-    "message": "Modrinth Hosting-serverne kjører på AMD Ryzen 7900 and 7950X3D-like CPU-er med 5+ GH<, kombinert med DDR5-minne."
-  },
   "hosting-marketing.faq.currency": {
     "message": "Hvilken valutta er prisene i?"
   },
@@ -2078,9 +2030,6 @@
   "layout.action.file-lookup": {
     "message": "Filoppslag"
   },
-  "layout.action.lookup-by-email": {
-    "message": "Bla gjennom med email"
-  },
   "layout.action.manage-affiliates": {
     "message": "Hold styr på tilknytte lenker"
   },
@@ -2095,9 +2044,6 @@
   },
   "layout.action.new-project": {
     "message": "Nytt prosjekt"
-  },
-  "layout.action.new-server-project": {
-    "message": "Ny server"
   },
   "layout.action.publish": {
     "message": "Publiser"
@@ -2255,9 +2201,6 @@
   "layout.footer.social.discord": {
     "message": "Discord"
   },
-  "layout.footer.social.github": {
-    "message": "Github"
-  },
   "layout.footer.social.mastodon": {
     "message": "Mastodon"
   },
@@ -2284,9 +2227,6 @@
   },
   "layout.nav.discover": {
     "message": "Utforsk"
-  },
-  "layout.nav.discover-content": {
-    "message": "Utforsk innhold"
   },
   "layout.nav.get-modrinth-app": {
     "message": "Skaff deg Modrinth App-en"
@@ -2609,108 +2549,6 @@
   "muralpay.warning.wallet-address": {
     "message": "Dobbeltsjekk lommeboksadressa di. Penger sendt til feil adresse kan ikke bli gjenoppretta."
   },
-  "profile.bio.fallback.creator": {
-    "message": "En Modrinth-skaper."
-  },
-  "profile.bio.fallback.user": {
-    "message": "En Modrinth-bruker."
-  },
-  "profile.button.analytics": {
-    "message": "Vis brukerstatistikk"
-  },
-  "profile.button.billing": {
-    "message": "Hold styr på brukerfakturering"
-  },
-  "profile.button.edit-role": {
-    "message": "Rediger rolle"
-  },
-  "profile.button.info": {
-    "message": "Vis brukerdetaljer"
-  },
-  "profile.button.manage-projects": {
-    "message": "Hold styr på prosjekt"
-  },
-  "profile.button.remove-affiliate": {
-    "message": "Fjern tilknyting"
-  },
-  "profile.button.set-affiliate": {
-    "message": "Sett som tilknyting"
-  },
-  "profile.collection.projects-count": {
-    "message": "{count, plural, one {# prosjekt} other {# prosjekter}}"
-  },
-  "profile.details.label.auth-providers": {
-    "message": "Autoriseringsgivere"
-  },
-  "profile.details.label.email": {
-    "message": "Epost"
-  },
-  "profile.details.label.email-verified": {
-    "message": "Epostbekreftelse"
-  },
-  "profile.details.label.has-password": {
-    "message": "Har passord"
-  },
-  "profile.details.label.has-totp": {
-    "message": "Har TOTP"
-  },
-  "profile.details.label.payment-methods": {
-    "message": "Betalingsmetoder"
-  },
-  "profile.details.tooltip.email-not-verified": {
-    "message": "Epost ikke bekrefta"
-  },
-  "profile.details.tooltip.email-verified": {
-    "message": "Epost bekrefta"
-  },
-  "profile.error.not-found": {
-    "message": "Bruker ikke funnet"
-  },
-  "profile.label.affiliate": {
-    "message": "Tilknytt"
-  },
-  "profile.label.badges": {
-    "message": "Merker"
-  },
-  "profile.label.collection": {
-    "message": "Samling"
-  },
-  "profile.label.joined": {
-    "message": "Blei med"
-  },
-  "profile.label.no-collections": {
-    "message": "Denne brukeren har ingen samlinger!"
-  },
-  "profile.label.no-collections-auth": {
-    "message": "Du har ikke noen samlinger.\nHar du lyst å <create-link>lage en</create-link>?"
-  },
-  "profile.label.no-projects": {
-    "message": "Denne brukeren har ingen prosjekt!"
-  },
-  "profile.label.no-projects-auth": {
-    "message": "Du har ikke noen prosjekt.\nHar du lyst å <create-link>lage en</create-link>?"
-  },
-  "profile.label.organizations": {
-    "message": "Organisasjoner"
-  },
-  "profile.label.saving": {
-    "message": "Lagrer..."
-  },
-  "profile.meta.description": {
-    "message": "Last ned prosjekta til {username} på Modrinth"
-  },
-  "profile.meta.description-with-bio": {
-    "message": "{bio} - Last ned prosjekta til {username} på Modrinth"
-  },
-  "profile.official-account": {
-    "message": "Offisiell Modrinth-bruker"
-  },
-  "profile.stats.projects-followers": {
-    "message": "{count, plural, one {<stat>{count}</stat> prosjektfølger} other {<stat>{count}</stat> prosjektfølgere}}"
-  },
-  "profile.user-id": {
-    "message": "Bruker-ID: {id}"
-  },
   "project-member-header.error-decline": {
     "message": "Kunne ikke avslå laginvitasjonen"
   },
@@ -2825,24 +2663,6 @@
   "project-type.shader.singular": {
     "message": "Shader"
   },
-  "project.about.details.created": {
-    "message": "Oppretta {date}"
-  },
-  "project.about.details.licensed": {
-    "message": "Lisensiert {license}"
-  },
-  "project.about.details.published": {
-    "message": "Publisert {date}"
-  },
-  "project.about.details.submitted": {
-    "message": "Sendt inn {date}"
-  },
-  "project.about.details.title": {
-    "message": "Detaljer"
-  },
-  "project.about.details.updated": {
-    "message": "Oppdatert {date}"
-  },
   "project.actions.create-server": {
     "message": "Lag en server"
   },
@@ -2872,9 +2692,6 @@
   },
   "project.description.title": {
     "message": "Beskrivelse"
-  },
-  "project.details.licensed": {
-    "message": "Lisensert"
   },
   "project.download.game-version-unsupported-tooltip": {
     "message": "{title} støtter ikke {gameVersion} for {platform}"
@@ -2926,15 +2743,6 @@
   },
   "project.gallery.title": {
     "message": "Galleri"
-  },
-  "project.license.error": {
-    "message": "Lisenstekst kunne ikke bli henta."
-  },
-  "project.license.loading": {
-    "message": "Laster inn linsenstekst..."
-  },
-  "project.license.title": {
-    "message": "Lisens"
   },
   "project.moderation.admonition.approved.header": {
     "message": "Prosjekt godkjent"
@@ -3022,15 +2830,6 @@
   },
   "project.settings.permissions.sort.status": {
     "message": "Status"
-  },
-  "project.settings.title": {
-    "message": "Innstillinger"
-  },
-  "project.settings.visit-dashboard": {
-    "message": "Besøk prosjekt-dashbordet"
-  },
-  "project.status.archived.message": {
-    "message": "{title} har blitt arkivert. {title} kommer ikke til å få noen nye oppdateringer, hvis ikke forfatteren bestemmer seg for å dearkivere prosjektet."
   },
   "project.versions.title": {
     "message": "Versjoner"
@@ -3641,14 +3440,8 @@
   "settings.account.two-factor.error.incorrect-code": {
     "message": "Koden du skreiv inn er feil!"
   },
-  "settings.account.two-factor.field.code.description": {
-    "message": "Vennligst skriv inn en tofaktor-kode for å fortsette."
-  },
   "settings.account.two-factor.field.code.label": {
     "message": "Skriv inn tofaktor-kode"
-  },
-  "settings.account.two-factor.field.code.placeholder": {
-    "message": "Skriv inn kode..."
   },
   "settings.account.two-factor.setup.intro": {
     "message": "Tofaktor-autentisering holder kontoen din beskytta med at du trenger ei anna enhet for å logge inn."
@@ -3674,23 +3467,14 @@
   "settings.applications.button.add-redirect-uri": {
     "message": "Legg til en omdirings-URI"
   },
-  "settings.applications.button.cancel": {
-    "message": "Avbryt"
-  },
   "settings.applications.button.create": {
     "message": "Lag app"
   },
   "settings.applications.button.delete": {
     "message": "Slett"
   },
-  "settings.applications.button.edit": {
-    "message": "Regiser"
-  },
   "settings.applications.button.new": {
     "message": "Ny søknad"
-  },
-  "settings.applications.button.save-changes": {
-    "message": "Lagre endringer"
   },
   "settings.applications.button.upload-icon": {
     "message": "Last opp ikon"
@@ -3764,14 +3548,8 @@
   "settings.authorizations.about-this-app": {
     "message": "Om denne appen"
   },
-  "settings.authorizations.by": {
-    "message": "fra"
-  },
   "settings.authorizations.description": {
     "message": "Når du autoriserer en applikasjon med Modrinth-kontoen din, så gir du tilgang til kontoen din. Du kan handere og gå gjennom tilgang til kontoen din her når som helst."
-  },
-  "settings.authorizations.empty-state": {
-    "message": "Vi kan ikke vise de autoriserte appene dine akkurat nå, vi jobber med å fikse det. Vær så snill å besøk denne sida seinere!"
   },
   "settings.authorizations.head-title": {
     "message": "Autoriseringer"
@@ -3971,95 +3749,11 @@
   "settings.display.banner.developer-mode.description": {
     "message": "<strong>Utviklermodus</strong> er aktivert. Dette gjør at du kan se på de internet ID-ene av forskjellige ting inni Modrinth som kan være hjelpsomme hvis du er en utvikler som bruker Modrinth-API-en. Klikk på Modrinth-logoen i botnen av sida 5 ganger for å skru på utviklermodus."
   },
-  "settings.display.flags.description": {
-    "message": "Skru av eller på visse funksjoner på denne enheta."
-  },
-  "settings.display.flags.title": {
-    "message": "Skru av/på funksjoner"
-  },
   "settings.display.notification.developer-mode-deactivated.text": {
     "message": "Utviklermodus har blitt skrudd av"
   },
   "settings.display.notification.developer-mode-deactivated.title": {
     "message": "Utviklermodus skrudd av"
-  },
-  "settings.display.project-list-layouts.datapack": {
-    "message": "Datapakkerside"
-  },
-  "settings.display.project-list-layouts.description": {
-    "message": "Velg det foretrukne oppsettet ditt for hver side som viser prosjektlister på denne enheta."
-  },
-  "settings.display.project-list-layouts.mod": {
-    "message": "Modssida"
-  },
-  "settings.display.project-list-layouts.mode.gallery": {
-    "message": "Galleri"
-  },
-  "settings.display.project-list-layouts.mode.grid": {
-    "message": "Rutenett"
-  },
-  "settings.display.project-list-layouts.mode.rows": {
-    "message": "Rader"
-  },
-  "settings.display.project-list-layouts.modpack": {
-    "message": "Modpakkesida"
-  },
-  "settings.display.project-list-layouts.plugin": {
-    "message": "Pluginssida"
-  },
-  "settings.display.project-list-layouts.resourcepack": {
-    "message": "Ressurspakkesida"
-  },
-  "settings.display.project-list-layouts.server": {
-    "message": "Serversider"
-  },
-  "settings.display.project-list-layouts.shader": {
-    "message": "Shadersida"
-  },
-  "settings.display.project-list-layouts.title": {
-    "message": "Prosjektlisteoppsett"
-  },
-  "settings.display.project-list-layouts.user": {
-    "message": "Brukerprofilsider"
-  },
-  "settings.display.project-list.layouts.collection": {
-    "message": "Samling"
-  },
-  "settings.display.sidebar.advanced-rendering.description": {
-    "message": "Skrur på avansert gjengivelse, sånn som uskarphetseffektet, som kan skape problem med ytelsen uten maskinvareakselerert gjengivelse."
-  },
-  "settings.display.sidebar.advanced-rendering.title": {
-    "message": "Avansert gjengivelse"
-  },
-  "settings.display.sidebar.external-links-new-tab.description": {
-    "message": "Lag lenker som åpner seg utafor Modrinth gå i ei ny fane. Uansett hva innstillinga er satt på, så kommer lenker som er på samme domene og i samme nedmarkeringsbeskrivelsen til å åpne seg i samme fana, og lenker om reklame og redigeringssider kommer til å åpne seg i ei ny fane."
-  },
-  "settings.display.sidebar.external-links-new-tab.title": {
-    "message": "Åpne eksterne lenker i ei ny fane"
-  },
-  "settings.display.sidebar.hide-app-promos.description": {
-    "message": "Gjømmer \"Skaff deg Modrinth App\"-knappene fra primærnavigatoren. Du kan fortsatt finne Modrinth App-sida i landingsside eller i footer-en."
-  },
-  "settings.display.sidebar.hide-app-promos.title": {
-    "message": "Gjøm Modrinth App-reklamekampanjer"
-  },
-  "settings.display.sidebar.left-aligned-content-sidebar.title": {
-    "message": "Venstre-stilt sidefelt på innholdssidene"
-  },
-  "settings.display.sidebar.right-aligned-content-sidebar.description": {
-    "message": "Stiller sidefeltet til venstre av sideinnholdet."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.description": {
-    "message": "Stiller sidebarsfilter til venstre av søkeresultata."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.title": {
-    "message": "Høgre-stilte sidebarfilter på søkesidene"
-  },
-  "settings.display.theme.description": {
-    "message": "Velg den spesifiserte fargetemaet ditt for Modrinth på denne enheta."
-  },
-  "settings.display.theme.title": {
-    "message": "Fargetema"
   },
   "settings.head-title": {
     "message": "Skjerminnstillinger"
@@ -4114,27 +3808,6 @@
   },
   "settings.pats.token.never-used": {
     "message": "Aldri brukt"
-  },
-  "settings.profile.bio.description": {
-    "message": "En kort beskrivelse sånn at alle veit litt om deg."
-  },
-  "settings.profile.bio.title": {
-    "message": "Bio"
-  },
-  "settings.profile.description": {
-    "message": "Profilinformasjonen din er offentlig lesbar på Modrinth og gjennom <docs-link>Modrinth API</docs-link>-en."
-  },
-  "settings.profile.head-title": {
-    "message": "Profilinnstillinger"
-  },
-  "settings.profile.profile-info": {
-    "message": "Profilinformasjon"
-  },
-  "settings.profile.profile-picture.title": {
-    "message": "Profilbilde"
-  },
-  "settings.profile.username.description": {
-    "message": "Et unikt navn (som ikke skiller mellom store og små bokstaver) for å identifisere profilen din."
   },
   "settings.sessions.action.revoke-session": {
     "message": "Tilbakekall økta"

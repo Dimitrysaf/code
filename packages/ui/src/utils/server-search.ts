@@ -6,7 +6,7 @@ import { useRoute } from 'vue-router'
 
 import { defineMessage, LOCALES, useVIntl } from '../composables/i18n'
 import type { FilterType, FilterValue, SortType, Tags } from './search'
-import { formatSearchFilterValue } from './search'
+import { createDisclosureFilterOptions, findFilterOption, formatSearchFilterValue } from './search'
 import { formatCategory, formatCategoryHeader } from './tag-messages'
 
 export const SERVER_REGIONS = {
@@ -157,7 +157,7 @@ export function useServerSearch(opts: {
 					supported_project_types: ['server'],
 					display: 'all',
 					query_param: 'sc',
-					supports_negative_filter: true,
+					supports: ['include', 'exclude'],
 					searchable: false,
 					options: [],
 				}
@@ -204,7 +204,7 @@ export function useServerSearch(opts: {
 				supported_project_types: ['server'],
 				display: 'all',
 				query_param: 'sct',
-				supports_negative_filter: false,
+				supports: ['include'],
 				searchable: false,
 				options: [
 					{
@@ -250,7 +250,7 @@ export function useServerSearch(opts: {
 				supported_project_types: ['server'],
 				display: 'scrollable',
 				query_param: 'sgv',
-				supports_negative_filter: false,
+				supports: ['include'],
 				searchable: true,
 				options: (tags.value?.gameVersions ?? []).map((gv) => ({
 					id: gv.version,
@@ -271,7 +271,7 @@ export function useServerSearch(opts: {
 				supported_project_types: ['server'],
 				display: 'all',
 				query_param: 'sr',
-				supports_negative_filter: true,
+				supports: ['include', 'exclude'],
 				searchable: false,
 				options: sortedRegions.map(([code, name]) => ({
 					id: code,
@@ -291,7 +291,7 @@ export function useServerSearch(opts: {
 				supported_project_types: ['server'],
 				display: 'scrollable',
 				query_param: 'sl',
-				supports_negative_filter: false,
+				supports: ['include'],
 				searchable: true,
 				options: sortedLanguages.map(([code, name]) => ({
 					id: code,
@@ -312,7 +312,7 @@ export function useServerSearch(opts: {
 				supported_project_types: ['server'],
 				display: 'all',
 				query_param: 'sst',
-				supports_negative_filter: false,
+				supports: ['include'],
 				searchable: false,
 				options: [
 					{
@@ -339,6 +339,22 @@ export function useServerSearch(opts: {
 					},
 				],
 			},
+			{
+				id: 'advanced',
+				formatted_name: formatMessage(
+					defineMessage({
+						id: 'search.filter_type.advanced',
+						defaultMessage: 'Advanced exclusions',
+					}),
+				),
+				supported_project_types: ['server'],
+				display: 'all',
+				query_param: 'a',
+				supports: ['exclude'],
+				searchable: false,
+				ordering: -1000,
+				options: createDisclosureFilterOptions(formatMessage, ['server']),
+			},
 		]
 	})
 
@@ -346,10 +362,27 @@ export function useServerSearch(opts: {
 		const parts = ['project_types = minecraft_java_server']
 
 		for (const filterType of serverFilterTypes.value) {
-			const field = getFilterField(filterType.id)
-			if (!field) continue
 			const matched = serverCurrentFilters.value.filter((f) => f.type === filterType.id)
 			if (matched.length === 0) continue
+
+			if (filterType.id === 'advanced') {
+				const disclosureValues = matched
+					.map((filterValue) => {
+						const option = findFilterOption(filterType.options, filterValue.option)
+						if (!option || !('value' in option)) return null
+						const [, val] = option.value.split(':')
+						return val
+					})
+					.filter((val): val is string => !!val)
+				if (disclosureValues.length > 0) {
+					const quoted = disclosureValues.map(formatSearchFilterValue).join(', ')
+					parts.push(`disclosure_types NOT IN [${quoted}]`)
+				}
+				continue
+			}
+
+			const field = getFilterField(filterType.id)
+			if (!field) continue
 
 			if (filterType.id === 'server_status') {
 				const selected = matched[0]?.option
@@ -442,7 +475,7 @@ export function useServerSearch(opts: {
 			for (const value of values) {
 				const isNegative = value.startsWith('!')
 				const cleanValue = isNegative ? value.slice(1) : value
-				const option = filterType.options.find((o) => o.id === cleanValue)
+				const option = findFilterOption(filterType.options, cleanValue)
 				if (option) {
 					serverCurrentFilters.value.push({
 						type: filterType.id,

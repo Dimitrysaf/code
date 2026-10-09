@@ -23,7 +23,7 @@
 					</div>
 
 					<div class="flex w-full flex-wrap items-center gap-2 md:w-auto">
-						<StyledInput
+						<Input
 							v-model="searchQuery"
 							:icon="SearchIcon"
 							:placeholder="formatMessage(analyticsTableMessages.searchPlaceholder)"
@@ -31,23 +31,22 @@
 							wrapper-class="w-full sm:w-64"
 							@focusin="selectSearchInputText"
 						/>
-						<ButtonStyled>
-							<OverflowMenu
-								class="!shadow-none"
-								:options="csvExportOptions"
-								:disabled="isDataLoading || filteredRows.length === 0"
-							>
-								<DownloadIcon />
-								{{ formatMessage(analyticsTableMessages.exportCsvButton) }}
-								<DropdownIcon />
-								<template #cumulative-csv>
-									{{ formatMessage(analyticsTableMessages.cumulativeCsv) }}
-								</template>
-								<template #grouped-csv>
-									{{ formatMessage(analyticsTableMessages.groupedCsv, { groupBy: groupByLabel }) }}
-								</template>
-							</OverflowMenu>
-						</ButtonStyled>
+						<TeleportOverflowMenu
+							label="More options"
+							class="!w-auto !rounded-xl !px-2.5"
+							:options="csvExportOptions"
+							:disabled="isDataLoading || filteredRows.length === 0"
+						>
+							<DownloadIcon />
+							{{ formatMessage(analyticsTableMessages.exportCsvButton) }}
+							<DropdownIcon />
+							<template #cumulative-csv>
+								{{ formatMessage(analyticsTableMessages.cumulativeCsv) }}
+							</template>
+							<template #grouped-csv>
+								{{ formatMessage(analyticsTableMessages.groupedCsv, { groupBy: groupByLabel }) }}
+							</template>
+						</TeleportOverflowMenu>
 					</div>
 				</div>
 			</template>
@@ -191,12 +190,11 @@
 
 <script setup lang="ts">
 import { DownloadIcon, DropdownIcon, SearchIcon, UserIcon } from '@modrinth/assets'
+import { TeleportOverflowMenu } from '@modrinth/ui'
 import {
-	ButtonStyled,
-	OverflowMenu,
-	type OverflowMenuOption,
+	type ButtonMenuOption,
+	Input,
 	Pagination,
-	StyledInput,
 	Table,
 	useFormatNumber,
 	useVIntl,
@@ -365,15 +363,17 @@ const displayedIncludeDateColumn = computed(() =>
 const groupByLabel = computed(() =>
 	getAnalyticsTableGroupByLabel(selectedGroupBy.value, formatMessage),
 )
-const csvExportOptions = computed<OverflowMenuOption[]>(() => {
+const csvExportOptions = computed<ButtonMenuOption[]>(() => {
 	if (showGraphDatasetSelection.value) {
 		return [
 			{
 				id: 'cumulative-csv',
+				label: formatMessage(analyticsTableMessages.cumulativeCsv),
 				action: () => downloadCsv('breakdown_only'),
 			},
 			{
 				id: 'grouped-csv',
+				label: formatMessage(analyticsTableMessages.groupedCsv, { groupBy: groupByLabel.value }),
 				action: () => downloadCsv('date_breakdown'),
 			},
 		]
@@ -384,6 +384,10 @@ const csvExportOptions = computed<OverflowMenuOption[]>(() => {
 	return [
 		{
 			id: mode === 'date_breakdown' ? 'grouped-csv' : 'cumulative-csv',
+			label:
+				mode === 'date_breakdown'
+					? formatMessage(analyticsTableMessages.groupedCsv, { groupBy: groupByLabel.value })
+					: formatMessage(analyticsTableMessages.cumulativeCsv),
 			action: () => downloadCsv(mode),
 		},
 	]

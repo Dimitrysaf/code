@@ -6,11 +6,12 @@ use crate::auth::get_user_from_headers;
 use crate::database::models::ids::DBVersionId;
 use crate::database::models::version_item::VersionQueryResult;
 use crate::database::models::{DBProject, DBVersion};
-use crate::database::{PgPool, ReadOnlyPgPool, redis::RedisPool};
+use crate::database::{PgPool, ReadOnlyPgPool};
 use crate::models::pats::Scopes;
 use crate::models::projects::{DependencyType, Version};
 use crate::models::users::User;
 use crate::queue::session::AuthQueue;
+use crate::util::error::ApiContext as _;
 use actix_web::{HttpRequest, post, web};
 use ariadne::ids::base62_impl::parse_base62;
 use async_trait::async_trait;
@@ -21,10 +22,11 @@ use modrinth_content_management::{
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
+use xredis::RedisPool;
 
-const CONTENT_RESOLVE_CACHE_NAMESPACE: &str = "content_resolve:v1";
-const CONTENT_RESOLVE_CACHE_HEAT_NAMESPACE: &str = "content_resolve_heat:v1";
-const CONTENT_RESOLVE_CACHE_SCHEMA_VERSION: &str = "v1";
+const CONTENT_RESOLVE_CACHE_NAMESPACE: &str = "content_resolve:v4";
+const CONTENT_RESOLVE_CACHE_HEAT_NAMESPACE: &str = "content_resolve_heat:v4";
+const CONTENT_RESOLVE_CACHE_SCHEMA_VERSION: &str = "v3";
 const CONTENT_RESOLVE_CACHE_HEAT_WINDOW_SECONDS: i64 = 60 * 60 * 24;
 
 pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
@@ -64,14 +66,22 @@ pub async fn resolve_content(
         user_option: &user_option,
         trace: ResolveContentTrace::default(),
     };
-    let request = request.into_inner();
+    let mut request = request.into_inner();
+    crate::routes::resolve_body_refs(
+        vec![&mut request.project_id],
+        &user_option,
+        &pool,
+        &redis,
+    )
+    .await?;
     let plan = if cache_public_result {
         resolve_content_with_cache(&mut provider, request).await
     } else {
         modrinth_content_management::resolve_content(&mut provider, request)
             .await
     }
-    .map_err(resolve_error_to_api)?;
+    .map_err(resolve_error_to_api)
+    .wrap_api_err("executing `modrinth_content_management::resolve_content`")?;
 
     Ok(web::Json(plan))
 }
@@ -191,7 +201,6 @@ impl ContentMetadataProvider for &mut LabrinthContentProvider<'_> {
         let versions = visible_versions(
             versions,
             self.user_option,
-            self.pool,
             self.ro_pool,
             self.redis,
         )
@@ -295,11 +304,13 @@ async fn increment_content_resolve_cache_heat(
             return None;
         }
     };
+    let key = redis.key().with_slot(
+        CONTENT_RESOLVE_CACHE_HEAT_NAMESPACE,
+        heat_key,
+        heat_key,
+    );
 
-    let count = match redis
-        .incr(CONTENT_RESOLVE_CACHE_HEAT_NAMESPACE, heat_key)
-        .await
-    {
+    let count = match redis.incr(&key).await {
         Ok(Some(count)) => count,
         Ok(None) => 1,
         Err(error) => {
@@ -312,8 +323,7 @@ async fn increment_content_resolve_cache_heat(
 
     if let Err(error) = redis
         .set(
-            CONTENT_RESOLVE_CACHE_HEAT_NAMESPACE,
-            heat_key,
+            &key,
             &count.to_string(),
             Some(CONTENT_RESOLVE_CACHE_HEAT_WINDOW_SECONDS),
         )
@@ -338,11 +348,13 @@ async fn get_cached_resolve_content_plan(
             return None;
         }
     };
+    let key = redis.key().with_slot(
+        CONTENT_RESOLVE_CACHE_NAMESPACE,
+        cache_key,
+        cache_key,
+    );
 
-    match redis
-        .get_deserialized(CONTENT_RESOLVE_CACHE_NAMESPACE, cache_key)
-        .await
-    {
+    match redis.get_deserialized(&key).await {
         Ok(cached) => cached,
         Err(error) => {
             tracing::warn!("failed to read content resolve cache: {error}");
@@ -366,14 +378,14 @@ async fn set_cached_resolve_content_plan(
             return;
         }
     };
+    let key = redis.key().with_slot(
+        CONTENT_RESOLVE_CACHE_NAMESPACE,
+        cache_key,
+        cache_key,
+    );
 
     if let Err(error) = redis
-        .set_serialized(
-            CONTENT_RESOLVE_CACHE_NAMESPACE,
-            cache_key,
-            cached,
-            Some(expiry_seconds),
-        )
+        .set_serialized(&key, cached, Some(expiry_seconds))
         .await
     {
         tracing::warn!("failed to write content resolve cache: {error}");
@@ -563,11 +575,10 @@ fn parse_version_id(version_id: &str) -> Option<DBVersionId> {
 async fn visible_versions(
     versions: Vec<VersionQueryResult>,
     user_option: &Option<User>,
-    pool: &PgPool,
     ro_pool: &ReadOnlyPgPool,
     redis: &RedisPool,
 ) -> Result<Vec<Version>, ApiError> {
-    filter_visible_versions(versions, user_option, pool, ro_pool, redis).await
+    filter_visible_versions(versions, user_option, ro_pool, redis).await
 }
 
 fn version_to_resolver(
@@ -626,6 +637,16 @@ fn resolve_provider_error(error: impl std::fmt::Display) -> ResolveError {
 
 fn resolve_error_to_api(error: ResolveError) -> ApiError {
     match error {
+        ResolveError::UnknownContentType(content_type) => ApiError::Request(
+            eyre::eyre!("unknown content type `{content_type}`"),
+        ),
+        ResolveError::ConflictingProjectVersions {
+            project_id,
+            before,
+            after,
+        } => ApiError::Request(eyre::eyre!(
+            "project `{project_id}` has conflicting versions `{before}` and `{after}`"
+        )),
         ResolveError::Provider(message) => {
             ApiError::Internal(eyre::eyre!(message))
         }

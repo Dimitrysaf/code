@@ -5,8 +5,20 @@
   "action.continue": {
     "message": "Продолжить"
   },
-  "admin.billing.error.not-found": {
-    "message": "Пользователь не найден"
+  "ads-consent.accept": {
+    "message": "Принять всё"
+  },
+  "ads-consent.body": {
+    "message": "Реклама обеспечивает работу Modrinth и выплаты авторам. Для персонализации и анализа рекламы наши партнёры могут использовать куки."
+  },
+  "ads-consent.manage": {
+    "message": "Настроить"
+  },
+  "ads-consent.reject": {
+    "message": "Отклонить всё"
+  },
+  "ads-consent.title": {
+    "message": "Конфиденциальность и реклама на Modrinth"
   },
   "analytics.action.add": {
     "message": "Добавить"
@@ -153,7 +165,7 @@
     "message": "Показан топ‑{count} {itemType, select,\n  project {проектов}\n  country {стран}\n  monetization {типов монетизации}\n  downloadSource {источников скачивания}\n  downloadReason {причин скачивания}\n  member {участников}\n  projectVersion {версий проекта}\n  loader {загрузчиков}\n  gameVersion {версий игры}\n  other {элементов}\n} из таблицы"
   },
   "analytics.chart.tooltip.dependent-on-project": {
-    "message": "Зависит от {project}"
+    "message": "Зависит от {project}"
   },
   "analytics.chart.tooltip.dependent-project-version": {
     "message": "{dependentProject} зависит от {dependencyProject}, версия {version}"
@@ -169,6 +181,9 @@
   },
   "analytics.chart.tooltip.hide-entry": {
     "message": "Скрыть {name} на диаграмме"
+  },
+  "analytics.chart.tooltip.no-data": {
+    "message": "Нет данных"
   },
   "analytics.chart.tooltip.pinned": {
     "message": "Подсказка графика закреплена"
@@ -201,7 +216,7 @@
     "message": "Сборка"
   },
   "analytics.download-reason.standalone": {
-    "message": "Прямая загрузка"
+    "message": "Напрямую"
   },
   "analytics.download-reason.update": {
     "message": "Обновление"
@@ -210,13 +225,13 @@
     "message": "Modrinth App"
   },
   "analytics.download-source.website": {
-    "message": "Веб-сайт Modrinth"
+    "message": "Сайт Modrinth"
   },
   "analytics.downloads.suffix": {
     "message": "скачиваний"
   },
   "analytics.empty.no-data": {
-    "message": "Нет доступных данных"
+    "message": "Нет данных"
   },
   "analytics.empty.no-data-for-analytics": {
     "message": "Нет доступных данных для аналитики"
@@ -229,6 +244,9 @@
   },
   "analytics.empty.select-project": {
     "message": "Выберите хотя бы один проект, чтобы увидеть данные"
+  },
+  "analytics.filter.dependent-project-search-failed-title": {
+    "message": "Не удалось загрузить зависимые проекты"
   },
   "analytics.filter.game-version-type": {
     "message": "Тип версии игры"
@@ -393,7 +411,7 @@
     "message": "Скачивания"
   },
   "analytics.stat.monetization-banner.body": {
-    "message": "К монетизации допускаются только проверенные просмотры и скачивания, выполненные через Modrinth. Для скачивания через Modrinth App пользователь также должен быть авторизован. Поскольку все проекты имеют схожее соотношение монетизируемых скачиваний, ваш доход существенно бы не изменился при учёте каждой загрузки."
+    "message": "Только просмотры и загрузки сделанные через Modrinth доступны для монетизации и должны пройти фильтры предотвращения накрутки.\nЗагрузки в приложении Modrinth еще требует аккаунт зарегистрированным. Потому что все проекты имеют похожую пропорцию монетизированных загрузок, ваш доход много бы не изменился, если все загрузки будут считаться."
   },
   "analytics.stat.monetization-banner.learn-more": {
     "message": "Подробнее"
@@ -519,7 +537,7 @@
     "message": "Без монетизации"
   },
   "app-marketing.download.description": {
-    "message": "Наше приложение доступно на всех платформах — выберите желаемую версию."
+    "message": "Наше приложение доступно на всех платформах — выберите нужную версию."
   },
   "app-marketing.download.download-appimage": {
     "message": "Скачать AppImage"
@@ -557,14 +575,8 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "Сохраняйте понравившийся контент и узнавайте об обновлениях в один клик."
-  },
-  "app-marketing.features.follow.title": {
-    "message": "Отслеживайте проекты"
-  },
   "app-marketing.features.importing.description": {
-    "message": "Перенесите любимые профили из старого лаунчера и начните пользоваться Modrinth App за считанные секунды!"
+    "message": "Перенесите все свои сборки из старого лаунчера и начните пользоваться Modrinth App за считанные секунды!"
   },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
@@ -573,7 +585,13 @@
     "message": "MultiMC"
   },
   "app-marketing.features.importing.title": {
-    "message": "Импорт профилей"
+    "message": "Импорт сборок"
+  },
+  "app-marketing.features.manage-skins.description": {
+    "message": "Меняйте свой скин прямо в Modrinth App."
+  },
+  "app-marketing.features.manage-skins.title": {
+    "message": "Управление скинами"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "Действия"
@@ -599,12 +617,6 @@
   "app-marketing.features.mod-management.version": {
     "message": "Версия"
   },
-  "app-marketing.features.offline.description": {
-    "message": "Играйте с модами даже без подключения к интернету."
-  },
-  "app-marketing.features.offline.title": {
-    "message": "Офлайн-режим"
-  },
   "app-marketing.features.open-source.description": {
     "message": "Modrinth App имеет полностью открытый исходный код, доступный на <github-link>GitHub</github-link>!"
   },
@@ -618,7 +630,7 @@
     "message": "% ЦП"
   },
   "app-marketing.features.performance.description": {
-    "message": "Modrinth App работает лучше многих популярных лаунчеров, используя лишь 150 МБ ОЗУ!"
+    "message": "Modrinth App работает лучше многих популярных лаунчеров!"
   },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
@@ -628,15 +640,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ МБ"
-  },
-  "app-marketing.features.performance.infinite-times-infinite-mb": {
-    "message": "∞ · ∞ МБ"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 МБ"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -661,6 +664,12 @@
   },
   "app-marketing.features.play.title": {
     "message": "Играйте с любимыми модами"
+  },
+  "app-marketing.features.settings-sync.description": {
+    "message": "Применяйте настройки, наборы ресурсов и многое другое ко всем сборкам сразу."
+  },
+  "app-marketing.features.settings-sync.title": {
+    "message": "Синхронизация настроек"
   },
   "app-marketing.features.sharing.description": {
     "message": "Создавайте, делитесь и играйте в сборки, используя любые из тысяч модов и сборок, размещённых на Modrinth."
@@ -687,7 +696,7 @@
     "message": "на все остальные"
   },
   "app-marketing.hero.app-screenshot-alt": {
-    "message": "Скриншот Modrinth App со страницей содержимого сборки Cobblemon."
+    "message": "Скриншот Modrinth App со страницей контента сборки Cobblemon."
   },
   "app-marketing.hero.description": {
     "message": "Modrinth App — уникальный лаунчер с открытым кодом, возможностью играть в любимые моды и быстро обновлять их, — всё в одной аккуратной упаковке."
@@ -758,6 +767,9 @@
   "auth.create-account.date-of-birth.label": {
     "message": "Дата рождения"
   },
+  "auth.create-account.date-of-birth.not-meet-age-requirement": {
+    "message": "Вы не соответствуете возрастным ограничениям для создания аккаунта на Modrinth."
+  },
   "auth.create-account.date-of-birth.placeholder": {
     "message": "Введите дату рождения"
   },
@@ -768,7 +780,7 @@
     "message": "Необходима дата рождения"
   },
   "auth.create-account.date-of-birth.under13-helper": {
-    "message": "Вы не подходите по возрастным требованиям для создания аккаунта на Modrinth."
+    "message": "Вы не можете создать аккаунт на Modrinth, если вы младше 13 лет."
   },
   "auth.create-account.info-panel.source-code-link": {
     "message": "Исходный код"
@@ -783,7 +795,7 @@
     "message": "Проверка безопасности"
   },
   "auth.create-account.subscribe.label": {
-    "message": "Держите меня в курсе всего крутого, над чем работает Modrinth"
+    "message": "Держите меня в курсе над всеми крутыми вещами, над чем работает Modrinth через почту"
   },
   "auth.create-account.title": {
     "message": "Создание аккаунта"
@@ -793,6 +805,30 @@
   },
   "auth.create-account.username.placeholder": {
     "message": "Введите имя пользователя"
+  },
+  "auth.reauthenticate.2fa.description": {
+    "message": "Введите 6‑значный код из аутентификатора или используйте резервный код."
+  },
+  "auth.reauthenticate.2fa.label": {
+    "message": "Подтверждение входа"
+  },
+  "auth.reauthenticate.continue-with-passkey": {
+    "message": "Использовать ключ доступа"
+  },
+  "auth.reauthenticate.last-signed-in-with": {
+    "message": "Способ последнего входа: {method, select, password {пароль} passkey {ключ доступа} github {GitHub} discord {Discord} google {Google} microsoft {Microsoft} gitlab {GitLab} steam {Steam} paypal {PayPal} other {{method}} }."
+  },
+  "auth.reauthenticate.page-title": {
+    "message": "Повторный вход"
+  },
+  "auth.reauthenticate.sign-in-another-way": {
+    "message": "Войти другим способом"
+  },
+  "auth.reauthenticate.sign-in-with-provider": {
+    "message": "Войти через {provider}"
+  },
+  "auth.reauthenticate.title": {
+    "message": "{name} нуждается в повторном входе."
   },
   "auth.reset-password.method-choice.action": {
     "message": "Отправить письмо"
@@ -833,8 +869,11 @@
   "auth.sign-in.2fa.label": {
     "message": "Подтверждение входа"
   },
-  "auth.sign-in.2fa.placeholder": {
-    "message": "Введите код..."
+  "auth.sign-in.add-account": {
+    "message": "Добавить аккаунт"
+  },
+  "auth.sign-in.choose-account": {
+    "message": "Выбор аккаунта в Modrinth App"
   },
   "auth.sign-in.continue-with-email": {
     "message": "Войти по паролю"
@@ -850,6 +889,21 @@
   },
   "auth.sign-in.last-sign-in": {
     "message": "Последнее"
+  },
+  "auth.sign-in.launcher.callback.title": {
+    "message": "Обработка входа в Modrinth App"
+  },
+  "auth.sign-in.launcher.complete.go-to-website": {
+    "message": "Перейти на Modrinth.com"
+  },
+  "auth.sign-in.launcher.complete.return-button": {
+    "message": "Открыть Modrinth App"
+  },
+  "auth.sign-in.launcher.opening.description": {
+    "message": "Если приложение не откроется, нажмите на кнопку ниже, чтобы завершить вход."
+  },
+  "auth.sign-in.launcher.opening.title": {
+    "message": "Открытие Modrinth App..."
   },
   "auth.sign-in.no-account": {
     "message": "Нет аккаунта?"
@@ -884,8 +938,11 @@
   "auth.sign-up.title.sign-up-with": {
     "message": "Создание аккаунта"
   },
+  "auth.two-factor.incorrect-code": {
+    "message": "Неверный код. Повторите попытку или используйте резервный код."
+  },
   "auth.verify-email.action.account-settings": {
-    "message": "Настройки учётной записи"
+    "message": "Настройки"
   },
   "auth.verify-email.action.discover-mods": {
     "message": "Найти моды"
@@ -926,6 +983,12 @@
   "auth.verify-email.title": {
     "message": "Подтверждение почты"
   },
+  "collection.aria-label.upload-icon": {
+    "message": "Загрузить иконку"
+  },
+  "collection.button.discover-mods": {
+    "message": "Найти моды"
+  },
   "collection.button.edit-icon": {
     "message": "Изменить иконку"
   },
@@ -945,10 +1008,10 @@
     "message": "Отписаться от проекта"
   },
   "collection.delete-modal.description": {
-    "message": "Коллекция будет удалена навсегда. Это действие необратимо."
+    "message": "Коллекция будет удалена навсегда. Это действие необратимо."
   },
   "collection.delete-modal.title": {
-    "message": "Вы действительно хотите удалить эту коллекцию?"
+    "message": "Вы точно хотите удалить эту коллекцию?"
   },
   "collection.description": {
     "message": "{description} — Посмотреть коллекцию {name} от {username} на Modrinth"
@@ -995,8 +1058,8 @@
   "conversation-thread.action.approve-with-reply": {
     "message": "Одобрить с ответом"
   },
-  "conversation-thread.action.close-thread": {
-    "message": "Закрыть ветку"
+  "conversation-thread.action.close-report": {
+    "message": "Закрыть жалобу"
   },
   "conversation-thread.action.close-with-reply": {
     "message": "Закрыть с ответом"
@@ -1044,7 +1107,7 @@
     "message": "Удержать с ответом"
   },
   "conversation-thread.closed-thread.description": {
-    "message": "Эта ветка закрыта. Отправка новых сообщений недоступна."
+    "message": "Ветка закрыта. Отправка сообщений недоступна."
   },
   "conversation-thread.error.closing-report": {
     "message": "Ошибка закрытия жалобы"
@@ -1062,19 +1125,19 @@
     "message": "Отправьте сообщение..."
   },
   "conversation-thread.reply-modal.confirmation.description": {
-    "message": "Подтвердить, что модераторы не проводят активный просмотр"
+    "message": "Подтвердить, что модераторы почти не следят за веткой"
   },
   "conversation-thread.reply-modal.confirmation.label": {
-    "message": "Я признаю, что модерация не проводит активный просмотр ветки."
+    "message": "Я понимаю, что модераторы почти не следят за веткой."
   },
   "conversation-thread.reply-modal.description": {
-    "message": "Ваш проект уже одобрен, поэтому модераторы не следят за этой веткой постоянно. Однако, они всё равно могут увидеть ваше сообщение, если с проектом возникнут проблемы."
+    "message": "Проект уже одобрен, поэтому модераторы почти не следят за веткой. Они увидят ваше сообщение, если возникнет проблема с проектом."
   },
   "conversation-thread.reply-modal.header": {
     "message": "Ответ в ветке"
   },
   "conversation-thread.reply-modal.help-center-note": {
-    "message": "Если вам нужно связаться с модераторами, перейдите в <help-center-link>Справочный центр Modrinth</help-center-link> и нажмите на синий кружок чата в правом нижнем углу, чтобы написать в поддержку."
+    "message": "Для связи с модераторами посетите <help-center-link>справочный центр</help-center-link> и используйте виджет чата внизу справа страницы."
   },
   "conversation-thread.resubmit-modal.confirmation.description": {
     "message": "Подтвердить, что я ответил на сообщения модерации"
@@ -1099,6 +1162,135 @@
   },
   "create-project-version.create-modal.stage.add-files.admonition": {
     "message": "Дополнительные файлы предназначены для вспомогательных ресурсов, например исходного кода, но не для альтернативных версий или вариантов."
+  },
+  "create-project-version.create-modal.stage.add-files.details-tab": {
+    "message": "Сведения"
+  },
+  "create-project-version.create-modal.stage.add-files.files-tab": {
+    "message": "Файлы"
+  },
+  "create-project-version.create-modal.stage.add-files.metadata-tab": {
+    "message": "Метаданные"
+  },
+  "create-project-version.create-modal.stage.add-files.primary-file-description": {
+    "message": "Основной файл — тот, что скачивается по умолчанию при установке проекта."
+  },
+  "create-project-version.create-modal.stage.add-files.primary-file-label": {
+    "message": "Основной файл"
+  },
+  "create-project-version.create-modal.stage.add-files.supplementary-files-description": {
+    "message": "Можно добавить дополнительные файлы, например исходный код, документация, или обязательные наборы ресурсов."
+  },
+  "create-project-version.create-modal.stage.add-files.supplementary-files-label": {
+    "message": "Дополнительные файлы"
+  },
+  "create-project-version.create-modal.stage.add-files.upload-additional-file-aria-label": {
+    "message": "Добавить дополнительный файл"
+  },
+  "create-project-version.create-modal.stage.add-files.upload-file-aria-label": {
+    "message": "Загрузить файл"
+  },
+  "create-project-version.create-modal.stage.add-files.upload-primary-prompt": {
+    "message": "Загрузите основные и вспомогательные файлы"
+  },
+  "create-project-version.create-modal.stage.add-files.upload-secondary-prompt": {
+    "message": "Перетащите файлы или нажмите для обзора"
+  },
+  "create-project-version.create-modal.stage.details.details-tab": {
+    "message": "Сведения"
+  },
+  "create-project-version.create-modal.stage.details.files-tab": {
+    "message": "Файлы"
+  },
+  "create-project-version.create-modal.stage.details.metadata-tab": {
+    "message": "Метаданные"
+  },
+  "create-project-version.create-modal.stage.details.version-changelog": {
+    "message": "Список изменений"
+  },
+  "create-project-version.create-modal.stage.details.version-number": {
+    "message": "Номер версии"
+  },
+  "create-project-version.create-modal.stage.details.version-number-description": {
+    "message": "Номер версии позволяет отличить эту конкретную версию от других."
+  },
+  "create-project-version.create-modal.stage.details.version-number-placeholder": {
+    "message": "Введите номер версии, например: 1.2.3-alpha.1"
+  },
+  "create-project-version.create-modal.stage.details.version-subtitle": {
+    "message": "Подзаголовок версии"
+  },
+  "create-project-version.create-modal.stage.details.version-subtitle-placeholder": {
+    "message": "Введите подзаголовок..."
+  },
+  "create-project-version.create-modal.stage.details.version-type": {
+    "message": "Тип версии"
+  },
+  "create-project-version.create-modal.stage.metadata.add-dependency": {
+    "message": "Добавьте зависимость"
+  },
+  "create-project-version.create-modal.stage.metadata.dependencies": {
+    "message": "Зависимости"
+  },
+  "create-project-version.create-modal.stage.metadata.details-tab": {
+    "message": "Подробности"
+  },
+  "create-project-version.create-modal.stage.metadata.detected-loaders": {
+    "message": "Найденные загрузчики"
+  },
+  "create-project-version.create-modal.stage.metadata.detected-versions": {
+    "message": "Найденные версии"
+  },
+  "create-project-version.create-modal.stage.metadata.edit-button": {
+    "message": "Редактировать"
+  },
+  "create-project-version.create-modal.stage.metadata.environment": {
+    "message": "Среда"
+  },
+  "create-project-version.create-modal.stage.metadata.files-tab": {
+    "message": "Файлы"
+  },
+  "create-project-version.create-modal.stage.metadata.loaders": {
+    "message": "Загрузчики"
+  },
+  "create-project-version.create-modal.stage.metadata.metadata-tab": {
+    "message": "Метаданные"
+  },
+  "create-project-version.create-modal.stage.metadata.modpack-loaders-tooltip": {
+    "message": "Загрузчики сборок нельзя редактировать"
+  },
+  "create-project-version.create-modal.stage.metadata.modpack-versions-tooltip": {
+    "message": "Версии сборок нельзя редактировать"
+  },
+  "create-project-version.create-modal.stage.metadata.no-dependencies-added": {
+    "message": "Зависимости не добавлены."
+  },
+  "create-project-version.create-modal.stage.metadata.no-environment-set": {
+    "message": "Среда не установлена."
+  },
+  "create-project-version.create-modal.stage.metadata.no-loaders-selected": {
+    "message": "Загрузчик не выбран."
+  },
+  "create-project-version.create-modal.stage.metadata.no-mod-loader": {
+    "message": "Без загрузчика"
+  },
+  "create-project-version.create-modal.stage.metadata.no-versions-selected": {
+    "message": "Версия не выбрана."
+  },
+  "create-project-version.create-modal.stage.metadata.prefilled-environment-tooltip": {
+    "message": "Заполнено на основе прошлой схожей версии"
+  },
+  "create-project-version.create-modal.stage.metadata.resource-pack-loaders-tooltip": {
+    "message": "Загрузчики наборов ресурсов нельзя редактировать"
+  },
+  "create-project-version.create-modal.stage.metadata.suggested": {
+    "message": "Предложение"
+  },
+  "create-project-version.create-modal.stage.metadata.uploaded-files": {
+    "message": "Добавленные файлы"
+  },
+  "create-project-version.create-modal.stage.metadata.versions": {
+    "message": "Версии"
   },
   "create.collection.collection-info": {
     "message": "Будет создана публичная коллекция {count, plural, =0 {без проектов} one {с # проектом} other {с # проектами}}."
@@ -1196,6 +1388,9 @@
   "create.project.name-placeholder": {
     "message": "Введите название проекта..."
   },
+  "create.project.organization-icon-alt": {
+    "message": "Иконка {name}"
+  },
   "create.project.owner-description": {
     "message": "Укажите себя или организацию, в которой состоите."
   },
@@ -1226,8 +1421,14 @@
   "create.project.type-server": {
     "message": "Сервер"
   },
+  "create.project.unknown-user": {
+    "message": "Неизвестный пользователь"
+  },
   "create.project.url-label": {
     "message": "URL"
+  },
+  "create.project.user-avatar-alt": {
+    "message": "Аватар"
   },
   "create.project.visibility-description": {
     "message": "Видимость проекта после прохождения модерации."
@@ -1260,7 +1461,7 @@
     "message": "Удалить"
   },
   "dashboard.affiliate-links.revoke-confirm.title": {
-    "message": "Вы действительно хотите удалить партнёрскую ссылку «{title}»?"
+    "message": "Вы точно хотите удалить партнёрскую ссылку «{title}»?"
   },
   "dashboard.affiliate-links.search": {
     "message": "Поиск ссылок..."
@@ -1337,6 +1538,12 @@
   "dashboard.creator-tax-form-modal.header": {
     "message": "Налоговая форма"
   },
+  "dashboard.creator-tax-form-modal.incomplete.text": {
+    "message": "Вы не заполнили налоговую форму. Попробуйте снова."
+  },
+  "dashboard.creator-tax-form-modal.incomplete.title": {
+    "message": "Налоговая форма не заполнена"
+  },
   "dashboard.creator-tax-form-modal.security.description": {
     "message": "Modrinth использует сторонний сервис Track1099 для безопасного сбора и хранения налоговых форм. <security-link>Подробнее...</security-link>"
   },
@@ -1376,6 +1583,9 @@
   "dashboard.creator-withdraw-modal.kyc.business-entity": {
     "message": "Юридическое лицо"
   },
+  "dashboard.creator-withdraw-modal.kyc.date-of-birth-placeholder": {
+    "message": "Введите дату рождения"
+  },
   "dashboard.creator-withdraw-modal.kyc.entity-description": {
     "message": "Юридическое лицо — зарегистрированная организация, например компания, партнёрство или ООО."
   },
@@ -1384,6 +1594,12 @@
   },
   "dashboard.creator-withdraw-modal.kyc.private-individual": {
     "message": "Физическое лицо"
+  },
+  "dashboard.creator-withdraw-modal.kyc.search-countries-placeholder": {
+    "message": "Поиск стран..."
+  },
+  "dashboard.creator-withdraw-modal.kyc.search-subdivisions-placeholder": {
+    "message": "Поиск субрегионов..."
   },
   "dashboard.creator-withdraw-modal.method-selection.country-placeholder": {
     "message": "Выберите страну"
@@ -1461,16 +1677,16 @@
     "message": "Почти исчерпан лимит вывода: доступно ещё <b>{amountRemaining}</b>. Для снятия лимита заполните налоговую форму."
   },
   "dashboard.creator-withdraw-modal.paypal-details.account": {
-    "message": "Учётная запись"
+    "message": "Аккаунт"
   },
   "dashboard.creator-withdraw-modal.paypal-details.disconnect-account": {
-    "message": "Отвязать учётную запись"
+    "message": "Отвязать аккаунт"
   },
   "dashboard.creator-withdraw-modal.paypal-details.payment-method": {
     "message": "Способ вывода"
   },
   "dashboard.creator-withdraw-modal.paypal-details.paypal-account": {
-    "message": "Учётная запись PayPal"
+    "message": "Аккаунт PayPal"
   },
   "dashboard.creator-withdraw-modal.paypal-details.paypal-auth-description": {
     "message": "Подключите свой PayPal и получайте выплаты напрямую."
@@ -1520,6 +1736,21 @@
   "dashboard.creator-withdraw-modal.tremendous-details.enter-denomination-placeholder": {
     "message": "Введите сумму"
   },
+  "dashboard.creator-withdraw-modal.tremendous-details.minimum-denomination-exceeds-balance": {
+    "message": "Минимальный номинал — {min}, что превышает {balance} на вашем балансе."
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.need-at-least-gift-card": {
+    "message": "Вам надо хотя бы {min}, чтобы использовать подарочную карту."
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.no-denominations-available": {
+    "message": "Для текущего баланса нет доступных номиналов"
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.no-suggestions-no-max": {
+    "message": "Нет близких по сумме номиналов"
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.no-suggestions-with-max": {
+    "message": "Нет близких к сумме номиналов. Доступный максимум — {max}."
+  },
   "dashboard.creator-withdraw-modal.tremendous-details.payment-method": {
     "message": "Способ вывода"
   },
@@ -1534,6 +1765,12 @@
   },
   "dashboard.creator-withdraw-modal.tremendous-details.search-amount-label": {
     "message": "Поиск по сумме"
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.search-category-placeholder": {
+    "message": "Поиск {category}..."
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.select-category-placeholder": {
+    "message": "Выбор {category}"
   },
   "dashboard.creator-withdraw-modal.tremendous-details.select-denomination-hint": {
     "message": "Выберите номинал:"
@@ -1552,6 +1789,12 @@
   },
   "dashboard.creator-withdraw-modal.tremendous-details.usd-paypal-warning-message": {
     "message": "Выбран PayPal International с USD. <direct-paypal-link>Используйте PayPal напрямую</direct-paypal-link>, чтобы снизить комиссию (≈2% вместо ≈6%)."
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.withdrawal-amount-min-max": {
+    "message": "Можно вывести от {min} до {max}."
+  },
+  "dashboard.creator-withdraw-modal.tremendous-details.withdrawal-amount-min-only": {
+    "message": "Можно вывести от {min}."
   },
   "dashboard.creator-withdraw-modal.withdraw-button": {
     "message": "Вывести средства"
@@ -1650,13 +1893,13 @@
     "message": "Изменить ссылки"
   },
   "dashboard.projects.links.changes-applied": {
-    "message": "Изменения будут применены к <strong>{count}</strong> {count, plural, one {проекту} other {проектам}}."
+    "message": "Изменения затронут <strong>{count, number}</strong> {count, plural, one {проект} few {проекта} other {проектов}}."
   },
   "dashboard.projects.links.description": {
-    "message": "Указанные ниже ссылки будут перезаписаны во всех выбранных проектах. Пустые поля будут проигнорированы. Вы можете удалить ссылку из всех выбранных проектов с помощью значка корзины."
+    "message": "Заполните поля, чтобы заменить ссылки в выбранных проектах. Пустые поля игнорируются. Для удаления ссылки из проектов нажмите на корзину."
   },
   "dashboard.projects.links.discord-invite.description": {
-    "message": "Ссылка-приглашение на ваш Discord сервер."
+    "message": "Ссылка-приглашение на сервер Discord."
   },
   "dashboard.projects.links.discord-invite.label": {
     "message": "Discord"
@@ -1665,7 +1908,7 @@
     "message": "Изменить ссылки"
   },
   "dashboard.projects.links.issue-tracker.description": {
-    "message": "Ресурс, где пользователи могут сообщить о багах, проблемах или задать вопросы о вашем проекте."
+    "message": "Место, где можно сообщить об ошибках и проблемах с проектом."
   },
   "dashboard.projects.links.issue-tracker.label": {
     "message": "Трекер проблем"
@@ -1674,16 +1917,16 @@
     "message": "Текущая ссылка будет удалена"
   },
   "dashboard.projects.links.placeholder.valid-discord-url": {
-    "message": "Введите ссылку-приглашение на Discord"
+    "message": "Введите ссылку-приглашение"
   },
   "dashboard.projects.links.placeholder.valid-url": {
-    "message": "Введите действительную ссылку"
+    "message": "Введите действительный URL"
   },
   "dashboard.projects.links.show-all-projects": {
     "message": "Показывать все проекты"
   },
   "dashboard.projects.links.source-code.description": {
-    "message": "Страница/репозиторий, Содержащий исходный код вашего проекта"
+    "message": "Репозиторий или страница с исходным кодом проекта"
   },
   "dashboard.projects.links.source-code.label": {
     "message": "Исходный код"
@@ -1695,13 +1938,13 @@
     "message": "Вики"
   },
   "dashboard.projects.notification.bulk-edit-success": {
-    "message": "Ссылки обновлены в выбранных проектах."
+    "message": "Ссылки выбранных проектов обновлены."
   },
   "dashboard.projects.project.icon-alt": {
-    "message": "Иконка для {title}"
+    "message": "Иконка {title}"
   },
   "dashboard.projects.project.moderator-message-aria": {
-    "message": "Модераторы оставили сообщение к проекту. Перейдите на страницу проекта, чтобы узнать подробности."
+    "message": "Модераторы оставили сообщение к проекту. Перейдите на страницу проекта, чтобы прочитать."
   },
   "dashboard.projects.project.review-environment-metadata": {
     "message": "Проверьте метаданные среды"
@@ -1872,10 +2115,10 @@
     "message": "Кошелёк"
   },
   "dashboard.withdraw.error.account-not-linked.text": {
-    "message": "Привяжите платёжную учётную запись перед выводом средств."
+    "message": "Привяжите платёжный аккаунт перед выводом средств."
   },
   "dashboard.withdraw.error.account-not-linked.title": {
-    "message": "Учётная запись не привязана"
+    "message": "Аккаунт не привязан"
   },
   "dashboard.withdraw.error.email-verification.text": {
     "message": "Перед выводом средств необходимо подтвердить адрес электронной почты."
@@ -1919,6 +2162,12 @@
   "dashboard.withdraw.error.minimum-not-met.title": {
     "message": "Сумма слишком мала"
   },
+  "dashboard.withdraw.error.payout-method-disabled.text": {
+    "message": "Этот способ вывода отключён платёжным сервисом. Выберите другой способ вывода или свяжитесь с поддержкой."
+  },
+  "dashboard.withdraw.error.payout-method-disabled.title": {
+    "message": "Способ вывода недоступен"
+  },
   "dashboard.withdraw.error.paypal-country-mismatch.text": {
     "message": "Используйте вариант перевода через PayPal, подходящий для вашего региона (US или International)."
   },
@@ -1938,22 +2187,22 @@
     "message": "Вернуться к установке"
   },
   "discover.install.cancel-reset": {
-    "message": "Отменить сброс"
+    "message": "Отменить переустановку"
   },
   "discover.install.error.no-server-world": {
-    "message": "Нет доступного мира сервера для установки."
+    "message": "Отсутствует мир сервера для установки."
   },
   "discover.install.error.unsupported-content-type": {
-    "message": "Контент этого типа нельзя установить на сервер через «Обзор»."
+    "message": "Этот тип контента нельзя установить на сервер из раздела «Найти»."
   },
   "discover.install.heading.reset-modpack": {
-    "message": "Выбор сборки модов для установки после сброса"
+    "message": "Выбор сборки после переустановки"
   },
   "discover.seo.description": {
     "message": "Находите лучшие Minecraft {projectType} на Modrinth с помощью мгновенного и точного поиска. Наши фильтры помогут быстро подобрать подходящие {projectType}."
   },
   "discover.seo.title": {
-    "message": "Искать {projectType}"
+    "message": "Поиск {projectType}"
   },
   "discover.seo.title-with-query": {
     "message": "Искать {projectType} | {query}"
@@ -1975,6 +2224,12 @@
   },
   "error.generic.401.signed-in-as": {
     "message": "Текущий аккаунт:"
+  },
+  "error.generic.401.switch-account": {
+    "message": "Или смените аккаунт:"
+  },
+  "error.generic.401.switch-account-failed": {
+    "message": "Не удалось сменить аккаунт. Повторите попытку."
   },
   "error.generic.401.title": {
     "message": "У вас нет доступа к этой странице"
@@ -2088,7 +2343,7 @@
     "message": "Какие процессоры используются на серверах Modrinth Hosting?"
   },
   "hosting-marketing.faq.cpu-kind.answer": {
-    "message": "Серверы Modrinth Hosting оснащены процессорами уровня AMD Ryzen 7900 и 7950X3D с частотой более 5 ГГц и памятью DDR5."
+    "message": "Серверы Modrinth Hosting оснащены процессорами уровня AMD Ryzen 7950X или 9950X и памятью DDR5."
   },
   "hosting-marketing.faq.currency": {
     "message": "В какой валюте указаны цены?"
@@ -2215,6 +2470,24 @@
   },
   "hosting-marketing.medal.text-secondary": {
     "message": "Предложение ограничено по времени. Без привязки карты. Только для серверов в США."
+  },
+  "hosting-marketing.notification.error-fetching-payment-data-title": {
+    "message": "Ошибка получения данных платежа"
+  },
+  "hosting-marketing.notification.invalid-product-text": {
+    "message": "Выбранный продукт найден, но без необходимых данных. Свяжитесь с поддержкой."
+  },
+  "hosting-marketing.notification.invalid-product-title": {
+    "message": "Неверный продукт"
+  },
+  "hosting-marketing.notification.server-capacity-full-text": {
+    "message": "Сервера переполнены. Попробуйте позже."
+  },
+  "hosting-marketing.notification.server-capacity-full-title": {
+    "message": "Сервер заполнен"
+  },
+  "hosting-marketing.notification.unexpected-error-text": {
+    "message": "Произошла непредвиденная ошибка"
   },
   "hosting-marketing.pick-customized-plan": {
     "message": "Соберите свой план с нужными характеристиками."
@@ -2414,9 +2687,6 @@
   "layout.action.file-lookup": {
     "message": "Поиск файла"
   },
-  "layout.action.lookup-by-email": {
-    "message": "Поиск по почте"
-  },
   "layout.action.manage-affiliates": {
     "message": "Партнёрские ссылки"
   },
@@ -2433,7 +2703,7 @@
     "message": "Новый проект"
   },
   "layout.action.new-server-project": {
-    "message": "Новый сервер"
+    "message": "Новый серверный проект"
   },
   "layout.action.publish": {
     "message": "Опубликовать"
@@ -2446,6 +2716,9 @@
   },
   "layout.action.tech-review": {
     "message": "Техпроверка"
+  },
+  "layout.action.user-lookup": {
+    "message": "Поиск пользователя"
   },
   "layout.avatar.alt": {
     "message": "Ваш аватар"
@@ -2534,6 +2807,21 @@
   "layout.footer.about.status": {
     "message": "Статус"
   },
+  "layout.footer.based-on-label": {
+    "message": "На основе"
+  },
+  "layout.footer.developer-mode-activated.text": {
+    "message": "Режим разработчика теперь активен"
+  },
+  "layout.footer.developer-mode-activated.title": {
+    "message": "Режим разработчика активирован"
+  },
+  "layout.footer.developer-mode-deactivated.text": {
+    "message": "Режим разработчика больше не активен"
+  },
+  "layout.footer.developer-mode-deactivated.title": {
+    "message": "Режим разработчика отключён"
+  },
   "layout.footer.legal": {
     "message": "Правовой материал"
   },
@@ -2594,14 +2882,20 @@
   "layout.footer.social.discord": {
     "message": "Discord"
   },
-  "layout.footer.social.github": {
-    "message": "GitHub"
-  },
   "layout.footer.social.mastodon": {
     "message": "Mastodon"
   },
+  "layout.footer.social.reddit": {
+    "message": "Reddit"
+  },
   "layout.footer.social.x": {
     "message": "X"
+  },
+  "layout.footer.social.youtube": {
+    "message": "YouTube"
+  },
+  "layout.footer.unknown-commit": {
+    "message": "неизвестно"
   },
   "layout.menu-toggle.action": {
     "message": "Меню"
@@ -2621,11 +2915,11 @@
   "layout.nav.active-reports": {
     "message": "Активные жалобы"
   },
+  "layout.nav.add-account": {
+    "message": "Добавить аккаунт"
+  },
   "layout.nav.discover": {
     "message": "Найти"
-  },
-  "layout.nav.discover-content": {
-    "message": "Найти проекты"
   },
   "layout.nav.get-modrinth-app": {
     "message": "Скачать Modrinth App"
@@ -2654,6 +2948,9 @@
   "layout.nav.projects": {
     "message": "Проекты"
   },
+  "layout.nav.remove-account": {
+    "message": "Удалить аккаунт"
+  },
   "layout.nav.revenue": {
     "message": "Доход"
   },
@@ -2663,8 +2960,14 @@
   "layout.nav.search": {
     "message": "Поиск"
   },
+  "layout.nav.switch-account": {
+    "message": "Сменить аккаунт"
+  },
+  "layout.nav.switch-account-failed": {
+    "message": "Не удалось сменить аккаунт. Повторите попытку."
+  },
   "layout.nav.upgrade-to-modrinth-plus": {
-    "message": "Перейти на Modrinth+"
+    "message": "Перейти на Modrinth+"
   },
   "layout.publish.email-verification-required.description": {
     "message": "Перед публикацией на Modrinth необходимо подтвердить адрес электронной почты."
@@ -2672,11 +2975,41 @@
   "layout.publish.email-verification-required.title": {
     "message": "Необходимо подтвердить почту"
   },
+  "messages.noResults": {
+    "message": "Ничего не найдено по вашему запросу."
+  },
+  "modal.shared-instance.open-in-app.benefit.install": {
+    "message": "Автоматически устанавливайте все, во что они играют"
+  },
+  "modal.shared-instance.open-in-app.benefit.join": {
+    "message": "Играйте в тот же, что и ваши друзья"
+  },
+  "modal.shared-instance.open-in-app.benefit.update": {
+    "message": "Постоянно обновляйте общий контент по мере его изменения"
+  },
+  "modal.shared-instance.open-in-app.get-app": {
+    "message": "Скачать лаунчер"
+  },
+  "modal.shared-instance.open-in-app.managed-by": {
+    "message": "Управляется"
+  },
+  "modal.shared-instance.open-in-app.opening-automatically": {
+    "message": "Modrinth App откроется автоматически..."
+  },
+  "modal.shared-instance.open-in-app.title": {
+    "message": "Открытие Modrinth App"
+  },
+  "modal.shared-instance.open-in-app.why-use": {
+    "message": "Преимущества Modrinth App"
+  },
   "moderation.exclude-technical-review": {
     "message": "Исключать ТП"
   },
   "moderation.moderate": {
     "message": "Модерировать"
+  },
+  "moderation.page.delphi-rules": {
+    "message": "Правила Delphi"
   },
   "moderation.page.external-projects": {
     "message": "Сторонние проекты"
@@ -2692,6 +3025,21 @@
   },
   "moderation.page.technicalReview": {
     "message": "Техпроверка"
+  },
+  "modpack-scan-modal.batch.label": {
+    "message": "{amount} за страницу"
+  },
+  "modpack-scan-modal.batch.placeholder": {
+    "message": "Кол-во страниц"
+  },
+  "modpack-scan-modal.delete-all-groups-confirmation.description": {
+    "message": "Группы атрибуции этого проекта и все их файлы будут удалены навсегда. Это действие необратимо."
+  },
+  "modpack-scan-modal.delete-all-groups.error": {
+    "message": "Не удалось удалить все группы: {error}"
+  },
+  "modpack-scan-modal.delete-all-groups.success": {
+    "message": "Все группы успешно удалены."
   },
   "modpack-scan-modal.failed": {
     "message": "Ошибка"
@@ -2724,7 +3072,7 @@
     "message": "Сканировать все файлы"
   },
   "modpack-scan-modal.scan-error": {
-    "message": "Не удалось просканировать некоторые файлы: {error}"
+    "message": "Не удалось просканировать некоторые файлы: \n\n{error}"
   },
   "modpack-scan-modal.scanning": {
     "message": "Сканирование..."
@@ -2996,110 +3344,50 @@
   "muralpay.warning.wallet-address": {
     "message": "Перепроверьте адрес кошелька. Отправку средств на неверный адрес невозможно отменить."
   },
-  "profile.bio.fallback.creator": {
-    "message": "Автор на Modrinth."
+  "organization.button.manage": {
+    "message": "Управление"
   },
-  "profile.bio.fallback.user": {
-    "message": "Пользователь Modrinth."
+  "organization.button.manage-projects": {
+    "message": "Управлять проектами"
   },
-  "profile.button.analytics": {
-    "message": "Посмотреть аналитику"
+  "organization.label.downloads": {
+    "message": "скачивания"
   },
-  "profile.button.billing": {
-    "message": "Управление платежами"
+  "organization.label.members": {
+    "message": "участники"
   },
-  "profile.button.edit-role": {
-    "message": "Изменить роль"
+  "organization.label.organization": {
+    "message": "Организация"
   },
-  "profile.button.info": {
-    "message": "Посмотреть подробности"
+  "organization.label.projects": {
+    "message": "проекты"
   },
-  "profile.button.manage-projects": {
-    "message": "Управление проектами"
+  "organization.project-transfer.id-column": {
+    "message": "ID"
   },
-  "profile.button.remove-affiliate": {
-    "message": "Убрать из партнёров"
+  "organization.project-transfer.name-column": {
+    "message": "Название"
   },
-  "profile.button.set-affiliate": {
-    "message": "Сделать партнёром"
+  "organization.project-transfer.no-projects-available": {
+    "message": "Нет доступных проектов для переноса."
   },
-  "profile.collection.projects-count": {
-    "message": "{count, plural, one {# проект} few {# проекта} other {# проектов}}"
+  "organization.project-transfer.project-icon-alt": {
+    "message": "Иконка {name}"
   },
-  "profile.details.label.auth-providers": {
-    "message": "Сервисы входа"
+  "organization.project-transfer.title": {
+    "message": "Перенос проектов"
   },
-  "profile.details.label.email": {
-    "message": "Почта"
+  "organization.project-transfer.transfer-selected-projects": {
+    "message": "Перенести {count, plural, one {# проект} few {# проекта} other {# проектов}}"
   },
-  "profile.details.label.email-verified": {
-    "message": "Почта подтверждена"
+  "organization.project-transfer.type-column": {
+    "message": "Тип"
   },
-  "profile.details.label.has-password": {
-    "message": "Есть пароль"
+  "organization.projects.none": {
+    "message": "У этой организации ещё нет проектов."
   },
-  "profile.details.label.has-totp": {
-    "message": "Есть TOTP"
-  },
-  "profile.details.label.payment-methods": {
-    "message": "Способы оплаты"
-  },
-  "profile.details.tooltip.email-not-verified": {
-    "message": "Почта не подтверждена"
-  },
-  "profile.details.tooltip.email-verified": {
-    "message": "Почта подтверждена"
-  },
-  "profile.error.not-found": {
-    "message": "Пользователь не найден"
-  },
-  "profile.label.affiliate": {
-    "message": "Партнёр"
-  },
-  "profile.label.badges": {
-    "message": "Значки"
-  },
-  "profile.label.collection": {
-    "message": "Коллекция"
-  },
-  "profile.label.joined": {
-    "message": "Регистрация:"
-  },
-  "profile.label.no-collections": {
-    "message": "У этого пользователя нет коллекций!"
-  },
-  "profile.label.no-collections-auth": {
-    "message": "У вас ещё нет коллекций.\nХотите <create-link>создать новую</create-link>?"
-  },
-  "profile.label.no-projects": {
-    "message": "У этого пользователя нет проектов!"
-  },
-  "profile.label.no-projects-auth": {
-    "message": "У вас ещё нет проектов.\nХотите <create-link>создать новый</create-link>?"
-  },
-  "profile.label.organizations": {
-    "message": "Организации"
-  },
-  "profile.label.saving": {
-    "message": "Сохранение..."
-  },
-  "profile.meta.description": {
-    "message": "Скачать проекты {username} на Modrinth"
-  },
-  "profile.meta.description-with-bio": {
-    "message": "{bio} — Скачать проекты {username} на Modrinth"
-  },
-  "profile.official-account": {
-    "message": "Официальный аккаунт Modrinth"
-  },
-  "profile.official-account.bio": {
-    "message": "Официальный аккаунт Modrinth. Связаться с поддержкой можно по ссылке <support-link></support-link> или по электронной почте: <email></email>"
-  },
-  "profile.stats.projects-followers": {
-    "message": "{count, plural, one {<stat>{count}</stat> подписчик} few {<stat>{count}</stat> подписчика} other {<stat>{count}</stat> подписчиков}} у проектов"
-  },
-  "profile.user-id": {
-    "message": "ID пользователя: {id}"
+  "organization.projects.none-with-create-prompt": {
+    "message": "У этой организации ещё нет проектов. Хотите <create-link>создать новый</create-link>?"
   },
   "project-member-header.error-decline": {
     "message": "Не удалось отклонить приглашение в команду"
@@ -3120,7 +3408,10 @@
     "message": "Приглашение в команду отклонено"
   },
   "project-member-header.success-join": {
-    "message": "Вы присоединились к команде проекта"
+    "message": "Вы присоединились к команде проекта"
+  },
+  "project-moderation-nags.project-submitted-for-review": {
+    "message": "Проект отправлен на проверку!"
   },
   "project-moderation-nags.publishing-checklist": {
     "message": "Контрольный список для публикации"
@@ -3215,23 +3506,11 @@
   "project-type.shader.singular": {
     "message": "Шейдер"
   },
-  "project.about.details.created": {
-    "message": "Создан {date}"
+  "project.actions.check-modpack-archives": {
+    "message": "Проверить распаковку сборки"
   },
-  "project.about.details.licensed": {
-    "message": "Лицензия {license}"
-  },
-  "project.about.details.published": {
-    "message": "Размещён {date}"
-  },
-  "project.about.details.submitted": {
-    "message": "Отправлен {date}"
-  },
-  "project.about.details.title": {
-    "message": "Сведения"
-  },
-  "project.about.details.updated": {
-    "message": "Обновлён {date}"
+  "project.actions.checking-modpack-archives": {
+    "message": "Проверка..."
   },
   "project.actions.create-server": {
     "message": "Создать сервер"
@@ -3241,6 +3520,15 @@
   },
   "project.actions.dont-show-again": {
     "message": "Больше не показывать"
+  },
+  "project.actions.edit-project": {
+    "message": "Настроить проект"
+  },
+  "project.actions.project-page": {
+    "message": "Страница проекта"
+  },
+  "project.actions.rescan-modpack": {
+    "message": "Пересканировать сборку"
   },
   "project.actions.review-project": {
     "message": "Проверить проект"
@@ -3254,6 +3542,24 @@
   "project.actions.servers-promo.title": {
     "message": "Создайте сервер"
   },
+  "project.actions.view-dependents": {
+    "message": "Посмотреть зависимое"
+  },
+  "project.actions.view-modpacks": {
+    "message": "Посмотреть сборки"
+  },
+  "project.actions.view-project-type-dependents": {
+    "message": "Посмотреть зависимости {projectType}"
+  },
+  "project.ai-image-warning-modal.body.1": {
+    "message": "Использование изображений от ИИ для представления своего проекта запрещено. Попытка обойти проверку приведёт к блокировке аккаунта Modrinth."
+  },
+  "project.ai-image-warning-modal.body.2": {
+    "message": "Подробности — в разделе 6 <rules>Правил контента Modrinth</rules>, про нашу политику в отношении ИИ-генерации."
+  },
+  "project.ai-image-warning-modal.title": {
+    "message": "ИИ-изображения запрещены"
+  },
   "project.collections.create-new": {
     "message": "Создать новую коллекцию"
   },
@@ -3262,9 +3568,6 @@
   },
   "project.description.title": {
     "message": "Описание"
-  },
-  "project.details.licensed": {
-    "message": "Лицензия"
   },
   "project.download.base-game-version-incompatible-tooltip": {
     "message": "Эта версия игры несовместима с зависимым контентом."
@@ -3419,20 +3722,14 @@
   "project.gallery.title": {
     "message": "Галерея"
   },
-  "project.license.error": {
-    "message": "Не удалось получить текст лицензии."
-  },
-  "project.license.loading": {
-    "message": "Загрузка текста лицензии..."
-  },
-  "project.license.title": {
-    "message": "Лицензия"
+  "project.install-context.back-to-discover": {
+    "message": "Вернуться к поиску"
   },
   "project.moderation.admonition.approved.body.private": {
     "message": "Ваш проект приватный, доступ к нему есть только у вас и приглашённых вами людей."
   },
   "project.moderation.admonition.approved.body.public": {
-    "message": "Ваш проект выложен и доступен для поиска на Modrinth."
+    "message": "Ваш проект опубликован и доступен для поиска на Modrinth."
   },
   "project.moderation.admonition.approved.body.unlisted": {
     "message": "Ваш проект скрыт, доступ к нему можно получить только по ссылке."
@@ -3462,7 +3759,7 @@
     "message": "Многократная отправка проекта без предварительного устранения всех замечаний модерации может привести к блокировке учётной записи."
   },
   "project.moderation.admonition.under-review.body.1": {
-    "message": "Ваш проект находится в очереди на проверку модерацией Modrinth."
+    "message": "Ваш проект находится в очереди на проверку модераторами Modrinth."
   },
   "project.moderation.admonition.under-review.body.2": {
     "message": "Ваш проект будет проверен автоматической системой и затем рассмотрен модераторами на соответствие <rules-link>правилам контента Modrinth</rules-link> и <terms-link>условиям использования</terms-link>."
@@ -3471,7 +3768,10 @@
     "message": "Вы по-прежнему можете редактировать проект — это не повлияет на его положение в очереди."
   },
   "project.moderation.admonition.under-review.body.4": {
-    "message": "Мы стараемся проверять проекты в течение 24-48 часов, однако иногда возможны задержки. Это не означает, что с вашим проектом что-то не так."
+    "message": "Мы стараемся проверять проекты в течение 24–48 часов, однако иногда возможны задержки. Это не означает, что с вашим проектом что-то не так."
+  },
+  "project.moderation.admonition.under-review.body.4.alt-week": {
+    "message": "Мы стараемся проверять проекты в течение недели, однако иногда возможны задержки. Это не означает, что с вашим проектом что-то не так."
   },
   "project.moderation.admonition.under-review.body.5": {
     "message": "<emphasis>Мы ценим ваше терпение, пока модераторы усердно работают над поддержанием безопасности Modrinth, и с нетерпением ждём возможности помочь вам поделиться своим контентом! 💚</emphasis>"
@@ -3506,8 +3806,23 @@
   "project.moderation.title": {
     "message": "Модерация"
   },
+  "project.modpack-archive-warning.description": {
+    "message": "Импорт этого .mrpack может быть повреждён."
+  },
+  "project.modpack-archive-warning.title": {
+    "message": "Эта сборка опубликована во время ошибки экспорта"
+  },
   "project.navigation.changelog": {
     "message": "Изменения"
+  },
+  "project.notification.check-modpack-archives.failed": {
+    "message": "Некоторые файлы сборки не могут быть распакованы"
+  },
+  "project.notification.check-modpack-archives.no-files": {
+    "message": "Файлы .mrpack для этого проекта не найдены."
+  },
+  "project.notification.check-modpack-archives.success": {
+    "message": "{count, plural, one {Файл сборки может быть распакован.} other {Все # файлов сборки могут быть распакованы.}}"
   },
   "project.notification.icon-updated.message": {
     "message": "Иконка проекта обновлена."
@@ -3515,11 +3830,245 @@
   "project.notification.icon-updated.title": {
     "message": "Иконка обновлена"
   },
+  "project.notification.review-save-failed.description": {
+    "message": "Невозможно сохранить изменения, приводящие к ошибке проверки."
+  },
+  "project.notification.review-save-failed.title": {
+    "message": "Не удалось сохранить проект"
+  },
   "project.notification.updated.message": {
     "message": "Ваш проект обновлён."
   },
   "project.notification.updated.title": {
     "message": "Проект обновлён"
+  },
+  "project.settings.back-to-all-projects": {
+    "message": "Вернуться ко всем проектам"
+  },
+  "project.settings.back-to-project-page": {
+    "message": "Вернуться на страницу проекта"
+  },
+  "project.settings.danger-zone": {
+    "message": "Опасная зона"
+  },
+  "project.settings.delete-project.button": {
+    "message": "Удалить проект"
+  },
+  "project.settings.delete-project.confirmation.description": {
+    "message": "Если вы продолжите, вся информация о проекте и все его версии будут немедленно удалены из нашей базы данных. Ничего не может быть восстановлено позже, если вы передумаете. Подумайте, над тем, чтобы сделать проект приватным."
+  },
+  "project.settings.delete-project.confirmation.proceed-text": {
+    "message": "Удалить проект навсегда"
+  },
+  "project.settings.delete-project.confirmation.title": {
+    "message": "Вы точно хотите удалить этот проект?"
+  },
+  "project.settings.delete-project.description.1": {
+    "message": "Проект будет удалён с Modrinth навсегда. Удалённые проекты <emphasis>невозможно восстановить</emphasis> через поддержку Modrinth."
+  },
+  "project.settings.delete-project.description.2": {
+    "message": "Файлы, загруженные в этот проект, которые активно используются в сборках, размещенных на Modrinth, могут продолжать существовать."
+  },
+  "project.settings.delete-project.title": {
+    "message": "Удаление проекта"
+  },
+  "project.settings.description.intro": {
+    "message": "Здесь можно ввести подробное описание вашего проекта. Описание должно четко и честно раскрывать цель и назначение проекта. Полный перечень требований см. в разделе 2.1 <rules>Правил размещения контента</rules>."
+  },
+  "project.settings.description.title": {
+    "message": "Описание"
+  },
+  "project.settings.description.updated": {
+    "message": "Описание обновлено"
+  },
+  "project.settings.description.updated-text": {
+    "message": "Описание проекта обновлено."
+  },
+  "project.settings.disclosures.advertising.description.1": {
+    "message": "Включите если проект содержит рекламу, спонсорство или продвижение других проектов."
+  },
+  "project.settings.disclosures.advertising.description.2": {
+    "message": "Это не относится к ненавязчивой рекламе соответствующего контента без прямой денежной ценности (например, ссылка на профиль Modrinth в вашем собственном меню конфигурации), и не относится к рекламе на странице проекта, такие как спонсируемые баннеры в описании."
+  },
+  "project.settings.disclosures.advertising.note-placeholder": {
+    "message": "Например: Adds the Modrinth SMP server to your server list automatically."
+  },
+  "project.settings.disclosures.advertising.title": {
+    "message": "Есть реклама"
+  },
+  "project.settings.disclosures.ai-functionality.description": {
+    "message": "Необходимо включить, если проект имеет функциональность, которая генерирует что-либо во время работы используя ИИ, например как чат-бот или динамически генерирующееся текстуры."
+  },
+  "project.settings.disclosures.ai-functionality.note-placeholder": {
+    "message": "Например: The NPCs uses generative AI for dialogue options."
+  },
+  "project.settings.disclosures.ai-functionality.title": {
+    "message": "Есть функциональность на ИИ"
+  },
+  "project.settings.disclosures.ai.description": {
+    "message": "Должен быть включен если этот проект содержит какие-либо ИИ текстуры или текст, а также если он содержит большое количество ИИ кода."
+  },
+  "project.settings.disclosures.ai.description.2": {
+    "message": "Важно быть честным, если использование ИИ сыграл важную роль в производстве или публикации этого проекта. Простой способ подумать об этом, если вы считаете ИИ соавтором проекта, вы должны раскрыть его здесь."
+  },
+  "project.settings.disclosures.ai.note-placeholder": {
+    "message": "Например: The Chinese and Arabic translations are AI-generated."
+  },
+  "project.settings.disclosures.ai.still-unsure": {
+    "message": "Всё ещё сомневаетесь? Ознакомьтесь с нашим руководством по <faq-link>раскрытию информации об использовании ИИ</faq-link> и разделом 6 <rules>Правил содержания Modrinth</rules> для получения дополнительной информации."
+  },
+  "project.settings.disclosures.ai.title": {
+    "message": "Есть ИИ‑контент"
+  },
+  "project.settings.disclosures.ai.types-description": {
+    "message": "Какие типы контента были созданы ИИ?"
+  },
+  "project.settings.disclosures.archived.banner-preview": {
+    "message": "Предпросмотр баннера"
+  },
+  "project.settings.disclosures.archived.description.1": {
+    "message": "Отметьте свой проект в архиве, чтобы дать пользователям знать, что вы больше не работаете над ним."
+  },
+  "project.settings.disclosures.archived.description.2": {
+    "message": "Архивные проекты остаются обнаруживаемыми, когда их видимость установлена в Публичный. Если вы хотите скрыть ваш проект, установите его видимость в Доступ по ссылке."
+  },
+  "project.settings.disclosures.archived.note-placeholder": {
+    "message": "Например: I don't have time to maintain this project anymore, feel free to fork it!"
+  },
+  "project.settings.disclosures.archived.title": {
+    "message": "Архивный проект"
+  },
+  "project.settings.disclosures.content-disclosures": {
+    "message": "Маркировка контента"
+  },
+  "project.settings.disclosures.derivative.description": {
+    "message": "Включите, если проект является производным от другого, например, является форком или содержит значительную часть чужой работы."
+  },
+  "project.settings.disclosures.derivative.link-label": {
+    "message": "Ссылка на оригинальную работу"
+  },
+  "project.settings.disclosures.derivative.link-placeholder": {
+    "message": "https://example.com"
+  },
+  "project.settings.disclosures.derivative.name-label": {
+    "message": "Название оригинальной работы"
+  },
+  "project.settings.disclosures.derivative.name-placeholder": {
+    "message": "Пример проекта"
+  },
+  "project.settings.disclosures.derivative.note-label": {
+    "message": "Объясните, как ваш проект основан на оригинальной работе"
+  },
+  "project.settings.disclosures.derivative.note-placeholder": {
+    "message": "Это форк который добавляет несколько новых биомов и переносит их новые версии Minecraft."
+  },
+  "project.settings.disclosures.derivative.title": {
+    "message": "Производная работа"
+  },
+  "project.settings.disclosures.description": {
+    "message": "Необходимо указать всю применимую маркировку контента в соответствии с <rules>правилами контента Modrinth</rules>."
+  },
+  "project.settings.disclosures.description.2": {
+    "message": "Не знаете, как добавить информацию о содержании контента, созданого ИИ, в свой проект? Ознакомьтесь с нашим <faq-link>FAQ по раскрытию информации о контенте</faq-link>."
+  },
+  "project.settings.disclosures.info-tooltip": {
+    "message": "Нажмите, чтобы узнать больше о том, в каких случаях следует использовать это уведомление."
+  },
+  "project.settings.disclosures.last-updated": {
+    "message": "Последнее изменение {date} от {user}"
+  },
+  "project.settings.disclosures.last-updated.moderator": {
+    "message": "Модератор"
+  },
+  "project.settings.disclosures.lock-status.cannot-disable.warning": {
+    "message": "<contact-support-link>Свяжитесь с поддержкой</contact-support-link>, если эту маркировку нужно убрать."
+  },
+  "project.settings.disclosures.lock-status.disabled.warning": {
+    "message": "Эта маркировка заблокирована модераторами. <contact-support-link>Свяжитесь с поддержкой</contact-support-link>, если считаете, что это ошибка."
+  },
+  "project.settings.disclosures.lock-status.fully-locked.warning": {
+    "message": "<contact-support-link>Свяжитесь с поддержкой</contact-support-link>, если эту маркировку нужно изменить или убрать."
+  },
+  "project.settings.disclosures.paid-features.description": {
+    "message": "Включите если проект содержит контент который доступен только за реальные деньги."
+  },
+  "project.settings.disclosures.paid-features.feature-placeholder": {
+    "message": "Например: Cosmetics available as Patreon reward."
+  },
+  "project.settings.disclosures.paid-features.features-description": {
+    "message": "Перечислите типы платного контента"
+  },
+  "project.settings.disclosures.paid-features.title": {
+    "message": "Есть платный контент"
+  },
+  "project.settings.disclosures.photosensitivity.description": {
+    "message": "Включите это, если ваш проект содержит что-нибудь, что вы считаете, может быть опасным для определенных людей, чувствительных к мигающим вспышкам."
+  },
+  "project.settings.disclosures.photosensitivity.note-placeholder": {
+    "message": "Например: It adds a flashlight item that has a strobe mode. It can be disabled in Accessibility settings in-game."
+  },
+  "project.settings.disclosures.photosensitivity.title": {
+    "message": "Предупреждение о вспышках"
+  },
+  "project.settings.disclosures.save-blocked.advertising-note": {
+    "message": "Требуется пояснение к рекламе."
+  },
+  "project.settings.disclosures.save-blocked.derivative-empty": {
+    "message": "Требуется указать, на основе чего именно создан проект."
+  },
+  "project.settings.disclosures.save-blocked.derivative-source-label": {
+    "message": "Источники производных работ должны иметь название."
+  },
+  "project.settings.disclosures.save-blocked.no-permission": {
+    "message": "У вас нет разрешения на изменение маркировки этого проекта."
+  },
+  "project.settings.disclosures.save-blocked.paid-features-empty": {
+    "message": "Требуется указать, какой именно контент является платным."
+  },
+  "project.settings.disclosures.save-blocked.photosensitivity-note": {
+    "message": "Требуется описание предупреждения о вспышках."
+  },
+  "project.settings.disclosures.save-blocked.system-interactions-note": {
+    "message": "Требуется описание взаимодействия с системой."
+  },
+  "project.settings.disclosures.save-blocked.telemetry-empty": {
+    "message": "Требуется указать, какие именно данные собираются."
+  },
+  "project.settings.disclosures.system-interactions.description": {
+    "message": "Включите, если проект читает или меняет файлы в системе пользователя вне игры."
+  },
+  "project.settings.disclosures.system-interactions.note-label": {
+    "message": "Опишите взаимодействия с системой"
+  },
+  "project.settings.disclosures.system-interactions.note-placeholder": {
+    "message": "Например: It adds a file to the desktop called wake_up.txt"
+  },
+  "project.settings.disclosures.system-interactions.title": {
+    "message": "Взаимодействие с системой"
+  },
+  "project.settings.disclosures.telemetry.consent-description": {
+    "message": "По какой модели работает телеметрия?"
+  },
+  "project.settings.disclosures.telemetry.data-description": {
+    "message": "Вы можете добавить политику конфиденциальности или список типов собранных данных. Не забудьте упомянуть, если он является анонимным или содержит идентифицируемую информацию (PII)."
+  },
+  "project.settings.disclosures.telemetry.data-label": {
+    "message": "Какие данные собираются?"
+  },
+  "project.settings.disclosures.telemetry.data-placeholder": {
+    "message": "Например: Anonymous launch analytics to track Minecraft version and mod loader usage."
+  },
+  "project.settings.disclosures.telemetry.description": {
+    "message": "Включите, если проект отправляет данные об использовании обратно себе или третьим лицам."
+  },
+  "project.settings.disclosures.telemetry.title": {
+    "message": "Есть телеметрия"
+  },
+  "project.settings.disclosures.upload-version-first.heading": {
+    "message": "Загрузите версии перед настройкой маркировки"
+  },
+  "project.settings.editing-project": {
+    "message": "Редактирование проекта {projectType}"
   },
   "project.settings.general.name.description": {
     "message": "Не используйте лишние приписки, скобки и описания — введите только название проекта."
@@ -3566,17 +4115,179 @@
   "project.settings.general.url.title": {
     "message": "URL"
   },
+  "project.settings.license.all-rights": {
+    "message": "Все права защищены/Без лицензии"
+  },
+  "project.settings.license.allow-later": {
+    "message": "Допускать более поздние версии"
+  },
+  "project.settings.license.custom": {
+    "message": "Своя"
+  },
+  "project.settings.license.custom-name-required": {
+    "message": "Укажите название своей лицензии."
+  },
+  "project.settings.license.custom-url-description": {
+    "message": "Ссылка на полный текст лицензии."
+  },
+  "project.settings.license.intro": {
+    "message": "Важно выбрать подходящую лицензию для вашего {type}. Вы можете выбрать ее из нашего списка или предоставить свою лицензию. Вы также можете предоставить URL выбранной лицензии в противном случае будет лицензия будет показана в виде текста. Смотрите руководство <guide>по лицензированию</guide> для получения дополнительной информации."
+  },
+  "project.settings.license.later": {
+    "message": "Более поздние версии"
+  },
+  "project.settings.license.later-description": {
+    "message": "Выбранная лицензия поддерживается в варианте «или более поздняя». Установите флажок, если разрешаете использовать проект на условиях более поздних версий лицензии."
+  },
+  "project.settings.license.missing-url": {
+    "message": "Укажите URL полного текста своей лицензии."
+  },
+  "project.settings.license.name": {
+    "message": "Название лицензии"
+  },
+  "project.settings.license.name-description": {
+    "message": "Полное название своей лицензии."
+  },
+  "project.settings.license.name-placeholder": {
+    "message": "Название лицензии"
+  },
+  "project.settings.license.optional-label": {
+    "message": "необязательно"
+  },
+  "project.settings.license.select": {
+    "message": "Лицензия"
+  },
+  "project.settings.license.select-placeholder": {
+    "message": "Поиск лицензий..."
+  },
+  "project.settings.license.title": {
+    "message": "Лицензия"
+  },
+  "project.settings.license.updated": {
+    "message": "Лицензия обновлена"
+  },
+  "project.settings.license.updated-text": {
+    "message": "Лицензия проекта обновлена."
+  },
+  "project.settings.license.url": {
+    "message": "Ссылка на лицензию"
+  },
+  "project.settings.license.url-description": {
+    "message": "Расположение полного текста лицензии. Если ссылка не указана, будет отображаться текст лицензии."
+  },
+  "project.settings.license.url-placeholder": {
+    "message": "Адрес лицензии"
+  },
+  "project.settings.links.add-link": {
+    "message": "Добавить ссылку"
+  },
+  "project.settings.links.discord": {
+    "message": "Discord"
+  },
+  "project.settings.links.discord-description": {
+    "message": "Ссылка-приглашение на сервер Discord."
+  },
+  "project.settings.links.donation-link": {
+    "message": "Ссылка"
+  },
+  "project.settings.links.donation-platform": {
+    "message": "Платформа"
+  },
+  "project.settings.links.donation-url": {
+    "message": "URL"
+  },
+  "project.settings.links.donation-username": {
+    "message": "Профиль"
+  },
+  "project.settings.links.donation-username-placeholder": {
+    "message": "Введите своё имя на {platform}"
+  },
+  "project.settings.links.donations": {
+    "message": "Ссылки для поддержки"
+  },
+  "project.settings.links.donations-description": {
+    "message": "Добавьте ссылки на пожертвования, чтобы пользователи могли поддерживать вас напрямую."
+  },
+  "project.settings.links.issues": {
+    "message": "Трекер проблем"
+  },
+  "project.settings.links.issues-description": {
+    "message": "Место, где можно сообщить об ошибках и проблемах с проектом."
+  },
+  "project.settings.links.link-type": {
+    "message": "Тип ссылки"
+  },
+  "project.settings.links.remove-donation-link": {
+    "message": "Удалить ссылку"
+  },
+  "project.settings.links.server-discord": {
+    "message": "Discord"
+  },
+  "project.settings.links.server-updated": {
+    "message": "Ссылки сервера обновлены."
+  },
+  "project.settings.links.server-wiki-description": {
+    "message": "Страница с информацией, документацией и помощью по серверу."
+  },
+  "project.settings.links.site": {
+    "message": "Сайт"
+  },
+  "project.settings.links.site-description": {
+    "message": "Официальный сайт сервера."
+  },
+  "project.settings.links.source": {
+    "message": "Исходный код"
+  },
+  "project.settings.links.source-description": {
+    "message": "Репозиторий или страница с исходным кодом проекта"
+  },
+  "project.settings.links.store": {
+    "message": "Магазин"
+  },
+  "project.settings.links.store-description": {
+    "message": "Ссылка на магазин сервера."
+  },
+  "project.settings.links.title": {
+    "message": "Ссылки"
+  },
+  "project.settings.links.updated": {
+    "message": "Ссылки проекта обновлены."
+  },
+  "project.settings.links.updated-title": {
+    "message": "Ссылки обновлены"
+  },
+  "project.settings.links.url-placeholder": {
+    "message": "Введите действительный URL"
+  },
+  "project.settings.links.visit-link": {
+    "message": "Открыть {url}"
+  },
+  "project.settings.links.wiki": {
+    "message": "Вики"
+  },
+  "project.settings.links.wiki-description": {
+    "message": "Страница с информацией, документацией и помощью по проекту."
+  },
+  "project.settings.monetization.description": {
+    "message": "Проекты на Modrinth автоматически зачисляются в <rewards-program-link>программу наград</rewards-program-link>. Если вы не хотите (или не можете по юридическим причинам) получать доход от этого проекта, вы можете отключить его здесь."
+  },
+  "project.settings.monetization.disabled-description": {
+    "message": "Этот проект не имеет права на монетизацию. Если вы считаете, что это ошибка, пожалуйста <contact-support-link>обратитесь в поддержку</contact-support-link>."
+  },
+  "project.settings.monetization.title": {
+    "message": "Монетизация"
+  },
   "project.settings.permissions.attention-needed.description.proj-approved": {
-    "message": "Пожалуйста, предоставьте доказательства, что у вас есть разрешение на распространение всех следующих файлов. После этого скрытые версии будут опубликованы."
+    "message": "Предоставьте доказательства на использование указанных ниже файлов. По завершении затронутые версии опубликуются автоматически."
   },
   "project.settings.permissions.attention-needed.description.proj-draft": {
-    "message": "Прежде чем отправить проект на рассмотрение, подтвердите наличие у вас разрешения на распространение всех перечисленных ниже файлов."
+    "message": "Предоставьте доказательства на использование указанных ниже файлов перед отправкой проекта на проверку."
   },
   "project.settings.permissions.attention-needed.title": {
-    "message": "Неизвестный внешний контент"
+    "message": "Неизвестный сторонний контент"
   },
   "project.settings.permissions.bad-proof.description": {
-    "message": "Команда модераторов Modrinth отклонила предоставленные вами данные для разрешения доступа к некоторому стороннему контенту. Пожалуйста, просмотрите список отклоненных материалов ниже и предоставьте убедительные доказательства или удалите контент."
+    "message": "Команда Modrinth отклонила некоторые доказательства на использование стороннего контента. Изучите список ниже и предоставьте новые доказательства или удалите контент."
   },
   "project.settings.permissions.bad-proof.title": {
     "message": "Часть доказательств отклонена"
@@ -3585,31 +4296,46 @@
     "message": "Свернуть всё"
   },
   "project.settings.permissions.completed.description": {
-    "message": "Для всего стороннего контента указаны разрешения и источники."
+    "message": "Весь сторонний контент содержит необходимые разрешения и указания авторства."
   },
   "project.settings.permissions.completed.title": {
-    "message": "Разрешения получены!"
+    "message": "Разрешения предоставлены!"
+  },
+  "project.settings.permissions.delete-all-groups": {
+    "message": "Удалить все группы"
+  },
+  "project.settings.permissions.delete-all-groups-confirmation.description": {
+    "message": "{count, plural, one {# группа} few {# группы} other {# групп}} атрибуции этого проекта и все {count, plural, =1 {её} other {их}} файлы будут удалены навсегда. Это действие необратимо."
+  },
+  "project.settings.permissions.delete-all-groups-confirmation.title": {
+    "message": "Удалить все группы атрибуции?"
+  },
+  "project.settings.permissions.delete-all-groups-error": {
+    "message": "Не удалось удалить все группы атрибуции"
+  },
+  "project.settings.permissions.delete-all-groups-success": {
+    "message": "Все группы атрибуции удалены."
   },
   "project.settings.permissions.empty-state.description": {
-    "message": "Ни одна из версий вашего проекта не содержит внешнего контента, поэтому вам не нужно беспокоиться о получении разрешений."
+    "message": "В проекте нет стороннего контента. Разрешения получать не нужно."
   },
   "project.settings.permissions.empty-state.heading": {
-    "message": "Всё подтверждено!"
+    "message": "Всё в порядке!"
   },
   "project.settings.permissions.expand-all": {
     "message": "Развернуть всё"
   },
   "project.settings.permissions.fail.description": {
-    "message": "Возможно, у вас нет разрешения на распространение части стороннего контента в вашем проекте. Чтобы опубликовать проект на Modrinth, удалите этот контент или предоставьте доказательства того, что у вас есть разрешение на его использование."
+    "message": "Нет разрешения на использование некоторого стороннего контента. Удалите его или докажите наличие разрешений, чтобы опубликовать свой проект."
   },
   "project.settings.permissions.fail.title": {
-    "message": "Некоторый контент не может быть включён"
+    "message": "Некоторый контент нельзя использовать"
   },
   "project.settings.permissions.info-banner.description": {
-    "message": "Если включённый контент не размещён на Modrinth, то надо указать его источник, и подтвердить наличие разрешения на распространение файлов. Подробнее — в <link>нашем объявлении новой системы</link>!"
+    "message": "Для контента не с Modrinth нужно указывать авторство и подтверждать разрешение на использование файлов. Подробнее — в <link>объявлении новой системы</link>."
   },
   "project.settings.permissions.info-banner.title": {
-    "message": "Узнайте о разрешениях на распространение"
+    "message": "Подробнее об авторстве и разрешениях"
   },
   "project.settings.permissions.learn-more": {
     "message": "Подробнее"
@@ -3618,7 +4344,7 @@
     "message": "Сторонние файлы не найдены."
   },
   "project.settings.permissions.not-allowed.description": {
-    "message": "Часть внешнего контента не может распространяться на Modrinth за нарушение правил контента и должна быть удалена."
+    "message": "Некоторый сторонний контент нельзя распространять на Modrinth из‑за нарушения правил контента. Его нужно удалить."
   },
   "project.settings.permissions.pending-approval-count": {
     "message": "{count, plural, =0 {Все атрибуции одобрены} one {# атрибуция без одобрения} few {# атрибуции без одобрения} other {# атрибуций без одобрения}}"
@@ -3638,32 +4364,173 @@
   "project.settings.permissions.sort.status": {
     "message": "Статус"
   },
-  "project.settings.title": {
-    "message": "Настройки"
+  "project.settings.server.bedrock-address-label": {
+    "message": "Bedrock-адрес"
   },
-  "project.settings.visit-dashboard": {
-    "message": "Управление проектами"
+  "project.settings.server.cannot-save-text": {
+    "message": "Сервер для Java должен быть доступен перед сохранением. Убедитесь в стабильности связи."
   },
-  "project.status.archived.message": {
-    "message": "{title} помещён в архив. {title} больше не будет получать обновления, если только автор не решит разархивировать проект."
+  "project.settings.server.cannot-save-title": {
+    "message": "Невозможно сохранить"
+  },
+  "project.settings.server.details-heading": {
+    "message": "О сервере"
+  },
+  "project.settings.server.enter-address-placeholder": {
+    "message": "Введите адрес"
+  },
+  "project.settings.server.java-address-label": {
+    "message": "Адрес для Java"
+  },
+  "project.settings.server.languages-label": {
+    "message": "Языки"
+  },
+  "project.settings.server.latency-label": {
+    "message": "Задержка: {latency} мс"
+  },
+  "project.settings.server.optional-label": {
+    "message": "необязательно"
+  },
+  "project.settings.server.ping-failed-message": {
+    "message": "Мы не могли связаться с этим сервером. Он может быть заблокирован вашим хостом, так что попробуйте перезагрузить его несколько раз. Если он все еще не отвечает, пожалуйста <support-link>свяжитесь с поддержкой</support-link>."
+  },
+  "project.settings.server.refresh-ping-tooltip": {
+    "message": "Обновить связь"
+  },
+  "project.settings.server.region-label": {
+    "message": "Регион"
+  },
+  "project.settings.server.select-languages-placeholder": {
+    "message": "Выберите языки"
+  },
+  "project.settings.server.select-region-placeholder": {
+    "message": "Выберите регион"
+  },
+  "project.settings.server.server-online": {
+    "message": "Сервер запущен!"
+  },
+  "project.settings.server.srv-records-hint": {
+    "message": "Если у вас есть <srv-tooltip>[записи SRV]</srv-tooltip>, вы не должны добавлять порт. В другом случае если у вас есть порт, который не 25565, вы можете его ввести как: 12345"
+  },
+  "project.settings.server.srv-records-tooltip": {
+    "message": "Адрес который вы сюда вводите,может иметь DNS записей SRV _minecraft._tcp.(ваш домен), которые указывают на ваш адрес и порт сервера Майнкрафта."
+  },
+  "project.settings.tags.categories-description": {
+    "message": "Выберите все категории, которые отражают темы или функции вашего {type}"
+  },
+  "project.settings.tags.featured-tags": {
+    "message": "Ключевые теги"
+  },
+  "project.settings.tags.featured-tags-required": {
+    "message": "Необходим хотя бы один ключевой тег."
+  },
+  "project.settings.tags.featured-tags-select-description": {
+    "message": "Выберите наиболее подходящие теги. Они видны первыми."
+  },
+  "project.settings.tags.features-description": {
+    "message": "Выберите все особенности, которые использует ваш {type}"
+  },
+  "project.settings.tags.group-title.categories": {
+    "message": "{showType, select, yes {{types}: категории} other {Категории}}"
+  },
+  "project.settings.tags.group-title.features": {
+    "message": "{showType, select, yes {{types}: особенности} other {Особенности}}"
+  },
+  "project.settings.tags.group-title.performance-impact": {
+    "message": "{showType, select, yes {{types}: требования} other {Требования}}"
+  },
+  "project.settings.tags.group-title.resolutions": {
+    "message": "{showType, select, yes {{types}: разрешения} other {Разрешения}}"
+  },
+  "project.settings.tags.performance-impact-description": {
+    "message": "Выберите реалистичное влияние на производительность вашего {type}. Выберите несколько, если {type} можно конфигурировать разными уровнями влияния на производительность."
+  },
+  "project.settings.tags.resolutions-description": {
+    "message": "Выберите разрешение текстур в вашем {type}"
+  },
+  "project.settings.tags.select-at-least-one-category": {
+    "message": "Выберите хотя бы одну категорию, чтобы отобразить ее."
+  },
+  "project.settings.tags.title": {
+    "message": "Теги"
+  },
+  "project.settings.tags.upload-version-first.heading": {
+    "message": "Загрузите версии перед добавлением тегов"
+  },
+  "project.slug-suggestions.label": {
+    "message": "Предложения:"
+  },
+  "project.versions.copy-id-option": {
+    "message": "Копировать ID"
+  },
+  "project.versions.copy-link-option": {
+    "message": "Копировать ссылку"
+  },
+  "project.versions.copy-maven-coordinates-option": {
+    "message": "Копировать координаты Maven"
+  },
+  "project.versions.delete-button": {
+    "message": "Удалить"
+  },
+  "project.versions.delete-confirm.description": {
+    "message": "Версия будет удалена навсегда (буквально навсегда)."
+  },
+  "project.versions.delete-confirm.title": {
+    "message": "Вы точно хотите удалить эту версию?"
+  },
+  "project.versions.edit-details-option": {
+    "message": "Изменить сведения"
+  },
+  "project.versions.edit-files-option": {
+    "message": "Изменить файлы"
+  },
+  "project.versions.edit-metadata-option": {
+    "message": "Изменить метаданные"
+  },
+  "project.versions.edit-version-tooltip": {
+    "message": "Изменить версию"
+  },
+  "project.versions.open-in-new-tab-option": {
+    "message": "Открыть в новой вкладке"
+  },
+  "project.versions.share-option": {
+    "message": "Поделиться"
   },
   "project.versions.title": {
     "message": "Версии"
   },
+  "project.versions.version-deleted-text": {
+    "message": "Версия успешно удалена."
+  },
+  "project.versions.version-deleted-title": {
+    "message": "Версия удалена"
+  },
   "project.versions.withheld-versions-warning.description": {
-    "message": "{count, plural, one {Эта версия в настоящее время скрыта и не отображается} other {Эти версии в настоящее время скрыты и не отображаются}} в публичном списке. Пожалуйста, предоставьте доказательства того, что у вас есть разрешение на распространение определённых файлов, включённых в {count, plural, one {эту версию} other {эти версии}}."
+    "message": "{count, plural, =1 {Версия пока скрыта} other {Версии пока скрыты}}. Предоставьте разрешение на использование файлов в {count, plural, =1 {этой версии} other {этих версиях}} сборки."
   },
   "project.versions.withheld-versions-warning.title": {
-    "message": "{count, plural, one {Версия {version_name} скрыта} other {Версии скрыты}} из-за неизвестного встроенного контента"
+    "message": "{count, plural, =1 {Версия {version_name}} other {Версии}} на удержании из‑за неизвестного встроенного контента"
   },
   "report.already-reported": {
     "message": "Вы уже пожалова­лись на {title}"
+  },
+  "report.already-reported-description": {
+    "message": "Жалоба на этот контент уже отправлена. Если у вас есть дополнительная информация, добавьте её к жалобе."
+  },
+  "report.back-to-item": {
+    "message": "Вернуться к контенту"
   },
   "report.body.description": {
     "message": "При желании прикрепите ссылки и изображения. Неполные жалобы закрываются без рассмотрения."
   },
   "report.body.title": {
     "message": "Добавьте подробности к жалобе"
+  },
+  "report.checking": {
+    "message": "Поиск..."
+  },
+  "report.could-not-find": {
+    "message": "Не найдено"
   },
   "report.for.violation": {
     "message": "На нарушение наших <rules-link>правил</rules-link> или <terms-link>условий</terms-link>"
@@ -3689,29 +4556,50 @@
   "report.not-for.dmca.description": {
     "message": "Ознакомьтесь с нашей <policy-link>политикой авторских прав</policy-link>."
   },
+  "report.note.ai-images.1": {
+    "message": "Запрет на ИИ‑изображения в иконках, галереях и описаниях появился недавно. Мы дали авторам время на обновление проектов перед приёмом жалоб."
+  },
+  "report.note.check-back-later": {
+    "message": "Дождитесь окончания переходного периода. Жалобы этого типа пока не принимаются."
+  },
   "report.note.copyright.1": {
-    "message": "Обратите внимание, что это *не* запрос на удаление по DMCA, а жалоба о повторно загруженном контенте."
+    "message": "Это жалоба на перезалив контента, а не запрос на удаление по DMCA."
   },
   "report.note.copyright.2": {
-    "message": "Если вы намерены отправить запрос на удаление контента по DMCA (что является иском), ознакомьтесь с <copyright-policy-link>политикой защиты авторских прав</copyright-policy-link>."
+    "message": "Для подачи претензии на удаление контента по DMCA изучите <copyright-policy-link>политику авторских прав</copyright-policy-link>."
+  },
+  "report.note.fully-ai-generated.1": {
+    "message": "Запрет на полностью созданные ИИ проекты появился недавно. Мы дали авторам время на обновление проектов перед приёмом жалоб."
   },
   "report.note.malicious.1": {
-    "message": "Жалобы на вредоносный или обманный контент должны содержать веские доказательства, например фрагменты кода."
+    "message": "В жалобах на вредоносный контент нужны веские доказательства, например фрагменты кода."
   },
   "report.note.malicious.2": {
-    "message": "Отчёты от Microsoft Defender, VirusTotal или ИИ-систем обнаружения вредоносного ПО не считаются доказательством и рассматриваться не будут."
+    "message": "Отчётов Microsoft Defender, VirusTotal и ИИ‑сканеров недостаточно для доказательств."
+  },
+  "report.note.missing-disclosure.1": {
+    "message": "Маркировка контента появилась недавно. Мы дали авторам время на обновление проектов перед приёмом жалоб."
   },
   "report.please-report": {
     "message": "На что жаловаться"
   },
+  "report.question.content-id": {
+    "message": "Какой ID у контента?"
+  },
   "report.question.content-type": {
     "message": "На какой тип контента вы жалуетесь?"
+  },
+  "report.question.report-reason": {
+    "message": "Какое правило Modrinth нарушено?"
   },
   "report.report-content": {
     "message": "Жалоба модерато­рам на контент"
   },
   "report.report-item": {
     "message": "Жалоба модерато­рам на {title}"
+  },
+  "report.reported-for": {
+    "message": "Причина жалобы: {type}"
   },
   "report.submit": {
     "message": "Отправить жалобу"
@@ -4046,6 +4934,12 @@
   "servers.plan.small.description": {
     "message": "Для 1–5 друзей и пары лёгких модов."
   },
+  "servers.purchase.step.plan.most-popular": {
+    "message": "Популярный"
+  },
+  "servers.purchase.step.plan.per-month-billing": {
+    "message": "в месяц{interval, select, monthly {} quarterly {, за 3 месяца} yearly {, за год} other {, billed {interval}}}"
+  },
   "settings.account.button.complete-setup": {
     "message": "Завершить настройку"
   },
@@ -4071,7 +4965,7 @@
     "message": "Удалить этот аккаунт"
   },
   "settings.account.delete.confirm.title": {
-    "message": "Вы действительно хотите удалить свой аккаунт?"
+    "message": "Вы точно хотите удалить свой аккаунт?"
   },
   "settings.account.delete.section.action": {
     "message": "Удалить аккаунт"
@@ -4212,7 +5106,7 @@
     "message": "Ключ доступа «{name}» будет удалён навсегда. Им нельзя будет воспользоваться для входа."
   },
   "settings.account.security.passkey.remove.title": {
-    "message": "Вы действительно хотите удалить этот ключ доступа?"
+    "message": "Вы точно хотите удалить этот ключ доступа?"
   },
   "settings.account.security.passkey.rename-modal.header": {
     "message": "Переименование ключа доступа"
@@ -4278,22 +5172,19 @@
     "message": "Введённый код неверный!"
   },
   "settings.account.two-factor.field.code.description": {
-    "message": "Введите код подтверждения из приложения."
+    "message": "Введите код из аутентификатора или используйте резервный код."
   },
   "settings.account.two-factor.field.code.label": {
     "message": "Код подтверждения"
   },
-  "settings.account.two-factor.field.code.placeholder": {
-    "message": "Введите код..."
-  },
   "settings.account.two-factor.setup.intro": {
-    "message": "Двухфакторная аутентификация защищает аккаунт, требуя доступ ко второму устройству при входе в систему."
+    "message": "Двухфакторная аутентификация защищает аккаунт, требуя доступ ко второму устройству при входе."
   },
   "settings.account.two-factor.setup.manual-secret": {
     "message": "Если код не сканируется, введите ключ вручную:"
   },
   "settings.account.two-factor.setup.scan": {
-    "message": "Отсканируйте QR‑код через <authy-link>Authy</authy-link>, <microsoft-authenticator-link>Microsoft Authenticator</microsoft-authenticator-link> или любое другое приложение для генерации кодов, чтобы начать настройку."
+    "message": "Отсканируйте QR‑код в <authy-link>Authy</authy-link>, <microsoft-authenticator-link>Microsoft Authenticator</microsoft-authenticator-link> или любом другом приложении для генерации кодов, чтобы начать настройку."
   },
   "settings.account.two-factor.verify.description": {
     "message": "Введите одноразовый код подтверждения из приложения."
@@ -4310,23 +5201,14 @@
   "settings.applications.button.add-redirect-uri": {
     "message": "Добавить адрес перенаправления"
   },
-  "settings.applications.button.cancel": {
-    "message": "Отмена"
-  },
   "settings.applications.button.create": {
     "message": "Создать приложение"
   },
   "settings.applications.button.delete": {
     "message": "Удалить"
   },
-  "settings.applications.button.edit": {
-    "message": "Изменить"
-  },
   "settings.applications.button.new": {
     "message": "Новое приложение"
-  },
-  "settings.applications.button.save-changes": {
-    "message": "Сохранить изменения"
   },
   "settings.applications.button.upload-icon": {
     "message": "Загрузить иконку"
@@ -4347,7 +5229,7 @@
     "message": "Это приложение и все его токены доступа будут удалены навсегда. (безвозвратно!)"
   },
   "settings.applications.delete.confirm.title": {
-    "message": "Вы действительно хотите удалить это приложение?"
+    "message": "Вы точно хотите удалить это приложение?"
   },
   "settings.applications.description.intro": {
     "message": "Через приложения пользователи Modrinth могут входить в ваши сервисы. Подробнее — в <docs-link>документации</docs-link>."
@@ -4386,7 +5268,7 @@
     "message": "Приложения"
   },
   "settings.applications.modal.header": {
-    "message": "Информация о приложении"
+    "message": "Сведения о приложении"
   },
   "settings.applications.notification.icon-updated.description": {
     "message": "Иконка приложения обновлена."
@@ -4400,17 +5282,23 @@
   "settings.authorizations.about-this-app": {
     "message": "О приложении"
   },
-  "settings.authorizations.by": {
-    "message": "от"
+  "settings.authorizations.created-by": {
+    "message": "Создано {user}"
   },
   "settings.authorizations.description": {
     "message": "Авторизованные приложения получают доступ к аккаунту Modrinth. Здесь можно просматривать и отзывать этот доступ."
   },
-  "settings.authorizations.empty-state": {
-    "message": "Список приложений временно недоступен. Мы работаем над исправлением — загляните сюда позже."
+  "settings.authorizations.empty-state.description": {
+    "message": "Авторизованные вами приложения появятся здесь."
+  },
+  "settings.authorizations.empty-state.heading": {
+    "message": "Нет приложений"
   },
   "settings.authorizations.head-title": {
     "message": "Авторизации"
+  },
+  "settings.authorizations.official-tooltip": {
+    "message": "Это приложение создано официальным аккаунтом Modrinth."
   },
   "settings.authorizations.revoke.action": {
     "message": "Деавторизовать"
@@ -4419,7 +5307,10 @@
     "message": "Доступ приложения к аккаунту будет отозван. При необходимости приложение можно авторизовать снова."
   },
   "settings.authorizations.revoke.confirm.title": {
-    "message": "Вы действительно хотите деавторизовать это приложение?"
+    "message": "Вы точно хотите деавторизовать это приложение?"
+  },
+  "settings.authorizations.unofficial-disclosure": {
+    "message": "Это приложение никак не связано с Modrinth."
   },
   "settings.billing.charges.description": {
     "message": "Здесь перечислены все списания по аккаунту Modrinth:"
@@ -4488,16 +5379,16 @@
     "message": "Подписка будет отменена. Её бонусы останутся до конца оплаченного периода."
   },
   "settings.billing.modal.cancel.title": {
-    "message": "Вы действительно хотите отменить подписку?"
+    "message": "Вы точно хотите отменить подписку?"
   },
   "settings.billing.modal.delete.action": {
     "message": "Удалить этот способ оплаты"
   },
   "settings.billing.modal.delete.description": {
-    "message": "Этот способ оплаты будет удалён навсегда (буквально навсегда)."
+    "message": "Способ оплаты будет удалён навсегда (буквально навсегда)."
   },
   "settings.billing.modal.delete.title": {
-    "message": "Вы действительно хотите удалить этот способ оплаты?"
+    "message": "Вы точно хотите удалить этот способ оплаты?"
   },
   "settings.billing.next": {
     "message": "Далее:"
@@ -4529,11 +5420,14 @@
   "settings.billing.plan.title": {
     "message": "{size} план"
   },
+  "settings.billing.price.includes-tax": {
+    "message": "Налог: {amount}"
+  },
   "settings.billing.price.per-interval": {
     "message": "{price} в {interval}"
   },
   "settings.billing.pyro.linked-server.not-found": {
-    "message": "Привязанный сервер не найден. Возможных причин несколько: сервер куплен только что — подождите, подготовка занимает до часа; сервер куплен давно — вероятно, его уже приостановили. Если что‑то не так, свяжитесь с поддержкой Modrinth, указав следующие данные:"
+    "message": "Привязанный сервер не найден. Настройка нового сервера занимает до часа. Если сервер куплен давно, он мог быть приостановлен. По вопросам обращайтесь в поддержку, указав следующие данные:"
   },
   "settings.billing.pyro.linked-server.server-id": {
     "message": "ID сервера: {id}"
@@ -4551,7 +5445,7 @@
     "message": "Не удалось возобновить подписку"
   },
   "settings.billing.pyro.resubscribe.request-submitted.text": {
-    "message": "Если сервер в данный момент отключен, настройка сервера может занять 10-15 минут."
+    "message": "Если сервер отменён, настройка займёт 10–15 минут."
   },
   "settings.billing.pyro.resubscribe.request-submitted.title": {
     "message": "Подписка возобновляется"
@@ -4616,95 +5510,11 @@
   "settings.display.banner.developer-mode.description": {
     "message": "<strong>Режим разработчика</strong> включён. Отображаются внутренние идентификаторы различных элементов сайта, что удобно при работе с API. Чтобы отключить, снова нажмите на логотип Modrinth внизу страницы 5 раз."
   },
-  "settings.display.flags.description": {
-    "message": "Настройте отдельные функции на этом устройстве."
-  },
-  "settings.display.flags.title": {
-    "message": "Настройка функций"
-  },
   "settings.display.notification.developer-mode-deactivated.text": {
     "message": "Режим разработчика больше не активен"
   },
   "settings.display.notification.developer-mode-deactivated.title": {
     "message": "Режим разработчика отключён"
-  },
-  "settings.display.project-list-layouts.datapack": {
-    "message": "Страница наборов данных"
-  },
-  "settings.display.project-list-layouts.description": {
-    "message": "Выберите вид для каждой страницы с проектами на этом устройстве."
-  },
-  "settings.display.project-list-layouts.mod": {
-    "message": "Страница модов"
-  },
-  "settings.display.project-list-layouts.mode.gallery": {
-    "message": "Галерея"
-  },
-  "settings.display.project-list-layouts.mode.grid": {
-    "message": "Сетка"
-  },
-  "settings.display.project-list-layouts.mode.rows": {
-    "message": "Список"
-  },
-  "settings.display.project-list-layouts.modpack": {
-    "message": "Страница сборок"
-  },
-  "settings.display.project-list-layouts.plugin": {
-    "message": "Страница плагинов"
-  },
-  "settings.display.project-list-layouts.resourcepack": {
-    "message": "Страница наборов ресурсов"
-  },
-  "settings.display.project-list-layouts.server": {
-    "message": "Страница серверов"
-  },
-  "settings.display.project-list-layouts.shader": {
-    "message": "Страница шейдеров"
-  },
-  "settings.display.project-list-layouts.title": {
-    "message": "Вид проектов"
-  },
-  "settings.display.project-list-layouts.user": {
-    "message": "Страницы пользователей"
-  },
-  "settings.display.project-list.layouts.collection": {
-    "message": "Коллекция"
-  },
-  "settings.display.sidebar.advanced-rendering.description": {
-    "message": "Включает продвинутые эффекты вроде размытия, но может снизить производительность на устройствах без аппаратного ускорения."
-  },
-  "settings.display.sidebar.advanced-rendering.title": {
-    "message": "Расширенные эффекты"
-  },
-  "settings.display.sidebar.external-links-new-tab.description": {
-    "message": "Ссылки за пределы Modrinth будут открываться в новой вкладке. Исключения: ссылки внутри домена и в Markdown — всегда в той же вкладке; реклама и страницы редактирования — всегда в новой."
-  },
-  "settings.display.sidebar.external-links-new-tab.title": {
-    "message": "Внешние ссылки в новой вкладке"
-  },
-  "settings.display.sidebar.hide-app-promos.description": {
-    "message": "Убирает кнопку «Скачать Modrinth App» с поисковых страниц. Ссылку на раздел с Modrinth App всё ещё можно найти на главной странице или в нижней части интерфейса."
-  },
-  "settings.display.sidebar.hide-app-promos.title": {
-    "message": "Скрывать кнопку скачивания Modrinth App"
-  },
-  "settings.display.sidebar.left-aligned-content-sidebar.title": {
-    "message": "Панель сведений слева"
-  },
-  "settings.display.sidebar.right-aligned-content-sidebar.description": {
-    "message": "Помещает панель сведений слева от содержимого страницы."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.description": {
-    "message": "Помещает панель фильтров справа от результатов поиска."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.title": {
-    "message": "Панель фильтров справа"
-  },
-  "settings.display.theme.description": {
-    "message": "Выберите тему для Modrinth на этом устройстве."
-  },
-  "settings.display.theme.title": {
-    "message": "Тема"
   },
   "settings.head-title": {
     "message": "Настройки отображения"
@@ -4734,10 +5544,10 @@
     "message": "Удалить этот токен"
   },
   "settings.pats.modal.delete.description": {
-    "message": "Этот токен будет удалён навсегда (буквально навсегда)."
+    "message": "Токен будет удалён навсегда (буквально навсегда)."
   },
   "settings.pats.modal.delete.title": {
-    "message": "Вы действительно хотите удалить этот токен?"
+    "message": "Вы точно хотите удалить этот токен?"
   },
   "settings.pats.modal.edit.title": {
     "message": "Настройка личного токена доступа"
@@ -4760,27 +5570,6 @@
   "settings.pats.token.never-used": {
     "message": "Не использовался"
   },
-  "settings.profile.bio.description": {
-    "message": "Возможность кратко рассказать всем о себе."
-  },
-  "settings.profile.bio.title": {
-    "message": "О себе"
-  },
-  "settings.profile.description": {
-    "message": "Информация в вашем профиле доступна публично на Modrinth и через <docs-link>API Modrinth</docs-link>."
-  },
-  "settings.profile.head-title": {
-    "message": "Настройки профиля"
-  },
-  "settings.profile.profile-info": {
-    "message": "Информация в профиле"
-  },
-  "settings.profile.profile-picture.title": {
-    "message": "Изображение профиля"
-  },
-  "settings.profile.username.description": {
-    "message": "Уникальное имя для идентификации профиля. Регистр не имеет значения."
-  },
   "settings.sessions.action.revoke-session": {
     "message": "Завершить сеанс"
   },
@@ -4791,7 +5580,7 @@
     "message": "Текущий сеанс"
   },
   "settings.sessions.description": {
-    "message": "Ниже представлены все устройства, с которых осуществлён вход в вашу учётную запись Modrinth. Вы можете управлять сеансом каждого из них по отдельности.\n\nЕсли среди них присутствует незнакомое устройство, незамедлительно завершите его сеанс и смените пароль своей учётной записи."
+    "message": "Ниже показаны устройства, использующие ваш аккаунт Modrinth. Сеансом каждого из них можно управлять по отдельности.\n\nЕсли в списке есть незнакомое устройство, немедленно завершите его сеанс и смените пароль от аккаунта."
   },
   "settings.sessions.last-accessed-ago": {
     "message": "Активность {ago}"
@@ -4811,6 +5600,33 @@
   "settings.sidebar.label.display": {
     "message": "Отображение"
   },
+  "shared-instance.invite.accept": {
+    "message": "Принять приглашение"
+  },
+  "shared-instance.invite.inviter.unknown": {
+    "message": "Пользователь Modrinth"
+  },
+  "shared-instance.invite.joined-count": {
+    "message": "{count, plural, one {# человек} few {# человека} other {# человек}} уже присоединились"
+  },
+  "shared-instance.invite.loading": {
+    "message": "Загрузка приглашения..."
+  },
+  "shared-instance.invite.title": {
+    "message": "{name} приглашает сыграть"
+  },
+  "shared-instance.invite.trust.description": {
+    "message": "Это приглашение создано другим пользователем Modrinth. Принимайте приглашения только от тех, кому доверяете."
+  },
+  "shared-instance.invite.trust.heading": {
+    "message": "Вы знакомы с этим пользователем?"
+  },
+  "shared-instance.invite.unavailable.description": {
+    "message": "Возможно, срок действия приглашения истек, исчерпан лимит использования или оно было удалено пользователем, который им поделился."
+  },
+  "shared-instance.invite.unavailable.title": {
+    "message": "Приглашение недоступно"
+  },
   "ui.latest-news-row.latest-news": {
     "message": "Последние новости от Modrinth"
   },
@@ -4824,19 +5640,34 @@
     "message": "Вы подписаны!"
   },
   "ui.newsletter-button.tooltip": {
-    "message": "Подписаться на рассылку от Modrinth"
+    "message": "Подписаться на рассылку от Modrinth"
+  },
+  "ui.two-factor-code.authentication-code": {
+    "message": "Шестизначный код из аутентификатора"
+  },
+  "ui.two-factor-code.backup-code": {
+    "message": "Резервный код"
+  },
+  "ui.two-factor-code.backup-code.placeholder": {
+    "message": "Введите резервный код"
+  },
+  "ui.two-factor-code.use-authentication-code": {
+    "message": "Использовать аутентификатор"
+  },
+  "ui.two-factor-code.use-backup-code": {
+    "message": "Использовать резервный код"
   },
   "version.all-versions": {
     "message": "Все версии"
   },
   "version.confirm-delete.description": {
-    "message": "Эта версия будет удалена навсегда. Отменить это действие нельзя."
+    "message": "Версия будет удалена навсегда. Это действие необратимо."
   },
   "version.confirm-delete.proceed": {
     "message": "Удалить версию"
   },
   "version.confirm-delete.title": {
-    "message": "Вы действительно хотите удалить эту версию?"
+    "message": "Вы точно хотите удалить эту версию?"
   },
   "version.dependency.view-project": {
     "message": "Посмотреть проект"
@@ -4882,6 +5713,18 @@
   },
   "version.environment.unknown.title": {
     "message": "Неизвестная среда"
+  },
+  "version.notification.deleted-text": {
+    "message": "Версия успешно удалена."
+  },
+  "version.notification.deleted-title": {
+    "message": "Версия удалена"
+  },
+  "version.notification.packaging-success-text": {
+    "message": "Набор данных успешно собран в мод! Не забудьте протестировать его на наличие ошибок."
+  },
+  "version.notification.packaging-success-title": {
+    "message": "Набор данных собран"
   },
   "version.package-as-mod.button": {
     "message": "Собрать в мод"

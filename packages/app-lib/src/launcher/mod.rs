@@ -25,13 +25,13 @@ use chrono::Utc;
 use daedalus as d;
 use daedalus::minecraft::{LoggingSide, RuleAction, VersionInfo};
 use daedalus::modded::{LoaderVersion, Manifest};
-use regex::Regex;
 use serde::Deserialize;
-use std::fmt::Write;
-use std::path::PathBuf;
+use std::future::Future;
+use std::path::{Path, PathBuf};
 use tokio::process::Command;
 
 mod args;
+pub(crate) mod hooks;
 
 pub mod download;
 pub mod quick_play_version;
@@ -178,7 +178,7 @@ pub async fn get_loader_version_from_profile(
     if let Some(loaders) =
         loader_versions_for_game_version(&versions, game_version)
     {
-        let loader_version =
+        let resolved =
             loaders
                 .iter()
                 .find(|x| filter(x))
@@ -188,10 +188,71 @@ pub async fn get_loader_version_from_profile(
                     None
                 });
 
-        Ok(loader_version.cloned())
-    } else {
-        Ok(None)
+        if let Some(resolved) = resolved {
+            return Ok(Some(resolved.clone()));
+        }
     }
+
+    if concrete_loader_version_id(version).is_none() {
+        return Ok(None);
+    }
+
+    let state = State::get().await?;
+    Ok(installed_loader_version(
+        &state.directories.versions_dir(),
+        game_version,
+        version,
+    ))
+}
+
+fn installed_loader_version(
+    versions_dir: &Path,
+    game_version: &str,
+    loader_version: &str,
+) -> Option<LoaderVersion> {
+    let loader_version = concrete_loader_version_id(loader_version)?;
+    let path = installed_loader_metadata_path(
+        versions_dir,
+        game_version,
+        loader_version,
+    );
+    if !path.is_file() {
+        return None;
+    }
+
+    tracing::info!(
+        game_version,
+        loader_version,
+        "Using an installed loader version that is no longer listed by the meta server"
+    );
+
+    Some(LoaderVersion {
+        id: loader_version.to_string(),
+        url: String::new(),
+        stable: false,
+    })
+}
+
+pub(super) fn is_locally_installed_loader(loader: &LoaderVersion) -> bool {
+    loader.url.is_empty()
+}
+
+fn concrete_loader_version_id(loader_version: &str) -> Option<&str> {
+    match loader_version {
+        "" | "latest" | "stable" => None,
+        id => Some(id),
+    }
+}
+
+fn installed_loader_metadata_path(
+    versions_dir: &Path,
+    game_version: &str,
+    loader_version: &str,
+) -> PathBuf {
+    let version_id = format!("{game_version}-{loader_version}");
+    versions_dir
+        .join(&version_id)
+        .join(format!("{version_id}.json"))
 }
 
 fn loader_versions_for_game_version<'a>(
@@ -212,6 +273,63 @@ fn loader_versions_for_game_version<'a>(
     } else {
         Some(version.loaders.as_slice())
     }
+}
+
+pub(crate) async fn resolve_java_for_launch(
+    context: &InstanceLaunchContext,
+) -> crate::Result<JavaVersion> {
+    let state = State::get().await?;
+    let _runtime_lease = state.content_store.runtime_cache_lock.read().await;
+    let content_set = &context.applied_content_set;
+    let (minecraft, version_index) =
+        resolve_minecraft_manifest(&content_set.game_version, &state).await?;
+    let version = &minecraft.versions[version_index];
+
+    let mut loader_version = get_loader_version_from_profile(
+        &content_set.game_version,
+        content_set.loader,
+        content_set.loader_version.as_deref(),
+    )
+    .await?;
+
+    if content_set.loader != ModLoader::Vanilla && loader_version.is_none() {
+        loader_version = get_loader_version_from_profile(
+            &content_set.game_version,
+            content_set.loader,
+            Some("stable"),
+        )
+        .await?;
+    }
+
+    let version_info = download::download_version_info(
+        &state,
+        version,
+        loader_version.as_ref(),
+        None,
+        None,
+        None,
+    )
+    .await?;
+
+    let key = version_info
+        .java_version
+        .as_ref()
+        .map_or(8, |it| it.major_version);
+    let (java_path, set_java) = if let Some(java_version) =
+        get_java_version_from_launch_context(context, &version_info).await?
+    {
+        (PathBuf::from(java_version.path), false)
+    } else {
+        (crate::api::jre::auto_install_java(key).await?, true)
+    };
+
+    let java_version = crate::api::jre::check_jre(java_path).await?;
+
+    if set_java {
+        java_version.upsert(&state.pool).await?;
+    }
+
+    Ok(java_version)
 }
 
 /// Resolves the Minecraft version manifest and finds the index for the given
@@ -261,7 +379,16 @@ async fn get_instance_full_path(instance_path: &str) -> crate::Result<PathBuf> {
     Ok(full_path)
 }
 
-pub async fn install_minecraft_with_reporter(
+/// Keeps installation state on the heap so callers do not inherit its size.
+pub fn install_minecraft_with_reporter(
+    context: &InstanceLaunchContext,
+    repairing: bool,
+    reporter: Option<InstallProgressReporter>,
+) -> impl Future<Output = crate::Result<()>> + Send + '_ {
+    Box::pin(install_minecraft_inner(context, repairing, reporter))
+}
+
+async fn install_minecraft_inner(
     context: &InstanceLaunchContext,
     repairing: bool,
     reporter: Option<InstallProgressReporter>,
@@ -290,6 +417,8 @@ pub async fn install_minecraft_with_reporter(
     };
 
     let state = State::get().await?;
+    let _runtime_lease = state.content_store.runtime_cache_lock.read().await;
+    let previous_install_stage = instance.install_stage;
 
     crate::state::instances::commands::set_instance_install_stage(
         &instance.id,
@@ -299,6 +428,7 @@ pub async fn install_minecraft_with_reporter(
     .await?;
     emit_instance(&instance.id, InstancePayloadType::Edited).await?;
 
+    let result = Box::pin(async {
     let instance_path = get_instance_full_path(&instance.path).await?;
     if let Some(reporter) = &reporter {
         reporter
@@ -442,17 +572,17 @@ pub async fn install_minecraft_with_reporter(
             )
             .await?;
     }
-    download::download_minecraft(
-        &state,
-        &version_info,
-        loading_bar.as_ref(),
-        &java_version.architecture,
-        repairing,
-        minecraft_updated,
-        reporter.clone(),
-        phase_details.clone(),
-    )
-    .await?;
+	download::download_minecraft(
+		&state,
+		&version_info,
+		loading_bar.as_ref(),
+		&java_version.architecture,
+		repairing,
+		minecraft_updated,
+		reporter.clone(),
+		phase_details.clone(),
+	)
+	.await?;
 
     let client_path = state
         .directories
@@ -601,24 +731,64 @@ pub async fn install_minecraft_with_reporter(
 
     let protocol_version = read_protocol_version_from_jar(client_path).await?;
 
-    crate::state::instances::commands::set_instance_install_stage(
-        &instance.id,
-        InstanceInstallStage::Installed,
-        &state.pool,
-    )
-    .await?;
-    emit_instance(&instance.id, InstancePayloadType::Edited).await?;
     crate::state::instances::commands::set_applied_content_set_protocol_version(
         &instance.id,
         protocol_version,
         &state.pool,
     )
     .await?;
+	if reporter.is_none() {
+		crate::state::instances::commands::set_instance_install_stage(
+			&instance.id,
+			InstanceInstallStage::Installed,
+			&state.pool,
+		)
+		.await?;
+		if let Err(error) =
+			crate::api::instance::reconcile_instance_synced_options(
+				&instance.id,
+			)
+			.await
+		{
+			tracing::warn!(
+				"Failed to reconcile synced options after installing {}: {error}",
+				instance.id
+			);
+		}
+		emit_instance(&instance.id, InstancePayloadType::Edited).await?;
+	}
     if let Some(loading_bar) = &loading_bar {
         emit_loading(loading_bar, 1.0, Some("Finished installing"))?;
     }
 
-    Ok(())
+    Ok::<(), crate::Error>(())
+	})
+    .await;
+
+    if result.is_err() {
+        if let Err(error) =
+            crate::state::instances::commands::set_instance_install_stage(
+                &instance.id,
+                previous_install_stage,
+                &state.pool,
+            )
+            .await
+        {
+            tracing::error!(
+                "Failed to restore install stage for instance {}: {error}",
+                instance.id
+            );
+        } else if let Err(error) =
+            emit_instance(&instance.id, InstancePayloadType::Edited).await
+        {
+            tracing::error!(
+                "Failed to emit restored install stage for instance {}: {error}",
+                instance.id
+            );
+        }
+    }
+
+    result
 }
 
 pub async fn install_minecraft_for_instance_id_with_reporter(
@@ -645,29 +815,37 @@ pub async fn install_minecraft_for_instance_id_with_reporter(
 pub async fn read_protocol_version_from_jar(
     path: PathBuf,
 ) -> crate::Result<Option<u32>> {
+    Ok(read_game_version_metadata_from_jar(&path)
+        .await?
+        .and_then(|data| data.protocol_version))
+}
+
+#[derive(Deserialize, Debug)]
+pub(crate) struct GameVersionMetadata {
+    pub(crate) protocol_version: Option<u32>,
+    pub(crate) world_version: Option<u32>,
+}
+
+/// Reads the game's embedded metadata, available from snapshot 18w47b onward.
+pub(crate) async fn read_game_version_metadata_from_jar(
+    path: &Path,
+) -> crate::Result<Option<GameVersionMetadata>> {
     let zip = async_zip::tokio::read::fs::ZipFileReader::new(path).await?;
-    let Some(entry_index) = zip
-        .file()
-        .entries()
-        .iter()
-        .position(|x| matches!(x.filename().as_str(), Ok("version.json")))
-    else {
+    let Some(entry_index) = zip.file().entries().iter().position(|entry| {
+        entry
+            .filename()
+            .as_str()
+            .is_ok_and(|name| name == "version.json")
+    }) else {
         return Ok(None);
     };
 
-    #[derive(Deserialize, Debug)]
-    struct VersionData {
-        protocol_version: Option<u32>,
-    }
-
-    let mut data = vec![];
+    let mut data = Vec::new();
     zip.reader_with_entry(entry_index)
         .await?
         .read_to_end_checked(&mut data)
         .await?;
-    let data: VersionData = serde_json::from_slice(&data)?;
-
-    Ok(data.protocol_version)
+    Ok(Some(serde_json::from_slice(&data)?))
 }
 
 fn link_project_and_version(
@@ -729,6 +907,7 @@ pub async fn launch_minecraft(
     }
 
     let state = State::get().await?;
+    let mut runtime_lease = state.content_store.runtime_cache_lock.read().await;
 
     let instance_path = get_instance_full_path(&instance.path).await?;
 
@@ -837,7 +1016,6 @@ pub async fn launch_minecraft(
     let env_args = Vec::from(env_args);
 
     // Check if instance has a running process, and reject running the command if it does
-    // Done late so a quick double call doesn't launch two instances
     let existing_processes = process::get_by_instance_id(&instance.id).await?;
     if let Some(process) = existing_processes.first() {
         return Err(crate::ErrorKind::LauncherError(format!(
@@ -846,6 +1024,34 @@ pub async fn launch_minecraft(
         ))
         .as_error());
     }
+    if crate::state::instance_has_running_process(&instance.id, &state).await? {
+        return Err(crate::ErrorKind::LauncherError(format!(
+            "Instance {} is already running",
+            instance.id
+        ))
+        .as_error());
+    }
+
+    if let Some(path) = download::missing_runtime_file(
+        &state,
+        &version_info,
+        &java_version.architecture,
+        minecraft_updated,
+    )? {
+        tracing::info!(instance_id = %instance.id, path = %path.display(), "Restoring missing Minecraft runtime files before launch");
+        drop(runtime_lease);
+        let job = crate::install::install_existing_instance(
+            instance.id.clone(),
+            false,
+        )
+        .await?;
+        let job_id = uuid::Uuid::parse_str(&job.job_id).map_err(|error| {
+            crate::ErrorKind::LauncherError(error.to_string())
+        })?;
+        crate::install::runner::wait_for_job(job_id).await?;
+        runtime_lease = state.content_store.runtime_cache_lock.read().await;
+    }
+    let _runtime_lease = runtime_lease;
 
     let natives_dir = state.directories.version_natives_dir(&version_jar);
     if !natives_dir.exists() {
@@ -967,49 +1173,65 @@ pub async fn launch_minecraft(
     // Java options should be set in instance options (the existence of _JAVA_OPTIONS overwrites them)
     command.env_remove("_JAVA_OPTIONS");
 
-    command.envs(env_args);
+    command.envs(env_args.iter().cloned());
 
-    // Overwrites the minecraft options.txt file with the settings from the profile
-    // Uses 'a:b' syntax which is not quite yaml
-    if !mc_set_options.is_empty() {
-        let options_path = instance_path.join("options.txt");
+    if let Err(error) =
+        crate::api::instance::reconcile_synced_packs(&instance.id).await
+    {
+        tracing::warn!(
+            "Failed to reconcile synced packs before launching {}: {error}",
+            instance.id
+        );
+    }
 
-        let (mut options_string, input_encoding) = if options_path.exists() {
-            io::read_any_encoding_to_string(&options_path).await?
-        } else {
-            (String::new(), encoding_rs::UTF_8)
-        };
+    if let Err(error) =
+        crate::api::instance::sync_game_options_before_launch(&instance.id)
+            .await
+    {
+        tracing::warn!(
+            "Failed to reconcile game options before launching {}: {error}",
+            instance.id
+        );
+    }
 
-        // UTF-16 encodings may be successfully detected and read, but we cannot encode
-        // them back, and it's technically possible that the game client strongly expects
-        // such encoding
-        if input_encoding != input_encoding.output_encoding() {
-            return Err(crate::ErrorKind::LauncherError(format!(
-                "The instance options.txt file uses an unsupported encoding: {}. \
-                Please either turn off instance options that need to modify this file, \
-                or convert the file to an encoding that both the game and this app support, \
-                such as UTF-8.",
-                input_encoding.name()
-            ))
-            .into());
-        }
+    crate::api::instance::apply_game_options_launcher_overrides(
+        &instance.id,
+        mc_set_options,
+    )
+    .await?;
 
-        for (key, value) in mc_set_options {
-            let re = Regex::new(&format!(r"(?m)^{}:.*$", regex::escape(key)))?;
-            // check if the regex exists in the file
-            if !re.is_match(&options_string) {
-                // The key was not found in the file, so append it
-                write!(&mut options_string, "\n{key}:{value}").unwrap();
-            } else {
-                let replaced_string = re
-                    .replace_all(&options_string, &format!("{key}:{value}"))
-                    .to_string();
-                options_string = replaced_string;
-            }
-        }
-
-        io::write(&options_path, input_encoding.encode(&options_string).0)
-            .await?;
+    crate::state::instances::commands::sync_content_files(&instance.id, &state)
+        .await?;
+    let _instance_content_lock =
+        state.lock_instance_content(&instance.id).await;
+    let current =
+		crate::state::instances::adapters::sqlite::instance_rows::get_instance_by_id(
+			&instance.id, &state.pool,
+		)
+		.await?
+		.ok_or_else(|| crate::state::content_store::input("Unknown instance"))?;
+    if current.install_stage != InstanceInstallStage::Installed {
+        return Err(crate::ErrorKind::LauncherError(
+			"Instance is not ready to launch; finish or recover its installation first".to_string(),
+		)
+		.into());
+    }
+    crate::install::store::ensure_no_pending_recovery(
+        &instance.id,
+        None,
+        &state,
+    )
+    .await?;
+    let _store_lock = state.content_store.files_lock.lock().await;
+    let _store_lease = state.content_store.lease().await;
+    state.content_store.recover(Some(&instance.id)).await?;
+    // state.content_store.validate_instance(instance).await?;
+    if crate::state::instance_has_running_process(&instance.id, &state).await? {
+        return Err(crate::ErrorKind::LauncherError(format!(
+            "Instance {} is already running",
+            instance.id
+        ))
+        .as_error());
     }
 
     crate::state::instances::commands::set_instance_last_played(
@@ -1053,6 +1275,7 @@ pub async fn launch_minecraft(
             &instance.name,
             command,
             post_exit_hook,
+            env_args,
             state.directories.instance_logs_dir(&instance.path),
             version_info.logging.is_some(),
             main_class_keep_alive,

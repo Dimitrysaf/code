@@ -5,9 +5,6 @@
   "action.continue": {
     "message": "Tumuloy"
   },
-  "admin.billing.error.not-found": {
-    "message": "Hindi mahanap na tagagamit"
-  },
   "analytics.action.add": {
     "message": "Magdagdag"
   },
@@ -185,23 +182,11 @@
   "app-marketing.download.windows": {
     "message": "Windows"
   },
-  "app-marketing.features.follow.description": {
-    "message": "I-save ang iyong minamahal na kontento at makapagtanggap ng mga update sa iisang pindot."
-  },
-  "app-marketing.features.follow.title": {
-    "message": "Sundan ang mga proyekto"
-  },
-  "app-marketing.features.importing.description": {
-    "message": "I-import ang lahat ng mga paboritong profile mo galing sa launcher na dating ginagamit mo, at magsimula na sa Modrinth App is iilang segundo!"
-  },
   "app-marketing.features.importing.gdlauncher-alt": {
     "message": "GDLauncher"
   },
   "app-marketing.features.importing.multimc-alt": {
     "message": "MultiMC"
-  },
-  "app-marketing.features.importing.title": {
-    "message": "Pag-import ng profile"
   },
   "app-marketing.features.mod-management.actions": {
     "message": "Mga Aksiyon"
@@ -227,15 +212,6 @@
   "app-marketing.features.mod-management.version": {
     "message": "Bersiyon"
   },
-  "app-marketing.features.offline.description": {
-    "message": "Laruin ang iyong mga mod, kung mapakonekta ka man sa internet, o hindi."
-  },
-  "app-marketing.features.offline.title": {
-    "message": "Offline mode"
-  },
-  "app-marketing.features.open-source.description": {
-    "message": "Buong naka-open-source ang launcher ng Modrinth. Maaari mong matingnan ang source code sa aming <github-link>GitHub</github-link>!"
-  },
   "app-marketing.features.open-source.title": {
     "message": "Open source"
   },
@@ -245,9 +221,6 @@
   "app-marketing.features.performance.cpu-percent": {
     "message": "% CPU"
   },
-  "app-marketing.features.performance.description": {
-    "message": "Ang Modrinth App ay mas mahusay mag-perform kaysa sa maraming nangungunang mod manager, gumagamit lamang ng 150 MB ng RAM!"
-  },
   "app-marketing.features.performance.discord": {
     "message": "Discord"
   },
@@ -256,12 +229,6 @@
   },
   "app-marketing.features.performance.google-chrome": {
     "message": "Google Chrome"
-  },
-  "app-marketing.features.performance.infinite-mb": {
-    "message": "∞ MB"
-  },
-  "app-marketing.features.performance.less-than-150mb": {
-    "message": "< 150 MB"
   },
   "app-marketing.features.performance.modrinth-app": {
     "message": "Modrinth App"
@@ -391,9 +358,6 @@
   },
   "auth.reset-password.title.long": {
     "message": "Baguhin ang iyong password"
-  },
-  "auth.sign-in.2fa.placeholder": {
-    "message": "Ilagay ang code..."
   },
   "auth.sign-in.title": {
     "message": "Mag-sign In"
@@ -1307,9 +1271,6 @@
   "hosting-marketing.faq.cpu-kind": {
     "message": "Anong uri ng CPU pinatatakbo ang mga server ng Modrinth Hosting?"
   },
-  "hosting-marketing.faq.cpu-kind.answer": {
-    "message": "Ang mga server ng Modrinth Hosting ay pinapagana ng AMD Ryzen 7900 at 7950X3D katumbas na CPU sa 5+ GHz, pinares nang memoryang DDR5."
-  },
   "hosting-marketing.faq.currency": {
     "message": "Saang salapi pinipresyo ito?"
   },
@@ -1625,9 +1586,6 @@
   "layout.action.file-lookup": {
     "message": "File lookup"
   },
-  "layout.action.lookup-by-email": {
-    "message": "Lookup by email"
-  },
   "layout.action.manage-affiliates": {
     "message": "Pamahalaan ang mga affiliate link"
   },
@@ -1642,9 +1600,6 @@
   },
   "layout.action.new-project": {
     "message": "Bagong proyekto"
-  },
-  "layout.action.new-server-project": {
-    "message": "Bagong server"
   },
   "layout.action.publish": {
     "message": "Ilathala"
@@ -1799,9 +1754,6 @@
   "layout.footer.social.discord": {
     "message": "Discord"
   },
-  "layout.footer.social.github": {
-    "message": "GitHub"
-  },
   "layout.footer.social.mastodon": {
     "message": "Mastodon"
   },
@@ -1828,9 +1780,6 @@
   },
   "layout.nav.discover": {
     "message": "Tumuklas"
-  },
-  "layout.nav.discover-content": {
-    "message": "Tumuklas ng kontento"
   },
   "layout.nav.get-modrinth-app": {
     "message": "Kunin ang Modrinth App"
@@ -2153,99 +2102,6 @@
   "muralpay.warning.wallet-address": {
     "message": "Pakisuri muli ng iyong wallet address. Ang mga pundong nahatid sa maling address ay hindi na mababawi."
   },
-  "profile.bio.fallback.creator": {
-    "message": "Isang tagagawa sa Modrinth."
-  },
-  "profile.bio.fallback.user": {
-    "message": "Isang tagagamit sa Modrinth."
-  },
-  "profile.button.billing": {
-    "message": "Pamahalaan ang billing ng tagagamit"
-  },
-  "profile.button.edit-role": {
-    "message": "Baguhin ang tungkulin"
-  },
-  "profile.button.info": {
-    "message": "Tingang ang mga detalye ng tagagamit"
-  },
-  "profile.button.manage-projects": {
-    "message": "Pamahalaan ang mga proyekto"
-  },
-  "profile.button.remove-affiliate": {
-    "message": "Tanggalin bilang affiliate"
-  },
-  "profile.button.set-affiliate": {
-    "message": "Itakda bilang affiliate"
-  },
-  "profile.details.label.auth-providers": {
-    "message": "Mga auth provider"
-  },
-  "profile.details.label.email": {
-    "message": "Email"
-  },
-  "profile.details.label.email-verified": {
-    "message": "Napatunayan na email"
-  },
-  "profile.details.label.has-password": {
-    "message": "May password"
-  },
-  "profile.details.label.has-totp": {
-    "message": "May TOTP"
-  },
-  "profile.details.label.payment-methods": {
-    "message": "Mga paraan ng pagbabayad"
-  },
-  "profile.details.tooltip.email-not-verified": {
-    "message": "Hindi napatunayang email"
-  },
-  "profile.details.tooltip.email-verified": {
-    "message": "Napatunayan na email"
-  },
-  "profile.error.not-found": {
-    "message": "Hindi mahanap na tagagamit"
-  },
-  "profile.label.affiliate": {
-    "message": "Affiliate"
-  },
-  "profile.label.badges": {
-    "message": "Tsapa"
-  },
-  "profile.label.collection": {
-    "message": "Koleksiyon"
-  },
-  "profile.label.joined": {
-    "message": "Sumali"
-  },
-  "profile.label.no-collections": {
-    "message": "Walang mga koleksiyon ang tagagamit na ito!"
-  },
-  "profile.label.no-collections-auth": {
-    "message": "Wala kang koleksiyon.\nNais mo bang <create-link>lumikha ng isa</create-link>?"
-  },
-  "profile.label.no-projects": {
-    "message": "Walang mga proyekto ang tagagmit na ito!"
-  },
-  "profile.label.no-projects-auth": {
-    "message": "Wala kang proyekto.\nNais mo bang <create-link>lumikha ng isa</create-link>?"
-  },
-  "profile.label.organizations": {
-    "message": "Mga organisasyon"
-  },
-  "profile.label.saving": {
-    "message": "Sine-save..."
-  },
-  "profile.meta.description": {
-    "message": "Magdownload ng mga proyekto ni {username} sa Modrinth"
-  },
-  "profile.meta.description-with-bio": {
-    "message": "{bio} - Magdownload ng mga proyekto ni {username} sa Modrinth"
-  },
-  "profile.stats.projects-followers": {
-    "message": "{count, plural, one {<stat>{count}</stat> follower ng proyekto} other {<stat>{count}</stat> na follower ng proyekto}}"
-  },
-  "profile.user-id": {
-    "message": "User ID: {id}"
-  },
   "project-member-header.error-decline": {
     "message": "Bigong matanggihan ang anyaya sa koponan"
   },
@@ -2360,24 +2216,6 @@
   "project-type.shader.singular": {
     "message": "Shader"
   },
-  "project.about.details.created": {
-    "message": "Linikha {date}"
-  },
-  "project.about.details.licensed": {
-    "message": "Linisensiya {license}"
-  },
-  "project.about.details.published": {
-    "message": "Inilathala {date}"
-  },
-  "project.about.details.submitted": {
-    "message": "Isinumite {date}"
-  },
-  "project.about.details.title": {
-    "message": "Detalye"
-  },
-  "project.about.details.updated": {
-    "message": "In-update {date}"
-  },
   "project.actions.create-server": {
     "message": "Lumikha ng server"
   },
@@ -2407,9 +2245,6 @@
   },
   "project.description.title": {
     "message": "Paglalarawan"
-  },
-  "project.details.licensed": {
-    "message": "Lisensiyang"
   },
   "project.download.game-version-unsupported-tooltip": {
     "message": "Hindi masuporta ng {title} ang {gameVersion} para sa {platform}"
@@ -2461,15 +2296,6 @@
   },
   "project.gallery.title": {
     "message": "Galeriya"
-  },
-  "project.license.error": {
-    "message": "Hindi makuha ang teksto ng lisensiya."
-  },
-  "project.license.loading": {
-    "message": "Nag-load sa teksto ng lisensiya..."
-  },
-  "project.license.title": {
-    "message": "Lisensiya"
   },
   "project.moderation.title": {
     "message": "Moderation"
@@ -2536,15 +2362,6 @@
   },
   "project.settings.permissions.sort.status": {
     "message": "Estado"
-  },
-  "project.settings.title": {
-    "message": "Mga Setting"
-  },
-  "project.settings.visit-dashboard": {
-    "message": "Bisitahin ang dashboard ng mga proyekto"
-  },
-  "project.status.archived.message": {
-    "message": "Inarkibo ang {title}. Ang {title} ay hindi na tatanggap ng mga update maliban kung iwawala nila ang pagkaarkibo ng proyekto."
   },
   "project.versions.title": {
     "message": "Mga bersiyon"
@@ -2966,23 +2783,14 @@
   "settings.applications.button.add-redirect-uri": {
     "message": "Magdagdag ng redirect URI"
   },
-  "settings.applications.button.cancel": {
-    "message": "Kanselahin"
-  },
   "settings.applications.button.create": {
     "message": "Lumikha ng app"
   },
   "settings.applications.button.delete": {
     "message": "Tanggalin"
   },
-  "settings.applications.button.edit": {
-    "message": "Baguhin"
-  },
   "settings.applications.button.new": {
     "message": "Bagong aplikasyon"
-  },
-  "settings.applications.button.save-changes": {
-    "message": "I-save ang mga pagbabago"
   },
   "settings.applications.button.upload-icon": {
     "message": "I-upload ang ikono"
@@ -3055,12 +2863,6 @@
   },
   "settings.authorizations.about-this-app": {
     "message": "Tungkol sa app"
-  },
-  "settings.authorizations.by": {
-    "message": "ni/ng"
-  },
-  "settings.authorizations.empty-state": {
-    "message": "Kasalukuyang hindi namin mapapakita ang mga pinahintulutang app, kinukumpuni pa namin ito. Mangyaring bisitahin ang pahinang ito sa ibang pagkataon!"
   },
   "settings.authorizations.head-title": {
     "message": "Mga pagpapahintulot"
@@ -3158,92 +2960,8 @@
   "settings.display.banner.developer-mode.description": {
     "message": "Ang <strong>developer mode</strong> ay aktibo. Binibigyang-daan ka nitong malaman ang internal ID ng samut-saring bagay sa Modrinth na nakakatulong sa mga developer sa paggamit ng Modrinth API. Pindutin ang logo ng Modrinth sa ibaba ng pahina ng 5 beses upang ma-toggle ang developer mode."
   },
-  "settings.display.flags.description": {
-    "message": "Magpagana at magpatay ng mga piniling tampok sa iyong device."
-  },
-  "settings.display.flags.title": {
-    "message": "Pagtatakda ng tampok"
-  },
   "settings.display.notification.developer-mode-deactivated.text": {
     "message": "Pinatay ang moda ng nagde-develop"
-  },
-  "settings.display.project-list-layouts.datapack": {
-    "message": "Pahina ng Mga Data Pack"
-  },
-  "settings.display.project-list-layouts.description": {
-    "message": "Pumili ng iyong gugustohing ayos ng bawat pahinang magpapakita sa mga listahan ng proyekto sa iyong device."
-  },
-  "settings.display.project-list-layouts.mod": {
-    "message": "Pahina ng mga mod"
-  },
-  "settings.display.project-list-layouts.mode.gallery": {
-    "message": "Galeriya"
-  },
-  "settings.display.project-list-layouts.mode.grid": {
-    "message": "Parilya"
-  },
-  "settings.display.project-list-layouts.mode.rows": {
-    "message": "Hilera"
-  },
-  "settings.display.project-list-layouts.modpack": {
-    "message": "Pahina ng mga modpack"
-  },
-  "settings.display.project-list-layouts.plugin": {
-    "message": "Pahina ng mga plugin"
-  },
-  "settings.display.project-list-layouts.resourcepack": {
-    "message": "Pahina ng mga resource pack"
-  },
-  "settings.display.project-list-layouts.server": {
-    "message": "Pahina ng mga server"
-  },
-  "settings.display.project-list-layouts.shader": {
-    "message": "Pahina ng mga shader"
-  },
-  "settings.display.project-list-layouts.title": {
-    "message": "Mga ayos ng listahan ng proyekto"
-  },
-  "settings.display.project-list-layouts.user": {
-    "message": "Mga profile page ng tagagamit"
-  },
-  "settings.display.project-list.layouts.collection": {
-    "message": "Koleksiyon"
-  },
-  "settings.display.sidebar.advanced-rendering.description": {
-    "message": "Patatakbuhin ang masalimuot na pagrerender o advanced rendering katulad ng paglalabo na maaaring sumanhi ng isyu sa performance sa mga walang hardware-accelerated rendering."
-  },
-  "settings.display.sidebar.advanced-rendering.title": {
-    "message": "Masalimuot na pagrerender"
-  },
-  "settings.display.sidebar.external-links-new-tab.description": {
-    "message": "Gawin na magbukas ng bagong tab ang mga link na papunta sa labas ng Modrinth. Kahit na sa setting na ito, ang mga link sa magkatulad na domain at nasa paglalarawang Markdown ay bubukas sa iisang tab, at ang mga link sa ads at edit page ay magbubukas sa bagong tab."
-  },
-  "settings.display.sidebar.external-links-new-tab.title": {
-    "message": "Buksan ang link palabas sa bagong tab"
-  },
-  "settings.display.sidebar.hide-app-promos.description": {
-    "message": "Itatago ang \"Kunin ang Modrinth App\" na mga pindutan sa pangunahing navigation. Ang pahina ng Modrinth App ay maaari pa ring mahanap sa landing page o kaya sa footer."
-  },
-  "settings.display.sidebar.hide-app-promos.title": {
-    "message": "Itago ang mga promosyong Modrinth App"
-  },
-  "settings.display.sidebar.left-aligned-content-sidebar.title": {
-    "message": "Pinakaliwang sidebar sa mga pahinang kontento"
-  },
-  "settings.display.sidebar.right-aligned-content-sidebar.description": {
-    "message": "Aayusin sa kaliwa ng sidebar sa kontento ng pahina."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.description": {
-    "message": "Isasaayos ang mga pansala sa kanan ng resulta ng paghanap."
-  },
-  "settings.display.sidebar.right-aligned-filters-sidebar.title": {
-    "message": "Pinakanang sidebar ng pansala sa pahina ng paghanap"
-  },
-  "settings.display.theme.description": {
-    "message": "Pumili ng iyong gugustohing paksang kulay para sa Modrinth ng nitong device."
-  },
-  "settings.display.theme.title": {
-    "message": "Paksang kulay"
   },
   "settings.head-title": {
     "message": "Settings ng display"
@@ -3298,27 +3016,6 @@
   },
   "settings.pats.token.never-used": {
     "message": "Hindi ginamit"
-  },
-  "settings.profile.bio.description": {
-    "message": "Isang maikling paglalarawan upang maipaalam sa lahat ang maliit na sipi ukol sa iyo."
-  },
-  "settings.profile.bio.title": {
-    "message": "Biyograpiya"
-  },
-  "settings.profile.description": {
-    "message": "Makikita ng publiko ang impormasyon ng iyong profile at sa <docs-link>API ng Modrinth</docs-link>."
-  },
-  "settings.profile.head-title": {
-    "message": "Settings ng profile"
-  },
-  "settings.profile.profile-info": {
-    "message": "Impormasyon ng profile"
-  },
-  "settings.profile.profile-picture.title": {
-    "message": "Profile picture"
-  },
-  "settings.profile.username.description": {
-    "message": "Isang natatanging case-insensitive na pangalan upang matukoy ang iyong profile."
   },
   "settings.sessions.action.revoke-session": {
     "message": "Bawiin ang sesyon"

@@ -1,28 +1,27 @@
 <template>
 	<div>
-		<form class="flex flex-col gap-2 sm:flex-row" @submit.prevent="executeSearch">
-			<StyledInput
+		<form class="flex flex-col gap-2 sm:flex-row sm:items-center" @submit.prevent="executeSearch">
+			<Input
 				v-model="query"
 				:icon="SearchIcon"
 				type="text"
 				autocomplete="off"
 				placeholder="Search global trace keys..."
 				clearable
-				wrapper-class="flex-1 w-full"
+				size="medium"
+				wrapper-class="min-w-0 flex-1"
 			/>
-			<ButtonStyled color="brand">
-				<button type="submit" :disabled="isLoading">
-					<SearchIcon aria-hidden="true" />
-					Search
-				</button>
-			</ButtonStyled>
+			<Button type="colored" color="brand" size="lg" native-type="submit" :disabled="isLoading">
+				<SearchIcon aria-hidden="true" />
+				Search
+			</Button>
 		</form>
 
 		<div
 			v-if="!isLoading && !loadError && total > 0"
 			class="mt-4 flex flex-wrap items-center justify-between gap-3"
 		>
-			<p class="m-0 text-sm text-secondary">Showing {{ pageStart }}-{{ pageEnd }} of {{ total }}</p>
+			<p class="m-0">Showing {{ pageStart }}-{{ pageEnd }} of {{ total }}</p>
 			<Pagination :page="currentPage" :count="pageCount" @switch-page="switchPage" />
 		</div>
 
@@ -65,21 +64,21 @@
 							</p>
 							<p class="m-0 break-all text-secondary">
 								<span class="font-semibold text-contrast">Path</span>
-								{{ decodeTracePath(getLatestLocalTrace(trace)?.file_path ?? '') }}
+								<IssueDetailPath :segments="[getLatestLocalTrace(trace)?.file_path]" />
 							</p>
 						</div>
 					</div>
 					<div class="flex shrink-0 flex-nowrap items-center gap-2">
 						<Badge :type="trace.verdict" />
-						<ButtonStyled color="red">
-							<button
-								:disabled="removingTraceKeys.has(trace.detail_key)"
-								@click="removeGlobalTrace(trace)"
-							>
-								<TrashIcon aria-hidden="true" />
-								Remove
-							</button>
-						</ButtonStyled>
+						<Button
+							type="colored"
+							color="red"
+							:disabled="removingTraceKeys.has(trace.detail_key)"
+							@click="removeGlobalTrace(trace)"
+						>
+							<TrashIcon aria-hidden="true" />
+							Remove
+						</Button>
 					</div>
 				</div>
 
@@ -89,14 +88,13 @@
 							Showing {{ getPreviewLocalTraces(trace).length }} of
 							{{ formatTraceCount(getVisibleLocalTraceTotal(trace)) }}
 						</p>
-						<ButtonStyled
+						<ButtonLink
 							v-if="getVisibleLocalTraceTotal(trace) > getPreviewLocalTraces(trace).length"
+							:to="getGlobalTraceLink(trace)"
 						>
-							<NuxtLink :to="getGlobalTraceLink(trace)">
-								<ListIcon aria-hidden="true" />
-								View all
-							</NuxtLink>
-						</ButtonStyled>
+							<ListIcon aria-hidden="true" />
+							View all
+						</ButtonLink>
 					</div>
 					<GlobalDetailLocalTraceCard
 						v-for="localTrace in getPreviewLocalTraces(trace)"
@@ -124,15 +122,17 @@ import type { Labrinth } from '@modrinth/api-client'
 import { HashIcon, ListIcon, SearchIcon, TrashIcon } from '@modrinth/assets'
 import {
 	Badge,
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	EmptyState,
 	injectModrinthClient,
 	injectNotificationManager,
+	Input,
 	Pagination,
-	StyledInput,
 } from '@modrinth/ui'
 
 import GlobalDetailLocalTraceCard from '~/components/ui/moderation/GlobalDetailLocalTraceCard.vue'
+import IssueDetailPath from '~/components/ui/moderation/IssueDetailPath.vue'
 
 const client = injectModrinthClient()
 const { addNotification } = injectNotificationManager()
@@ -165,24 +165,19 @@ function getLatestLocalTrace(trace: Labrinth.TechReview.Internal.GlobalIssueDeta
 	return trace.local_traces.at(-1)
 }
 
-function decodeTracePath(path: string): string {
-	try {
-		return decodeURIComponent(path)
-	} catch {
-		return path
-	}
-}
-
 function getSeverityBadgeColor(
 	severity: Labrinth.TechReview.Internal.DelphiSeverity | undefined,
 ): string {
 	switch (severity) {
+		case 'malware':
 		case 'severe':
 			return 'border-red/60 bg-highlight-red text-red'
 		case 'high':
 			return 'border-orange/60 bg-highlight-orange text-orange'
 		case 'medium':
 			return 'border-green/60 bg-highlight-green text-green'
+		case 'hidden':
+			return 'border-divider bg-surface-2 text-secondary'
 		case 'low':
 		default:
 			return 'border-blue/60 bg-highlight-blue text-blue'

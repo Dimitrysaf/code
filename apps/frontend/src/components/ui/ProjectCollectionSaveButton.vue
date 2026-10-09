@@ -1,63 +1,69 @@
 <template>
-	<ButtonStyled size="large" circular>
-		<PopoutMenu
-			v-if="authUser"
-			:tooltip="
-				saved ? formatMessage(commonMessages.savedLabel) : formatMessage(commonMessages.saveButton)
-			"
-			from="top-right"
-			:aria-label="formatMessage(commonMessages.saveButton)"
-			:dropdown-id="`${baseId}-save`"
-		>
+	<TeleportPopoutMenu
+		v-if="authUser"
+		icon-only
+		size="xl"
+		:label="
+			saved ? formatMessage(commonMessages.savedLabel) : formatMessage(commonMessages.saveButton)
+		"
+		:tooltip="
+			saved ? formatMessage(commonMessages.savedLabel) : formatMessage(commonMessages.saveButton)
+		"
+		placement="top-end"
+	>
+		<template #trigger>
 			<BookmarkIcon aria-hidden="true" :fill="saved ? 'currentColor' : 'none'" />
-			<template #menu>
-				<StyledInput
-					v-model="displayCollectionsSearch"
-					:placeholder="formatMessage(commonMessages.searchPlaceholder)"
-					wrapper-class="menu-search"
-				/>
-				<div v-if="filteredCollections.length > 0" class="collections-list text-primary">
-					<Checkbox
-						v-for="option in filteredCollections"
-						:key="option.id"
-						:model-value="option.projects.includes(projectId)"
-						class="popout-checkbox"
-						@update:model-value="() => collectProject(option, projectId)"
-					>
-						{{ option.name }}
-					</Checkbox>
-				</div>
+		</template>
+		<template #panel>
+			<Input
+				v-model="displayCollectionsSearch"
+				:placeholder="formatMessage(commonMessages.searchPlaceholder)"
+				wrapper-class="w-full"
+			/>
+			<div
+				v-if="filteredCollections.length > 0"
+				class="mt-2 max-h-[40rem] overflow-y-auto rounded-xl border border-solid border-surface-4 bg-surface-2 p-2 text-primary"
+			>
+				<Checkbox
+					v-for="option in filteredCollections"
+					:key="option.id"
+					:model-value="option.projects.includes(projectId)"
+					class="popout-checkbox"
+					@update:model-value="() => collectProject(option, projectId)"
+				>
+					{{ option.name }}
+				</Checkbox>
+			</div>
 
-				<div v-else class="menu-text">
-					<p class="popout-text">{{ noCollectionsLabel }}</p>
-				</div>
-				<ButtonStyled>
-					<button class="mx-3 mb-3" @click="createCollection">
-						<PlusIcon aria-hidden="true" />
-						{{ createNewCollectionLabel }}
-					</button>
-				</ButtonStyled>
-			</template>
-		</PopoutMenu>
-		<nuxt-link
-			v-else
-			v-tooltip="formatMessage(commonMessages.saveButton)"
-			:to="signInRoute"
-			:aria-label="formatMessage(commonMessages.saveButton)"
-		>
-			<BookmarkIcon aria-hidden="true" />
-		</nuxt-link>
-	</ButtonStyled>
+			<div v-else class="mt-2 text-sm text-secondary">
+				<p>{{ noCollectionsLabel }}</p>
+			</div>
+			<Button class="mt-2 w-full" @click="createCollection">
+				<PlusIcon aria-hidden="true" />
+				{{ createNewCollectionLabel }}
+			</Button>
+		</template>
+	</TeleportPopoutMenu>
+	<ButtonLink
+		v-else
+		v-tooltip="formatMessage(commonMessages.saveButton)"
+		size="xl"
+		:to="signInRoute"
+		class="!w-12 !rounded-full !px-0"
+	>
+		<BookmarkIcon aria-hidden="true" />
+	</ButtonLink>
 </template>
 
 <script setup lang="ts">
 import { BookmarkIcon, PlusIcon } from '@modrinth/assets'
 import {
-	ButtonStyled,
+	Button,
+	ButtonLink,
 	Checkbox,
 	commonMessages,
-	PopoutMenu,
-	StyledInput,
+	Input,
+	TeleportPopoutMenu,
 	useVIntl,
 } from '@modrinth/ui'
 import { computed, ref } from 'vue'
@@ -103,25 +109,5 @@ const filteredCollections = computed(() =>
 	&:hover {
 		filter: brightness(0.95);
 	}
-}
-
-.menu-text {
-	padding: 0 var(--gap-md);
-	font-size: var(--font-size-nm);
-	color: var(--color-secondary);
-}
-
-.menu-search {
-	margin: var(--gap-sm) var(--gap-md);
-	width: calc(100% - var(--gap-md) * 2);
-}
-
-.collections-list {
-	max-height: 40rem;
-	overflow-y: auto;
-	background-color: var(--color-bg);
-	border-radius: var(--radius-md);
-	margin: var(--gap-sm) var(--gap-md);
-	padding: var(--gap-sm);
 }
 </style>

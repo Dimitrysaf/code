@@ -19,12 +19,41 @@ pub struct Settings {
     pub advanced_rendering: bool,
     pub native_decorations: bool,
     pub toggle_sidebar: bool,
+    pub sync_theme_across_devices: bool,
+    pub sync_behavior_across_devices: bool,
+    #[serde(default = "default_true")]
+    pub sync_features_across_devices: bool,
+    #[serde(default = "default_true")]
+    pub show_files_tab_in_instances: bool,
+    #[serde(default = "default_true")]
+    pub show_worlds_tab_in_instances: bool,
+    #[serde(default)]
+    pub show_screenshots_tab_in_instances: bool,
+    #[serde(default = "default_true")]
+    pub show_skin_selector_in_sidebar: bool,
+
+    #[serde(default = "default_true")]
+    pub show_jump_in: bool,
+    #[serde(default)]
+    pub always_show_copy_details: bool,
+    #[serde(default)]
+    pub hide_installed_modpacks: bool,
+    #[serde(default = "default_true")]
+    pub advanced_filters_collapsed: bool,
+    #[serde(default)]
+    pub dismissed_photosensitivity_filter_warning: bool,
+    #[serde(default)]
+    pub friends_active_collapsed: bool,
+    #[serde(default)]
+    pub friends_online_collapsed: bool,
+    #[serde(default = "default_true")]
+    pub friends_offline_collapsed: bool,
+    #[serde(default = "default_true")]
+    pub friends_pending_collapsed: bool,
 
     pub telemetry: bool,
     pub discord_rpc: bool,
     pub personalized_ads: bool,
-
-    pub onboarded: bool,
 
     pub extra_launch_args: Vec<String>,
     pub custom_env_vars: Vec<(String, String)>,
@@ -32,6 +61,16 @@ pub struct Settings {
     pub force_fullscreen: bool,
     pub game_resolution: WindowSize,
     pub hide_on_process_start: bool,
+    #[serde(default)]
+    pub refocus_on_game_close: bool,
+    #[serde(default)]
+    pub compact_instance_cards: bool,
+    #[serde(default = "default_true")]
+    pub show_play_time: bool,
+    #[serde(default = "default_true")]
+    pub warn_on_unknown_modpacks: bool,
+    #[serde(default)]
+    pub skip_non_essential_warnings: bool,
     pub hooks: Hooks,
 
     pub custom_dir: Option<String>,
@@ -48,23 +87,23 @@ pub struct Settings {
     pub version: usize,
 }
 
+fn default_true() -> bool {
+    true
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, Hash, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum FeatureFlag {
     PagePath,
     ProjectBackground,
-    WorldsTab,
-    WorldsInHome,
     ServerRamAsBytesAlwaysOn,
     AlwaysShowAppControls,
-    SkipUnknownPackWarning,
+    ShowSyncInstancesUpdateModal,
     PrideFundraiser,
     ServersInApp,
     ServerProjectQa,
     I18nDebug,
-    ShowInstancePlayTime,
-    SkipNonEssentialWarnings,
-    AdvancedFiltersCollapsed,
+    LocalhostSignIn,
 }
 
 impl Settings {
@@ -79,12 +118,24 @@ impl Settings {
                 max_concurrent_writes, max_concurrent_downloads,
                 theme, locale, default_page, collapsed_navigation, hide_nametag_skins_page, advanced_rendering, native_decorations,
                 discord_rpc, developer_mode, telemetry, personalized_ads,
-                onboarded,
                 json(extra_launch_args) extra_launch_args, json(custom_env_vars) custom_env_vars,
                 mc_memory_max, mc_force_fullscreen, mc_game_resolution_x, mc_game_resolution_y, hide_on_process_start,
                 hook_pre_launch, hook_wrapper, hook_post_exit,
                 custom_dir, prev_custom_dir, migrated, json(feature_flags) feature_flags, toggle_sidebar,
                 skipped_update, pending_update_toast_for_version, auto_download_updates,
+				sync_theme_across_devices, sync_behavior_across_devices, sync_features_across_devices,
+				show_files_tab_in_instances, show_worlds_tab_in_instances,
+				show_screenshots_tab_in_instances, show_skin_selector_in_sidebar,
+				refocus_on_game_close, compact_instance_cards, show_play_time, warn_on_unknown_modpacks, skip_non_essential_warnings,
+				show_jump_in,
+				always_show_copy_details,
+				hide_installed_modpacks,
+				advanced_filters_collapsed,
+				dismissed_photosensitivity_filter_warning,
+				friends_active_collapsed,
+				friends_online_collapsed,
+				friends_offline_collapsed,
+				friends_pending_collapsed,
                 version
             FROM settings
             "
@@ -103,11 +154,21 @@ impl Settings {
             advanced_rendering: res.advanced_rendering == 1,
             native_decorations: res.native_decorations == 1,
             toggle_sidebar: res.toggle_sidebar == 1,
+            show_jump_in: res.show_jump_in == 1,
+            always_show_copy_details: res.always_show_copy_details == 1,
+            hide_installed_modpacks: res.hide_installed_modpacks == 1,
+            advanced_filters_collapsed: res.advanced_filters_collapsed == 1,
+            dismissed_photosensitivity_filter_warning: res
+                .dismissed_photosensitivity_filter_warning
+                == 1,
+            friends_active_collapsed: res.friends_active_collapsed == 1,
+            friends_online_collapsed: res.friends_online_collapsed == 1,
+            friends_offline_collapsed: res.friends_offline_collapsed == 1,
+            friends_pending_collapsed: res.friends_pending_collapsed == 1,
             telemetry: res.telemetry == 1,
             discord_rpc: res.discord_rpc == 1,
             developer_mode: res.developer_mode == 1,
             personalized_ads: res.personalized_ads == 1,
-            onboarded: res.onboarded == 1,
             extra_launch_args: res
                 .extra_launch_args
                 .as_ref()
@@ -127,6 +188,11 @@ impl Settings {
                 res.mc_game_resolution_y as u16,
             ),
             hide_on_process_start: res.hide_on_process_start == 1,
+            refocus_on_game_close: res.refocus_on_game_close == 1,
+            compact_instance_cards: res.compact_instance_cards == 1,
+            show_play_time: res.show_play_time == 1,
+            warn_on_unknown_modpacks: res.warn_on_unknown_modpacks == 1,
+            skip_non_essential_warnings: res.skip_non_essential_warnings == 1,
             hooks: Hooks {
                 pre_launch: res.hook_pre_launch,
                 wrapper: res.hook_wrapper,
@@ -144,6 +210,16 @@ impl Settings {
             pending_update_toast_for_version: res
                 .pending_update_toast_for_version,
             auto_download_updates: res.auto_download_updates.map(|x| x == 1),
+            sync_theme_across_devices: res.sync_theme_across_devices == 1,
+            sync_behavior_across_devices: res.sync_behavior_across_devices == 1,
+            sync_features_across_devices: res.sync_features_across_devices == 1,
+            show_files_tab_in_instances: res.show_files_tab_in_instances == 1,
+            show_worlds_tab_in_instances: res.show_worlds_tab_in_instances == 1,
+            show_screenshots_tab_in_instances: res
+                .show_screenshots_tab_in_instances
+                == 1,
+            show_skin_selector_in_sidebar: res.show_skin_selector_in_sidebar
+                == 1,
             version: res.version as usize,
         })
     }
@@ -180,33 +256,53 @@ impl Settings {
                 telemetry = $11,
                 personalized_ads = $12,
 
-                onboarded = $13,
+                extra_launch_args = jsonb($13),
+                custom_env_vars = jsonb($14),
+                mc_memory_max = $15,
+                mc_force_fullscreen = $16,
+                mc_game_resolution_x = $17,
+                mc_game_resolution_y = $18,
+                hide_on_process_start = $19,
 
-                extra_launch_args = jsonb($14),
-                custom_env_vars = jsonb($15),
-                mc_memory_max = $16,
-                mc_force_fullscreen = $17,
-                mc_game_resolution_x = $18,
-                mc_game_resolution_y = $19,
-                hide_on_process_start = $20,
+                hook_pre_launch = $20,
+                hook_wrapper = $21,
+                hook_post_exit = $22,
 
-                hook_pre_launch = $21,
-                hook_wrapper = $22,
-                hook_post_exit = $23,
+                custom_dir = $23,
+                prev_custom_dir = $24,
+                migrated = $25,
 
-                custom_dir = $24,
-                prev_custom_dir = $25,
-                migrated = $26,
+                toggle_sidebar = $26,
+                feature_flags = $27,
+                hide_nametag_skins_page = $28,
 
-                toggle_sidebar = $27,
-                feature_flags = $28,
-                hide_nametag_skins_page = $29,
+                skipped_update = $29,
+                pending_update_toast_for_version = $30,
+                auto_download_updates = $31,
 
-                skipped_update = $30,
-                pending_update_toast_for_version = $31,
-                auto_download_updates = $32,
+                sync_theme_across_devices = $32,
+                sync_behavior_across_devices = $33,
+				sync_features_across_devices = $34,
+				show_files_tab_in_instances = $35,
+				show_worlds_tab_in_instances = $36,
+				show_screenshots_tab_in_instances = $37,
+				show_skin_selector_in_sidebar = $38,
 
-                version = $33
+				version = $39,
+				refocus_on_game_close = $40,
+				compact_instance_cards = $41,
+				show_play_time = $42,
+				warn_on_unknown_modpacks = $43,
+				skip_non_essential_warnings = $44,
+				show_jump_in = $45,
+				always_show_copy_details = $46,
+				hide_installed_modpacks = $47,
+				advanced_filters_collapsed = $48,
+				dismissed_photosensitivity_filter_warning = $49,
+				friends_active_collapsed = $50,
+				friends_online_collapsed = $51,
+				friends_offline_collapsed = $52,
+				friends_pending_collapsed = $53
             ",
             max_concurrent_writes,
             max_concurrent_downloads,
@@ -220,7 +316,6 @@ impl Settings {
             self.developer_mode,
             self.telemetry,
             self.personalized_ads,
-            self.onboarded,
             extra_launch_args,
             custom_env_vars,
             self.memory.maximum,
@@ -240,7 +335,28 @@ impl Settings {
             self.skipped_update,
             self.pending_update_toast_for_version,
             self.auto_download_updates,
+            self.sync_theme_across_devices,
+            self.sync_behavior_across_devices,
+            self.sync_features_across_devices,
+            self.show_files_tab_in_instances,
+            self.show_worlds_tab_in_instances,
+            self.show_screenshots_tab_in_instances,
+            self.show_skin_selector_in_sidebar,
             version,
+            self.refocus_on_game_close,
+            self.compact_instance_cards,
+            self.show_play_time,
+            self.warn_on_unknown_modpacks,
+            self.skip_non_essential_warnings,
+            self.show_jump_in,
+            self.always_show_copy_details,
+            self.hide_installed_modpacks,
+            self.advanced_filters_collapsed,
+            self.dismissed_photosensitivity_filter_warning,
+            self.friends_active_collapsed,
+            self.friends_online_collapsed,
+            self.friends_offline_collapsed,
+            self.friends_pending_collapsed,
         )
         .execute(exec)
         .await?;
@@ -328,6 +444,7 @@ pub enum Theme {
     Dark,
     Light,
     Oled,
+    Retro,
     System,
 }
 
@@ -337,6 +454,7 @@ impl Theme {
             Theme::Dark => "dark",
             Theme::Light => "light",
             Theme::Oled => "oled",
+            Theme::Retro => "retro",
             Theme::System => "system",
         }
     }
@@ -346,6 +464,7 @@ impl Theme {
             "dark" => Theme::Dark,
             "light" => Theme::Light,
             "oled" => Theme::Oled,
+            "retro" => Theme::Retro,
             "system" => Theme::System,
             _ => Theme::Dark,
         }

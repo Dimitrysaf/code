@@ -9,6 +9,7 @@
 				v-model:custom-start-date="timeframeCustomStartDate"
 				v-model:custom-end-date="timeframeCustomEndDate"
 				:class="timeframePickerClass"
+				trigger-size="lg"
 				:trigger-class="timeframePickerTriggerClass"
 			/>
 			<template v-if="slots.filters">
@@ -34,16 +35,7 @@
 					<template #header-world="{ column }">
 						<span class="inline-flex min-w-0 max-w-full items-center gap-1 font-semibold">
 							<span class="min-w-0 truncate">{{ column.label }}</span>
-							<Tooltip
-								theme="dismissable-prompt"
-								class="inline-flex shrink-0"
-								:triggers="['hover', 'focus']"
-								:popper-triggers="['hover', 'focus']"
-								popper-class="v-popper--interactive"
-								placement="top"
-								:delay="{ show: 200, hide: 100 }"
-								no-auto-focus
-							>
+							<Tooltip theme="dismissable-prompt" class="inline-flex shrink-0" placement="top">
 								<button
 									type="button"
 									:aria-label="formatMessage(messages.instanceTooltipTitle)"
@@ -187,16 +179,7 @@
 						>
 							<span class="inline-flex min-w-0 max-w-full items-center gap-1 font-semibold">
 								<span class="min-w-0 truncate">{{ formatMessage(messages.worldColumn) }}</span>
-								<Tooltip
-									theme="dismissable-prompt"
-									class="inline-flex shrink-0"
-									:triggers="['hover', 'focus']"
-									:popper-triggers="['hover', 'focus']"
-									popper-class="v-popper--interactive"
-									placement="top"
-									:delay="{ show: 200, hide: 100 }"
-									no-auto-focus
-								>
+								<Tooltip theme="dismissable-prompt" class="inline-flex shrink-0" placement="top">
 									<button
 										type="button"
 										:aria-label="formatMessage(messages.instanceTooltipTitle)"
@@ -251,8 +234,9 @@
 
 <script setup lang="ts">
 import { IntercomBubbleIcon, UnknownIcon } from '@modrinth/assets'
-import { Tooltip } from 'floating-vue'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useSlots, watch } from 'vue'
+
+import { Tooltip } from '#ui/components/floating'
 
 import { useFormatDateTime, useRelativeTime } from '../../../composables'
 import { defineMessages, useVIntl } from '../../../composables/i18n'
@@ -363,7 +347,7 @@ const timeframePickerClass = computed(() =>
 	slots.filters ? '!w-full @[640px]:!w-[225px] shrink-0' : '!w-full @[640px]:!w-[225px]',
 )
 const timeframePickerTriggerClass =
-	'!h-10 !min-h-10 !w-full !rounded-[14px] !bg-surface-4 !py-2.5 !pl-4 !pr-3 !text-base shadow-[0px_1px_1px_rgba(0,0,0,0.3),0px_1px_1.5px_rgba(0,0,0,0.15)]'
+	'!w-full !rounded-[14px] !bg-surface-4 !py-2.5 !pl-4 !pr-3 !text-base shadow-[0px_1px_1px_rgba(0,0,0,0.3),0px_1px_1.5px_rgba(0,0,0,0.15)]'
 
 onMounted(() => {
 	updateLoadMoreObserver()

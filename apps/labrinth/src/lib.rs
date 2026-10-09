@@ -4,12 +4,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use actix_web::web;
-use database::redis::RedisPool;
 use queue::{
     analytics::AnalyticsQueue, email::EmailQueue, payouts::PayoutsQueue,
     session::AuthQueue, socket::ActiveSockets,
 };
 use tracing::{debug, info, warn};
+use xredis::RedisPool;
 
 extern crate clickhouse as clickhouse_crate;
 use clickhouse_crate::Client;
@@ -20,13 +20,13 @@ use crate::background_task::update_versions;
 use crate::database::{PgPool, ReadOnlyPgPool};
 use crate::env::ENV;
 use crate::queue::billing::{index_billing, index_subscriptions};
-use crate::routes::internal::delphi::rescan::rescan_projects_in_queue;
+use crate::routes::internal::delphi::rescan::enqueue_tech_review_files_for_new_delphi_version;
 use crate::util::anrok;
 use crate::util::archon::ArchonClient;
 use crate::util::http::HttpClient;
 use crate::util::ratelimit::{AsyncRateLimiter, GCRAParameters};
 use crate::util::tiltify::TiltifyClient;
-use sync::friends::handle_pubsub;
+use sync::friends::{FRIENDS_CHANNEL_NAME, handle_pubsub};
 use url::Url;
 use webauthn_rs::{Webauthn, WebauthnBuilder};
 
@@ -114,13 +114,16 @@ pub fn app_setup(
         });
     }
     {
-        let pool_ref = pool.clone();
-        let http_ref = http_client.clone();
+        let pool = pool.clone();
+        let kafka_client = kafka_client.clone();
         actix_rt::spawn(async move {
-            if let Err(err) =
-                rescan_projects_in_queue(&pool_ref, &http_ref).await
+            if let Err(err) = enqueue_tech_review_files_for_new_delphi_version(
+                &pool,
+                &kafka_client,
+            )
+            .await
             {
-                warn!("Delphi rescan failed: {err:#}");
+                warn!("Delphi tech review rescan enqueue failed: {err:#}");
             }
         });
     }
@@ -131,30 +134,6 @@ pub fn app_setup(
     ));
 
     if enable_background_tasks {
-        // The interval in seconds at which the local database is indexed
-        // for searching.  Defaults to 1 hour if unset.
-        let local_index_interval =
-            Duration::from_secs(ENV.LOCAL_INDEX_INTERVAL);
-        let pool_ref = pool.clone();
-        let redis_pool_ref = redis_pool.clone();
-        let search_backend_ref = search_backend.clone();
-        scheduler.run(local_index_interval, move || {
-            let pool_ref = pool_ref.clone();
-            let redis_pool_ref = redis_pool_ref.clone();
-            let search_backend = search_backend_ref.clone();
-            async move {
-                if let Err(err) = background_task::index_search(
-                    pool_ref,
-                    redis_pool_ref,
-                    search_backend,
-                )
-                .await
-                {
-                    warn!("Failed to index search: {err:?}");
-                }
-            }
-        });
-
         // Changes statuses of scheduled projects/versions
         let pool_ref = pool.clone();
         // TODO: Clear cache when these are run
@@ -289,12 +268,11 @@ pub fn app_setup(
     let active_sockets = web::Data::new(ActiveSockets::default());
 
     {
-        let pool = pool.clone();
-        let redis_client = redis::Client::open(redis_pool.url.clone()).unwrap();
+        let ro_pool = ro_pool.clone();
+        let pubsub_messages = redis_pool.subscribe(FRIENDS_CHANNEL_NAME);
         let sockets = active_sockets.clone();
         actix_rt::spawn(async move {
-            let pubsub = redis_client.get_async_pubsub().await.unwrap();
-            handle_pubsub(pubsub, pool, sockets).await;
+            handle_pubsub(pubsub_messages, ro_pool, sockets).await;
         });
     }
 
@@ -353,16 +331,16 @@ pub fn app_data_config(
     labrinth_config: LabrinthConfig,
 ) {
     cfg.app_data(web::FormConfig::default().error_handler(|err, _req| {
-        routes::ApiError::Validation(err.to_string()).into()
+        routes::ApiError::Request(eyre::eyre!("{err}")).into()
     }))
     .app_data(web::PathConfig::default().error_handler(|err, _req| {
-        routes::ApiError::Validation(err.to_string()).into()
+        routes::ApiError::Request(eyre::eyre!("{err}")).into()
     }))
     .app_data(web::QueryConfig::default().error_handler(|err, _req| {
-        routes::ApiError::Validation(err.to_string()).into()
+        routes::ApiError::Request(eyre::eyre!("{err}")).into()
     }))
     .app_data(web::JsonConfig::default().error_handler(|err, _req| {
-        routes::ApiError::Validation(err.to_string()).into()
+        routes::ApiError::Request(eyre::eyre!("{err}")).into()
     }))
     .app_data(web::Data::new(labrinth_config.redis_pool.clone()))
     .app_data(web::Data::new(labrinth_config.pool.clone()))

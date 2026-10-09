@@ -1,4 +1,5 @@
 use self::payments::*;
+use self::update_subscriptions::*;
 use crate::auth::get_user_from_headers;
 use crate::database::models::charge_item::DBCharge;
 use crate::database::models::ids::DBUserSubscriptionId;
@@ -10,7 +11,6 @@ use crate::database::models::{
     DBAffiliateCodeId, charge_item, generate_charge_id, product_item,
     user_subscription_item,
 };
-use crate::database::redis::RedisPool;
 use crate::database::{PgPool, PgTransaction};
 use crate::env::ENV;
 use crate::models::billing::{
@@ -25,6 +25,8 @@ use crate::models::users::Badges;
 use crate::queue::session::AuthQueue;
 use crate::routes::ApiError;
 use crate::util::anrok;
+use crate::util::error::ApiContext as _;
+use crate::util::error::Context as _;
 use actix_web::{HttpRequest, HttpResponse, delete, get, patch, post, web};
 use ariadne::ids::base62_impl::{parse_base62, to_base62};
 use chrono::{Duration, Utc};
@@ -36,11 +38,11 @@ use std::str::FromStr;
 use stripe::{
     CreateRefund, CreateSetupIntent, CreateSetupIntentAutomaticPaymentMethods,
     CreateSetupIntentAutomaticPaymentMethodsAllowRedirects,
-    CustomerInvoiceSettings, CustomerPaymentMethodRetrieval, EventObject,
-    EventType, PaymentIntentId, PaymentMethodId, SetupIntent, UpdateCustomer,
-    Webhook,
+    CustomerPaymentMethodRetrieval, EventObject, EventType, PaymentIntentId,
+    PaymentMethodId, SetupIntent, Webhook, WebhookError,
 };
-use tracing::warn;
+use tracing::{error, warn};
+use xredis::RedisPool;
 
 pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(
@@ -56,6 +58,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
             .service(charges)
             .service(credit)
             .service(active_servers)
+            .service(update_many)
             .service(initiate_payment)
             .service(stripe_webhook)
             .service(refund_charge)
@@ -63,7 +66,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     );
 }
 
-/// List products.  
+/// List products.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -77,7 +80,8 @@ pub async fn products(
     let products = product_item::QueryProductWithPrices::list_purchaseable(
         &**pool, &redis,
     )
-    .await?;
+    .await
+    .wrap_internal_err("fetching query product with prices from Redis")?;
 
     let products = products
         .into_iter()
@@ -113,7 +117,7 @@ struct UserSubscriptionWithNextChargeTaxAmount {
     pub next_charge_tax_amount: Option<i64>,
 }
 
-/// List subscriptions.  
+/// List subscriptions.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -135,7 +139,8 @@ pub async fn subscriptions(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let db_subscriptions =
@@ -144,23 +149,24 @@ pub async fn subscriptions(
                 if user.role.is_admin() {
                     user_id.into()
                 } else {
-                    return Err(ApiError::InvalidInput(
-                        "You cannot see the subscriptions of other users!"
-                            .to_string(),
-                    ));
+                    return Err(ApiError::Request(eyre::eyre!(
+                        "You cannot see the subscriptions of other users!",
+                    )));
                 }
             } else {
                 user.id.into()
             },
             &**pool,
         )
-        .await?;
+        .await
+        .wrap_internal_err("fetching user subscriptions from database")?;
 
     let mut subscriptions = Vec::with_capacity(db_subscriptions.len());
     for subscription in db_subscriptions {
         let next_charge_tax_amount =
             DBCharge::get_open_subscription(subscription.id, &**pool)
-                .await?
+                .await
+                .wrap_internal_err("fetching charge from database")?
                 .map(|charge| charge.tax_amount);
 
         subscriptions.push(UserSubscriptionWithNextChargeTaxAmount {
@@ -187,7 +193,7 @@ pub struct ChargeRefund {
     pub unprovision: Option<bool>,
 }
 
-/// Refund a charge.  
+/// Refund a charge.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -213,19 +219,25 @@ pub async fn refund_charge(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let (id,) = info.into_inner();
 
     if !user.role.is_admin() {
-        return Err(ApiError::CustomAuthentication(
-            "You do not have permission to refund a subscription!".to_string(),
-        ));
+        return Err(ApiError::Auth(eyre::eyre!(
+            "You do not have permission to refund a subscription!",
+        )));
     }
 
-    if let Some(charge) = DBCharge::get(id.into(), &**pool).await? {
-        let refunds = DBCharge::get_children(id.into(), &**pool).await?;
+    if let Some(charge) = DBCharge::get(id.into(), &**pool)
+        .await
+        .wrap_internal_err("fetching charge from database")?
+    {
+        let refunds = DBCharge::get_children(id.into(), &**pool)
+            .await
+            .wrap_internal_err("fetching charges from database")?;
         let refunds = -refunds
             .into_iter()
             .filter_map(|x| match x.status {
@@ -247,16 +259,15 @@ pub async fn refund_charge(
         };
 
         if charge.status != ChargeStatus::Succeeded {
-            return Err(ApiError::InvalidInput(
-                "This charge cannot be refunded!".to_string(),
-            ));
+            return Err(ApiError::Request(eyre::eyre!(
+                "This charge cannot be refunded!",
+            )));
         }
 
         if (refundable - refund_amount) < 0 {
-            return Err(ApiError::InvalidInput(
-                "You cannot refund more than the amount of the charge!"
-                    .to_string(),
-            ));
+            return Err(ApiError::Request(eyre::eyre!(
+                "You cannot refund more than the amount of the charge!",
+            )));
         }
 
         let (id, net, anrok_result) = if refund_amount == 0 {
@@ -285,29 +296,33 @@ pub async fn refund_charge(
                             &payment_platform_id,
                             &["payment_method"],
                         )
-                        .await?;
+                        .await
+                        .wrap_failed_dependency_err(
+                            "communicating with payment provider",
+                        )?;
 
                         let Some(billing_address) = pi
                             .payment_method
                             .and_then(|x| x.into_object())
                             .and_then(|x| x.billing_details.address)
                         else {
-                            return Err(ApiError::InvalidInput(
+                            return Err(ApiError::Request(eyre::eyre!(
                                 "Couldn't retrieve billing address for payment method!"
                                     .to_owned(),
-                            ));
+                            )));
                         };
 
                         let tax_id = product_info_by_product_price_id(
                             charge.price_id,
                             &**pool,
                         )
-                        .await?
-                        .ok_or_else(|| {
-                            ApiError::InvalidInput(
-                                "Could not find product tax info for price ID!"
-                                    .to_owned(),
-                            )
+                        .await
+                        .wrap_api_err(
+                            "executing `product_info_by_product_price_id`",
+                        )?
+                        .wrap_request_err_with(|| {
+                            "could not find product tax info for price ID!"
+                                .to_owned()
                         })?
                         .tax_identifier
                         .tax_processor_id;
@@ -324,10 +339,10 @@ pub async fn refund_charge(
                             .zip(charge.tax_transaction_version)
                             .zip(charge.tax_platform_accounting_time)
                         else {
-                            return Err(ApiError::InvalidInput(
+                            return Err(ApiError::Request(eyre::eyre!(
                                 "Charge is missing full tax information. Please wait for the original charge to be synchronized with the tax processor."
                                     .to_owned(),
-                            ));
+                            )));
                         };
 
                         let refund = stripe::Refund::create(
@@ -342,7 +357,10 @@ pub async fn refund_charge(
                                 ..Default::default()
                             },
                         )
-                        .await?;
+                        .await
+                        .wrap_failed_dependency_err(
+                            "communicating with payment provider",
+                        )?;
 
                         let anrok_txn_result = anrok_client.negate_or_create_partial_negation(
                             original_tax_platform_id,
@@ -371,24 +389,28 @@ pub async fn refund_charge(
                             Some(anrok_txn_result),
                         )
                     } else {
-                        return Err(ApiError::InvalidInput(
-                            "Charge does not have attached payment id!"
-                                .to_string(),
-                        ));
+                        return Err(ApiError::Request(eyre::eyre!(
+                            "Charge does not have attached payment id!",
+                        )));
                     }
                 }
                 PaymentPlatform::None => {
-                    return Err(ApiError::InvalidInput(
+                    return Err(ApiError::Request(eyre::eyre!(
                         "This charge was not processed via a payment platform."
                             .to_owned(),
-                    ));
+                    )));
                 }
             }
         };
 
-        let mut transaction = pool.begin().await?;
+        let mut transaction = pool
+            .begin()
+            .await
+            .wrap_internal_err("starting database transaction")?;
 
-        let charge_id = generate_charge_id(&mut transaction).await?;
+        let charge_id = generate_charge_id(&mut transaction)
+            .await
+            .wrap_internal_err("generating charge ID")?;
         DBCharge {
             id: charge_id,
             user_id: charge.user_id,
@@ -417,39 +439,47 @@ pub async fn refund_charge(
             tax_platform_accounting_time: None,
         }
         .upsert(&mut transaction)
-        .await?;
+        .await
+        .wrap_internal_err("generating charge ID")?;
 
         if body.0.unprovision.unwrap_or(false)
             && let Some(subscription_id) = charge.subscription_id
         {
             let open_charge =
                 DBCharge::get_open_subscription(subscription_id, &**pool)
-                    .await?;
+                    .await
+                    .wrap_internal_err("fetching charge from database")?;
             if let Some(mut open_charge) = open_charge {
                 open_charge.status = ChargeStatus::Cancelled;
                 open_charge.due = Utc::now();
 
-                open_charge.upsert(&mut transaction).await?;
+                open_charge
+                    .upsert(&mut transaction)
+                    .await
+                    .wrap_internal_err("cancelling subscription charge")?;
             }
         }
 
-        transaction.commit().await?;
+        transaction
+            .commit()
+            .await
+            .wrap_internal_err("committing database transaction")?;
 
         if let Some(Err(error)) = anrok_result {
             if let anrok::AnrokError::Conflict(m) = &error
                 && m.contains("transactionExpectedVersionMismatch")
             {
-                return Err(ApiError::InvalidInput(
+                return Err(ApiError::Request(eyre::eyre!(
                     "This refund has been processed on Stripe's end, but not on the tax processor's end. The tax transaction has been modified externally since its creation. \
                     This is likely caused by a change in nexus for the customer's jurisdiction, which lead to a new tax amount paid by the seller being calculated on the transaction. \
                     Manual intervention is required to verify the tax transaction on the platform's end and update the refund's tax transaction record."
                         .to_owned(),
-                ));
+                )));
             } else {
-                return Err(ApiError::InvalidInput(format!(
+                return Err(ApiError::Request(eyre::eyre!(format!(
                     "This refund has been processed on Stripe's end, but not on the tax processor's end. An unexpected error occurred, preventing the refund transaction from being processed \
                     on the tax platform's end. Error: {error}"
-                )));
+                ))));
             }
         }
     }
@@ -457,7 +487,7 @@ pub async fn refund_charge(
     Ok(HttpResponse::NoContent().finish())
 }
 
-/// Reprocess tax for a charge.  
+/// Reprocess tax for a charge.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -480,80 +510,86 @@ pub async fn reprocess_charge_tax(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let (id,) = info.into_inner();
 
     if !user.role.is_admin() {
-        return Err(ApiError::CustomAuthentication(
-            "You do not have permission to reprocess a tax transaction!"
-                .to_string(),
-        ));
+        return Err(ApiError::Auth(eyre::eyre!(
+            "You do not have permission to reprocess a tax transaction!",
+        )));
     }
 
-    let mut txn = pool.begin().await?;
+    let mut txn = pool
+        .begin()
+        .await
+        .wrap_internal_err("starting database transaction")?;
 
     let charge_refund = charge_item::DBCharge::get(id.into(), &mut txn)
-        .await?
-        .ok_or_else(|| ApiError::NotFound)?;
+        .await
+        .wrap_internal_err("fetching charge from database")?
+        .wrap_not_found_err_with(|| "resource not found")?;
 
     let Some(parent_charge_id) = charge_refund.parent_charge_id else {
-        return Err(ApiError::InvalidInput(
-            "This charge does not have a parent!".to_string(),
-        ));
+        return Err(ApiError::Request(eyre::eyre!(
+            "This charge does not have a parent!",
+        )));
     };
 
     match charge_refund.tax_platform_id {
         Some(_) => {
-            return Err(ApiError::InvalidInput(
-                "Refund charge already has a tax transaction ID!".to_string(),
-            ));
+            return Err(ApiError::Request(eyre::eyre!(
+                "Refund charge already has a tax transaction ID!",
+            )));
         }
         None => {
             let charge = charge_item::DBCharge::get(parent_charge_id, &mut txn)
-                .await?
-                .ok_or_else(|| ApiError::NotFound)?;
+                .await
+                .wrap_internal_err("fetching charge from database")?
+                .wrap_not_found_err_with(|| "resource not found")?;
 
             let payment_platform_id = charge
                 .payment_platform_id
-                .ok_or_else(|| {
-                    ApiError::Internal(eyre::eyre!(
-                        "parent charge is missing a payment platform ID"
-                    ))
-                })?
+                .wrap_internal_err_with(
+                    || "parent charge is missing a payment platform ID",
+                )?
                 .parse::<stripe::PaymentIntentId>()
-                .map_err(|_| {
-                    ApiError::Internal(eyre::eyre!(
-                        "parent charge has an invalid payment platform ID."
-                    ))
-                })?;
+                .map_err(|err| eyre::eyre!(err))
+                .wrap_internal_err(
+                    "parent charge has an invalid payment platform ID.",
+                )?;
 
             let pi = stripe::PaymentIntent::retrieve(
                 &stripe_client,
                 &payment_platform_id,
                 &["payment_method"],
             )
-            .await?;
+            .await
+            .wrap_failed_dependency_err(
+                "communicating with payment provider",
+            )?;
 
             let Some(billing_address) = pi
                 .payment_method
                 .and_then(|x| x.into_object())
                 .and_then(|x| x.billing_details.address)
             else {
-                return Err(ApiError::InvalidInput(
+                return Err(ApiError::Request(eyre::eyre!(
                     "Missing billing address for payment method.".to_owned(),
-                ));
+                )));
             };
 
             let tax_id =
                 product_info_by_product_price_id(charge.price_id, &mut txn)
-                    .await?
-                    .ok_or_else(|| {
-                        ApiError::InvalidInput(
-                            "Could not find product tax info for price ID!"
-                                .to_owned(),
-                        )
+                    .await
+                    .wrap_api_err(
+                        "executing `product_info_by_product_price_id`",
+                    )?
+                    .wrap_request_err_with(|| {
+                        "could not find product tax info for price ID!"
+                            .to_owned()
                     })?
                     .tax_identifier
                     .tax_processor_id;
@@ -567,22 +603,19 @@ pub async fn reprocess_charge_tax(
                 .zip(charge.tax_transaction_version)
                 .zip(charge.tax_platform_accounting_time)
             else {
-                return Err(ApiError::InvalidInput(
+                return Err(ApiError::Request(eyre::eyre!(
                     "Charge is missing full tax information. Please wait for the original charge to be synchronized with the tax processor."
                         .to_owned(),
-                ));
+                )));
             };
             let refund_id =
-                charge_refund.payment_platform_id.ok_or_else(|| {
-                    ApiError::Internal(eyre::eyre!(
-                        "Refund charge is missing a payment platform ID!"
-                    ))
-                })?;
+                charge_refund.payment_platform_id.wrap_internal_err_with(
+                    || "refund charge is missing a payment platform ID!",
+                )?;
 
-            let refund_id =
-                stripe::RefundId::from_str(&refund_id).map_err(|_| {
-                    ApiError::Internal(eyre::eyre!("Invalid refund ID!"))
-                })?;
+            let refund_id = stripe::RefundId::from_str(&refund_id)
+                .map_err(|err| eyre::eyre!(err))
+                .wrap_internal_err("invalid refund ID!")?;
 
             let anrok_txn_result = anrok_client
                 .negate_or_create_partial_negation(
@@ -619,14 +652,16 @@ pub async fn reprocess_charge_tax(
                 .await;
 
             if let Err(error) = anrok_txn_result {
-                return Err(ApiError::InvalidInput(format!(
+                return Err(ApiError::Request(eyre::eyre!(format!(
                     "There was an error processing the tax transaction: {error}. Please make sure the version has been incremented in case of an external modification."
-                )));
+                ))));
             }
         }
     }
 
-    txn.commit().await?;
+    txn.commit()
+        .await
+        .wrap_internal_err("committing database transaction")?;
 
     Ok(HttpResponse::NoContent().finish())
 }
@@ -646,7 +681,7 @@ pub struct SubscriptionEditQuery {
     pub dry: Option<bool>,
 }
 
-/// Update a subscription.  
+/// Update a subscription.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -676,7 +711,8 @@ pub async fn edit_subscription(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     #[derive(Clone, Copy, PartialEq, Eq)]
@@ -697,21 +733,19 @@ pub async fn edit_subscription(
             new_product_price.product_id,
             &mut *txn,
         )
-        .await?
-        .ok_or_else(|| {
-            ApiError::InvalidInput(
-                "Could not link new product price to product.".to_owned(),
-            )
+        .await
+        .wrap_internal_err("fetching product from database")?
+        .wrap_request_err_with(|| {
+            "could not link new product price to product.".to_owned()
         })?;
         let current_product = product_item::DBProduct::get(
             current_product_price.product_id,
             &mut *txn,
         )
-        .await?
-        .ok_or_else(|| {
-            ApiError::InvalidInput(
-                "Could not link current product price to product.".to_owned(),
-            )
+        .await
+        .wrap_internal_err("fetching product from database")?
+        .wrap_request_err_with(|| {
+            "could not link current product price to product.".to_owned()
         })?;
 
         // Special case: for promoting a 'medal' subscription to 'pyro', compare the RAM. If pyro plan has:
@@ -763,11 +797,9 @@ pub async fn edit_subscription(
         let current_amount = match &current_price.prices {
             Price::OneTime { price } => *price,
             Price::Recurring { intervals } => {
-                *intervals.get(&duration).ok_or_else(|| {
-                    ApiError::InvalidInput(
-                        "Could not find a valid price for the user's duration"
-                            .to_owned(),
-                    )
+                *intervals.get(&duration).wrap_request_err_with(|| {
+                    "could not find a valid price for the user's duration"
+                        .to_owned()
                 })?
             }
         };
@@ -775,11 +807,9 @@ pub async fn edit_subscription(
         let amount = match &new_product_price.prices {
             Price::OneTime { price } => *price,
             Price::Recurring { intervals } => {
-                *intervals.get(&duration).ok_or_else(|| {
-                    ApiError::InvalidInput(
-                        "Could not find a valid price for the user's duration"
-                            .to_owned(),
-                    )
+                *intervals.get(&duration).wrap_request_err_with(|| {
+                    "could not find a valid price for the user's duration"
+                        .to_owned()
                 })?
             }
         };
@@ -789,10 +819,8 @@ pub async fn edit_subscription(
         let proration = (Decimal::from(amount - current_amount) * complete)
             .floor()
             .to_i32()
-            .ok_or_else(|| {
-                ApiError::InvalidInput(
-                    "Could not convert proration to i32".to_owned(),
-                )
+            .wrap_request_err_with(|| {
+                "could not convert proration to i32".to_owned()
             })?;
 
         Ok((
@@ -813,35 +841,37 @@ pub async fn edit_subscription(
 
     let subscription =
         user_subscription_item::DBUserSubscription::get(id.into(), &**pool)
-            .await?
-            .ok_or_else(|| ApiError::NotFound)?;
+            .await
+            .wrap_internal_err("fetching user subscription from database")?
+            .wrap_not_found_err_with(|| "resource not found")?;
 
     if subscription.user_id != user.id.into() && !user.role.is_admin() {
-        return Err(ApiError::NotFound);
+        return Err(ApiError::NotFound(eyre::eyre!("resource not found")));
     }
 
-    let mut transaction = pool.begin().await?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .wrap_internal_err("starting database transaction")?;
 
     let mut open_charge = charge_item::DBCharge::get_open_subscription(
         subscription.id,
         &mut transaction,
     )
-    .await?
-    .ok_or_else(|| {
-        ApiError::InvalidInput(
-            "Could not find open charge for this subscription".to_string(),
-        )
+    .await
+    .wrap_internal_err("fetching charge from database")?
+    .wrap_request_err_with(|| {
+        "could not find open charge for this subscription".to_string()
     })?;
 
     let current_price = product_item::DBProductPrice::get(
         subscription.price_id,
         &mut transaction,
     )
-    .await?
-    .ok_or_else(|| {
-        ApiError::InvalidInput(
-            "Could not find current product price".to_string(),
-        )
+    .await
+    .wrap_internal_err("fetching product price from database")?
+    .wrap_request_err_with(|| {
+        "could not find current product price".to_string()
     })?;
 
     let maybe_intent_metadata = match edit_subscription.into_inner() {
@@ -855,7 +885,10 @@ pub async fn edit_subscription(
                     subscription.id,
                     &mut transaction,
                 )
-                .await?;
+                .await
+                .wrap_internal_err(
+                    "updating users subscriptions affiliations in database",
+                )?;
                 open_charge.status = ChargeStatus::Cancelled;
             } else {
                 // Forces another resubscription attempt
@@ -879,7 +912,10 @@ pub async fn edit_subscription(
                     subscription.id,
                     &mut transaction,
                 )
-                .await?;
+                .await
+                .wrap_internal_err(
+                    "executing `DBUsersSubscriptionsAffiliations::deactivate`",
+                )?;
                 ChargeStatus::Cancelled
             } else {
                 ChargeStatus::Open
@@ -902,22 +938,21 @@ pub async fn edit_subscription(
                     product_id.into(),
                     &mut transaction,
                 )
-                .await?
+                .await
+                .wrap_internal_err("fetching product prices from database")?
                 .into_iter()
                 .find(|x| x.currency_code == current_price.currency_code)
-                .ok_or_else(|| {
-                    ApiError::InvalidInput(
-                        "Could not find a valid price for your currency code!"
-                            .to_owned(),
-                    )
+                .wrap_request_err_with(|| {
+                    "could not find a valid price for your currency code!"
+                        .to_owned()
                 })?;
 
             // The price is the same! The request likely asked to edit the product to what it already is.
             if new_product_price.id == current_price.id {
-                return Err(ApiError::InvalidInput(
+                return Err(ApiError::Request(eyre::eyre!(
                     "You cannot use the existing product when modifying a subscription! Modifications to only the billing interval aren't yet supported."
                         .to_owned(),
-                ));
+                )));
             }
 
             #[derive(Serialize)]
@@ -929,9 +964,8 @@ pub async fn edit_subscription(
             let currency = stripe::Currency::from_str(
                 &current_price.currency_code.to_lowercase(),
             )
-            .map_err(|_| {
-                ApiError::InvalidInput("Invalid currency code".to_string())
-            })?;
+            .map_err(|err| eyre::eyre!(err))
+            .wrap_request_err("invalid currency code".to_string())?;
 
             // The next charge is an expiring charge, so we are promoting the subscription to a paid product.
             // Instead of doing a proration (since the product is likely free) we either:
@@ -942,15 +976,16 @@ pub async fn edit_subscription(
             //
             // ..depending on the special cases defined in `promotion_payment_requirement`.
             if open_charge.status == ChargeStatus::Expiring {
-                let new_region = region.ok_or_else(|| ApiError::InvalidInput("You need to specify a region when promoting an expiring charge.".to_owned()))?;
-                let new_interval = interval.ok_or_else(|| ApiError::InvalidInput("You need to specify an interval when promoting an expiring charge.".to_owned()))?;
+                let new_region = region.wrap_request_err_with(|| "you need to specify a region when promoting an expiring charge.".to_owned())?;
+                let new_interval = interval.wrap_request_err_with(|| "you need to specify an interval when promoting an expiring charge.".to_owned())?;
 
                 let req = promotion_payment_requirement(
                     &mut transaction,
                     &current_price,
                     &new_product_price,
                 )
-                .await?;
+                .await
+                .wrap_api_err("executing `promotion_payment_requirement`")?;
 
                 if dry {
                     // Note: we aren't committing the transaction here and it will be aborted.
@@ -964,10 +999,8 @@ pub async fn edit_subscription(
 
                 let payment_request_type =
                     PaymentRequestType::from_stripe_id(payment_method)
-                        .ok_or_else(|| {
-                            ApiError::InvalidInput(
-                                "Invalid payment method ID".to_owned(),
-                            )
+                        .wrap_request_err_with(|| {
+                            "invalid payment method ID".to_owned()
                         })?;
 
                 if req == PaymentRequirement::RequiresPayment {
@@ -992,14 +1025,15 @@ pub async fn edit_subscription(
                             attach_payment_metadata: None,
                         },
                     )
-                    .await?;
+                    .await
+                    .wrap_api_err("creating subscription charge")?;
 
                     Some(results)
                 } else {
                     /*
                     open_charge.status = ChargeStatus::Open;
                     open_charge.payment_platform = PaymentPlatform::Stripe;
-                    open_charge.amount = new_product_price.prices.get_interval(new_interval).ok_or_else(|| ApiError::InvalidInput("Could not find a valid price for the user's duration".to_owned()))?;
+                    open_charge.amount = new_product_price.prices.get_interval(new_interval).wrap_request_err_with(|| "could not find a valid price for the user's duration".to_owned())?;
                     open_charge.currency_code = new_product_price.currency_code;
                     open_charge.subscription_interval = Some(new_interval);
                     open_charge.price_id = new_product_price.id;
@@ -1017,7 +1051,8 @@ pub async fn edit_subscription(
                     &subscription,
                     &current_price,
                     &new_product_price,
-                )?;
+                )
+                .wrap_api_err("executing `proration_amount`")?;
 
                 if dry {
                     // Note: we aren't committing the transaction here and it will be aborted.
@@ -1081,7 +1116,8 @@ pub async fn edit_subscription(
                                 attach_payment_metadata: None,
                             },
                         )
-                        .await?;
+                        .await
+                        .wrap_api_err("creating subscription charge")?;
 
                         Some(results)
                     }
@@ -1095,25 +1131,25 @@ pub async fn edit_subscription(
             interval,
             ..
         } if region.is_some() || interval.is_some() => {
-            return Err(ApiError::InvalidInput(
+            return Err(ApiError::Request(eyre::eyre!(
                 "It is not currently possible to only modify the region or interval of a subscription".to_owned(),
-            ));
+            )));
         }
 
         SubscriptionEdit {
             payment_method: None,
             ..
         } => {
-            return Err(ApiError::InvalidInput(
+            return Err(ApiError::Request(eyre::eyre!(
                 "A known payment method is required at this point to calculate tax information".to_owned(),
-            ));
+            )));
         }
 
         _ => {
-            return Err(ApiError::InvalidInput(
+            return Err(ApiError::Request(eyre::eyre!(
                 "Unexpected combination of fields in subscription PATCH request. Please either only specify `cancelled`, or specify `product` \
                 alongside optionally specifying a `region` and `interval`. In some cases, you may be required to provide `region` and `interval`.".to_owned(),
-            ));
+            )));
         }
     };
 
@@ -1123,8 +1159,14 @@ pub async fn edit_subscription(
         // At this point, if dry is true, we've already early-returned, except in
         // the `cancelled` branches.
 
-        open_charge.upsert(&mut transaction).await?;
-        transaction.commit().await?;
+        open_charge
+            .upsert(&mut transaction)
+            .await
+            .wrap_internal_err("committing database transaction")?;
+        transaction
+            .commit()
+            .await
+            .wrap_internal_err("committing database transaction")?;
     }
 
     if let Some(PaymentBootstrapResults {
@@ -1146,7 +1188,7 @@ pub async fn edit_subscription(
     }
 }
 
-/// Get the current customer.  
+/// Get the current customer.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1167,7 +1209,8 @@ pub async fn user_customer(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let customer_id = get_or_create_customer(
@@ -1178,9 +1221,14 @@ pub async fn user_customer(
         &pool,
         &redis,
     )
-    .await?;
+    .await
+    .wrap_api_err("fetching or creating Stripe customer")?;
     let customer =
-        stripe::Customer::retrieve(&stripe_client, &customer_id, &[]).await?;
+        stripe::Customer::retrieve(&stripe_client, &customer_id, &[])
+            .await
+            .wrap_failed_dependency_err(
+                "communicating with payment provider",
+            )?;
 
     Ok(HttpResponse::Ok().json(customer))
 }
@@ -1190,7 +1238,7 @@ pub struct ChargesQuery {
     pub user_id: Option<ariadne::ids::UserId>,
 }
 
-/// List payments.  
+/// List payments.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1212,7 +1260,8 @@ pub async fn charges(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let charges =
@@ -1221,17 +1270,17 @@ pub async fn charges(
                 if user.role.is_admin() {
                     user_id.into()
                 } else {
-                    return Err(ApiError::InvalidInput(
-                        "You cannot see the subscriptions of other users!"
-                            .to_string(),
-                    ));
+                    return Err(ApiError::Request(eyre::eyre!(
+                        "You cannot see the subscriptions of other users!",
+                    )));
                 }
             } else {
                 user.id.into()
             },
             &**pool,
         )
-        .await?;
+        .await
+        .wrap_internal_err("fetching user charges from database")?;
 
     Ok(HttpResponse::Ok().json(
         charges
@@ -1256,7 +1305,7 @@ pub async fn charges(
     ))
 }
 
-/// Start a payment method flow.  
+/// Start a payment method flow.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1277,7 +1326,8 @@ pub async fn add_payment_method_flow(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let customer = get_or_create_customer(
@@ -1288,7 +1338,8 @@ pub async fn add_payment_method_flow(
         &pool,
         &redis,
     )
-    .await?;
+    .await
+    .wrap_api_err("fetching or creating Stripe customer")?;
 
     let intent = SetupIntent::create(
         &stripe_client,
@@ -1303,7 +1354,7 @@ pub async fn add_payment_method_flow(
             ..Default::default()
         },
     )
-    .await?;
+    .await.wrap_failed_dependency_err("communicating with payment provider")?;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({
         "client_secret": intent.client_secret
@@ -1315,7 +1366,7 @@ pub struct EditPaymentMethod {
     pub primary: bool,
 }
 
-/// Update a payment method.  
+/// Update a payment method.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1337,13 +1388,14 @@ pub async fn edit_payment_method(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let (id,) = info.into_inner();
 
     let Ok(payment_method_id) = PaymentMethodId::from_str(&id) else {
-        return Err(ApiError::NotFound);
+        return Err(ApiError::NotFound(eyre::eyre!("resource not found")));
     };
 
     let customer = get_or_create_customer(
@@ -1354,38 +1406,34 @@ pub async fn edit_payment_method(
         &pool,
         &redis,
     )
-    .await?;
+    .await
+    .wrap_api_err("fetching or creating Stripe customer")?;
 
     let payment_method = stripe::PaymentMethod::retrieve(
         &stripe_client,
         &payment_method_id,
         &[],
     )
-    .await?;
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
 
     if payment_method.customer.is_some_and(|x| x.id() == customer)
         || user.role.is_admin()
     {
-        stripe::Customer::update(
+        set_default_payment_method(
             &stripe_client,
             &customer,
-            UpdateCustomer {
-                invoice_settings: Some(CustomerInvoiceSettings {
-                    default_payment_method: Some(payment_method.id.to_string()),
-                    ..Default::default()
-                }),
-                ..Default::default()
-            },
+            &payment_method.id,
         )
         .await?;
 
         Ok(HttpResponse::NoContent().finish())
     } else {
-        Err(ApiError::NotFound)
+        Err(ApiError::NotFound(eyre::eyre!("resource not found")))
     }
 }
 
-/// Remove a payment method.  
+/// Remove a payment method.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1407,13 +1455,14 @@ pub async fn remove_payment_method(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let (id,) = info.into_inner();
 
     let Ok(payment_method_id) = PaymentMethodId::from_str(&id) else {
-        return Err(ApiError::NotFound);
+        return Err(ApiError::NotFound(eyre::eyre!("resource not found")));
     };
 
     let customer = get_or_create_customer(
@@ -1424,28 +1473,35 @@ pub async fn remove_payment_method(
         &pool,
         &redis,
     )
-    .await?;
+    .await
+    .wrap_api_err("fetching or creating Stripe customer")?;
 
     let payment_method = stripe::PaymentMethod::retrieve(
         &stripe_client,
         &payment_method_id,
         &[],
     )
-    .await?;
+    .await
+    .wrap_failed_dependency_err("communicating with payment provider")?;
 
     let user_subscriptions =
         user_subscription_item::DBUserSubscription::get_all_user(
             user.id.into(),
             &**pool,
         )
-        .await?;
+        .await
+        .wrap_internal_err("fetching user subscriptions from database")?;
 
     if user_subscriptions
         .iter()
         .any(|x| x.status != SubscriptionStatus::Unprovisioned)
     {
         let customer =
-            stripe::Customer::retrieve(&stripe_client, &customer, &[]).await?;
+            stripe::Customer::retrieve(&stripe_client, &customer, &[])
+                .await
+                .wrap_failed_dependency_err(
+                    "communicating with payment provider",
+                )?;
 
         if customer
             .invoice_settings
@@ -1455,26 +1511,47 @@ pub async fn remove_payment_method(
             })
             .unwrap_or(false)
         {
-            return Err(ApiError::InvalidInput(
-                "You may not remove the default payment method if you have active subscriptions!"
-                    .to_string(),
-            ));
+            return Err(ApiError::Request(eyre::eyre!(
+                "You may not remove the default payment method if you have active subscriptions!",
+            )));
         }
     }
 
-    if payment_method.customer.is_some_and(|x| x.id() == customer)
+    if payment_method
+        .customer
+        .as_ref()
+        .is_some_and(|x| x.id() == customer)
         || user.role.is_admin()
     {
         stripe::PaymentMethod::detach(&stripe_client, &payment_method_id)
-            .await?;
+            .await
+            .wrap_failed_dependency_err(
+                "communicating with payment provider",
+            )?;
+
+        if let Some(owner_id) = payment_method.customer.map(|x| x.id())
+            && let Err(err) = promote_default_payment_method(
+                &stripe_client,
+                &owner_id,
+                &payment_method_id,
+            )
+            .await
+        {
+            error!(
+                %err,
+                customer_id = %owner_id,
+                removed_payment_method_id = %payment_method_id,
+                "Failed to promote a default payment method"
+            );
+        }
 
         Ok(HttpResponse::NoContent().finish())
     } else {
-        Err(ApiError::NotFound)
+        Err(ApiError::NotFound(eyre::eyre!("resource not found")))
     }
 }
 
-/// List payment methods.  
+/// List payment methods.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1498,7 +1575,8 @@ pub async fn payment_methods(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     if let Some(customer_id) = user
@@ -1514,7 +1592,8 @@ pub async fn payment_methods(
                 ..Default::default()
             },
         )
-        .await?;
+        .await
+        .wrap_failed_dependency_err("communicating with payment provider")?;
 
         Ok(HttpResponse::Ok().json(methods.data))
     } else {
@@ -1537,7 +1616,7 @@ struct ActiveServerResponse {
     pub region: Option<String>,
 }
 
-/// List active servers.  
+/// List active servers.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1558,16 +1637,15 @@ pub async fn active_servers(
         .get("X-Master-Key")
         .is_none_or(|it| it.as_bytes() != master_key.as_bytes())
     {
-        return Err(ApiError::CustomAuthentication(
-            "Invalid master key".to_string(),
-        ));
+        return Err(ApiError::Auth(eyre::eyre!("Invalid master key",)));
     }
 
     let servers = user_subscription_item::DBUserSubscription::get_all_servers(
         query.subscription_status,
         &**pool,
     )
-    .await?;
+    .await
+    .wrap_internal_err("fetching user subscriptions from database")?;
 
     let server_ids = servers
         .into_iter()
@@ -1651,7 +1729,7 @@ pub struct PaymentRequest {
     pub metadata: Option<PaymentRequestMetadata>,
 }
 
-/// Initiate a payment.  
+/// Initiate a payment.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1674,7 +1752,8 @@ pub async fn initiate_payment(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     let payment_request = payment_request.into_inner();
@@ -1694,12 +1773,16 @@ pub async fn initiate_payment(
                 &**pool,
                 payment_request.charge,
             )
-            .await?,
+            .await
+            .wrap_api_err(
+                "executing `AttachedCharge::from_charge_request_type`",
+            )?,
             currency: CurrencyMode::Infer,
             attach_payment_metadata: payment_request.metadata,
         },
     )
-    .await?;
+    .await
+    .wrap_api_err("executing `AttachedCharge::from_charge_request_type`")?;
 
     match results.new_payment_intent {
         Some(payment_intent) => {
@@ -1721,7 +1804,7 @@ pub async fn initiate_payment(
     }
 }
 
-/// Receive a Stripe webhook.  
+/// Receive a Stripe webhook.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -1742,11 +1825,13 @@ pub async fn stripe_webhook(
         .and_then(|x| x.to_str().ok())
         .unwrap_or_default();
 
-    if let Ok(event) = Webhook::construct_event(
+    let result = Webhook::construct_event(
         &payload,
         stripe_signature,
         &ENV.STRIPE_WEBHOOK_SECRET,
-    ) {
+    );
+
+    if let Ok(event) = result {
         struct PaymentIntentMetadata {
             pub user_item: crate::database::models::user_item::DBUser,
             pub product_price_item: product_item::DBProductPrice,
@@ -1783,7 +1868,8 @@ pub async fn stripe_webhook(
                     crate::database::models::user_item::DBUser::get_id(
                         user_id, pool, redis,
                     )
-                    .await?
+                    .await
+                    .wrap_internal_err("fetching user from database")?
                 else {
                     break 'metadata;
                 };
@@ -1824,13 +1910,17 @@ pub async fn stripe_webhook(
                         crate::database::models::charge_item::DBCharge::get(
                             charge_id, pool,
                         )
-                        .await?
+                        .await
+                        .wrap_internal_err("fetching charge from database")?
                     {
                         let Some(price) = product_item::DBProductPrice::get(
                             charge.price_id,
                             pool,
                         )
-                        .await?
+                        .await
+                        .wrap_internal_err(
+                            "fetching product price from database",
+                        )?
                         else {
                             break 'metadata;
                         };
@@ -1839,7 +1929,8 @@ pub async fn stripe_webhook(
                             price.product_id,
                             pool,
                         )
-                        .await?
+                        .await
+                        .wrap_internal_err("fetching product from database")?
                         else {
                             break 'metadata;
                         };
@@ -1850,7 +1941,9 @@ pub async fn stripe_webhook(
                             Some(payment_intent_id.to_string());
                         charge.tax_amount = tax_amount;
                         charge.tax_platform_id = None;
-                        charge.upsert(transaction).await?;
+                        charge.upsert(transaction).await.wrap_internal_err(
+                            "updating payment intent charge",
+                        )?;
 
                         if let Some(subscription_id) = charge.subscription_id {
                             let maybe_subscription =
@@ -1858,7 +1951,7 @@ pub async fn stripe_webhook(
                                 subscription_id,
                                 pool,
                             )
-                            .await?;
+                            .await.wrap_internal_err("fetching user subscription from database")?;
 
                             let Some(mut subscription) = maybe_subscription
                             else {
@@ -1878,14 +1971,18 @@ pub async fn stripe_webhook(
                                     subscription.price_id = charge.price_id;
                                 }
                                 ChargeType::Refund => {
-                                    return Err(ApiError::InvalidInput(
-                                        "Invalid charge type: Refund"
-                                            .to_string(),
+                                    return Err(ApiError::Internal(
+                                        eyre::eyre!(
+                                            "invalid charge type `Refund` for payment intent",
+                                        ),
                                     ));
                                 }
                             }
 
-                            subscription.upsert(transaction).await?;
+                            subscription
+                                .upsert(transaction)
+                                .await
+                                .wrap_internal_err("upserting subscription")?;
 
                             (
                                 charge,
@@ -1912,7 +2009,10 @@ pub async fn stripe_webhook(
 
                         let Some(price) =
                             product_item::DBProductPrice::get(price_id, pool)
-                                .await?
+                                .await
+                                .wrap_internal_err(
+                                    "fetching product price from database",
+                                )?
                         else {
                             break 'metadata;
                         };
@@ -1921,7 +2021,8 @@ pub async fn stripe_webhook(
                             price.product_id,
                             pool,
                         )
-                        .await?;
+                        .await
+                        .wrap_internal_err("fetching product from database")?;
 
                         let Some(product) = maybe_product else {
                             break 'metadata;
@@ -1947,7 +2048,7 @@ pub async fn stripe_webhook(
                                     break 'metadata;
                                 };
 
-                                    let subscription = if let Some(mut subscription) = user_subscription_item::DBUserSubscription::get(subscription_id, pool).await? {
+                                    let subscription = if let Some(mut subscription) = user_subscription_item::DBUserSubscription::get(subscription_id, pool).await.wrap_internal_err("fetching user subscription from database")? {
                                     subscription.status = SubscriptionStatus::Unprovisioned;
                                     subscription.price_id = price_id;
                                     subscription.interval = interval;
@@ -1967,8 +2068,11 @@ pub async fn stripe_webhook(
 
                                     if charge_status != ChargeStatus::Failed {
                                         subscription
-                                            .upsert(transaction)
-                                            .await?;
+                                            .upsert(&mut *transaction)
+                                            .await
+                                            .wrap_internal_err(
+                                                "upserting subscription",
+                                            )?;
                                     }
 
                                     Some(subscription)
@@ -2009,7 +2113,10 @@ pub async fn stripe_webhook(
                         };
 
                         if charge_status != ChargeStatus::Failed {
-                            charge.upsert(transaction).await?;
+                            charge
+                                .upsert(&mut *transaction)
+                                .await
+                                .wrap_internal_err("upserting charge")?;
                         }
 
                         (charge, price, product, subscription, new_region)
@@ -2027,9 +2134,25 @@ pub async fn stripe_webhook(
                 });
             }
 
-            Err(ApiError::InvalidInput(
-                "Webhook missing required webhook metadata!".to_string(),
-            ))
+            Err(ApiError::Internal(eyre::eyre!(
+                "payment intent is missing required metadata",
+            )))
+        }
+
+        // Labrinth always attaches `modrinth_*` metadata when creating a payment
+        // intent, so one without any was created elsewhere on the Stripe account.
+        if let EventObject::PaymentIntent(payment_intent) = &event.data.object
+            && !payment_intent
+                .metadata
+                .keys()
+                .any(|key| key.starts_with("modrinth_"))
+        {
+            warn!(
+                payment_intent_id = %payment_intent.id,
+                event_type = %event.type_,
+                "Ignoring webhook for a payment intent not created by Labrinth"
+            );
+            return Ok(HttpResponse::Ok().finish());
         }
 
         match event.type_ {
@@ -2037,7 +2160,10 @@ pub async fn stripe_webhook(
                 if let EventObject::PaymentIntent(payment_intent) =
                     event.data.object
                 {
-                    let mut transaction = pool.begin().await?;
+                    let mut transaction = pool
+                        .begin()
+                        .await
+                        .wrap_internal_err("starting database transaction")?;
 
                     let mut metadata = get_payment_intent_metadata(
                         payment_intent.id,
@@ -2049,7 +2175,8 @@ pub async fn stripe_webhook(
                         ChargeStatus::Succeeded,
                         &mut transaction,
                     )
-                    .await?;
+                    .await
+                    .wrap_api_err("fetching payment intent metadata")?;
 
                     if let Some(latest_charge) = payment_intent.latest_charge {
                         let charge = stripe::Charge::retrieve(
@@ -2057,7 +2184,10 @@ pub async fn stripe_webhook(
                             &latest_charge.id(),
                             &["balance_transaction"],
                         )
-                        .await?;
+                        .await
+                        .wrap_failed_dependency_err(
+                            "communicating with payment provider",
+                        )?;
 
                         if let Some(balance_transaction) = charge
                             .balance_transaction
@@ -2068,7 +2198,8 @@ pub async fn stripe_webhook(
                             metadata
                                 .charge_item
                                 .upsert(&mut transaction)
-                                .await?;
+                                .await
+                                .wrap_internal_err("upserting charge")?;
                         }
                     }
 
@@ -2096,7 +2227,8 @@ pub async fn stripe_webhook(
                                     as crate::database::models::ids::DBUserId,
                             )
                             .execute(&mut transaction)
-                            .await?;
+                            .await
+                            .wrap_internal_err("querying database for `get_payment_intent_metadata`")?;
                         }
                         ProductMetadata::Pyro {
                             ram,
@@ -2122,11 +2254,11 @@ pub async fn stripe_webhook(
                                             let region = metadata.new_region.clone();
 
                                             if region.is_none() {
-                                                return Err(ApiError::InvalidInput(
+                                                return Err(ApiError::Internal(eyre::eyre!(
                                                     "We attempted to promote a subscription with type=medal, which requires specifying \
                                                     a new region to move the server to. However, no new region was present in the payment \
                                                     intent metadata.".to_owned()
-                                                ));
+                                                )));
                                             }
 
                                             region
@@ -2160,8 +2292,8 @@ pub async fn stripe_webhook(
                                         ))
                                         .header("X-Master-Key", &ENV.PYRO_API_KEY)
                                         .send()
-                                        .await?
-                                        .error_for_status()?;
+                                        .await.wrap_internal_err("sending HTTP request")?
+                                        .error_for_status().wrap_internal_err("sending HTTP request")?;
 
                                     client
                                         .post(format!(
@@ -2175,8 +2307,8 @@ pub async fn stripe_webhook(
                                         )
                                         .json(&body)
                                         .send()
-                                        .await?
-                                        .error_for_status()?;
+                                        .await.wrap_internal_err("deserializing HTTP response")?
+                                        .error_for_status().wrap_internal_err("deserializing HTTP response")?;
 
                                     // As the subscription has been promoted, this is now a Pyro subscription.
                                     // Ensure the metadata is properly updated.
@@ -2204,7 +2336,7 @@ pub async fn stripe_webhook(
                                                 None,
                                                 &**pool,
                                                 &redis,
-                                            ).await?;
+                                            ).await.wrap_internal_err("fetching minecraft versions from database")?;
 
                                             (
                                                 None,
@@ -2255,10 +2387,10 @@ pub async fn stripe_webhook(
                                             })
                                         }))
                                         .send()
-                                        .await?
-                                        .error_for_status()?
+                                        .await.wrap_internal_err("sending HTTP request")?
+                                        .error_for_status().wrap_internal_err("sending HTTP request")?
                                         .json::<PyroServerResponse>()
-                                        .await?;
+                                        .await.wrap_internal_err("deserializing HTTP response")?;
 
                                     if let Some(ref mut subscription) =
                                         metadata.user_subscription_item
@@ -2281,17 +2413,14 @@ pub async fn stripe_webhook(
                             subscription.id,
                             &mut transaction,
                         )
-                        .await?;
+                        .await
+                        .wrap_internal_err("fetching charge from database")?;
 
                         let new_price = match metadata.product_price_item.prices {
                             Price::OneTime { price } => price,
                             Price::Recurring { intervals } => {
-                                *intervals.get(&subscription.interval).ok_or_else(|| {
-                                    ApiError::InvalidInput(
-                                        "Could not find a valid price for the user's country"
-                                            .to_string(),
-                                    )
-                                })?
+                                *intervals.get(&subscription.interval).wrap_internal_err_with(|| "could not find a valid price for the user's country"
+                                            .to_string())?
                             }
                         };
 
@@ -2331,12 +2460,19 @@ pub async fn stripe_webhook(
                                     metadata.product_price_item.id;
                                 charge.amount = new_price as i64;
                             }
-                            charge.upsert(&mut transaction).await?;
+                            charge
+                                .upsert(&mut transaction)
+                                .await
+                                .wrap_internal_err("upserting charge")?;
                         } else if metadata.charge_item.status
                             != ChargeStatus::Cancelled
                         {
                             let charge_id =
-                                generate_charge_id(&mut transaction).await?;
+                                generate_charge_id(&mut transaction)
+                                    .await
+                                    .wrap_internal_err(
+                                        "generating charge ID",
+                                    )?;
                             DBCharge {
                                 id: charge_id,
                                 user_id: metadata.user_item.id,
@@ -2373,7 +2509,10 @@ pub async fn stripe_webhook(
                                 tax_platform_accounting_time: None,
                             }
                             .upsert(&mut transaction)
-                            .await?;
+                            .await
+                            .wrap_internal_err(
+                                "upserting subscription charge",
+                            )?;
 
                             if let Some(affiliate_code) = metadata
                                 .payment_metadata
@@ -2388,27 +2527,42 @@ pub async fn stripe_webhook(
                                     deactivated_at: None,
                                 }
                                 .insert(&mut transaction)
-                                .await?;
+                                .await
+                                .wrap_internal_err(
+                                    "inserting subscription affiliation into database",
+                                )?;
                             }
                         };
 
                         subscription.status = SubscriptionStatus::Provisioned;
-                        subscription.upsert(&mut transaction).await?;
+                        subscription
+                            .upsert(&mut transaction)
+                            .await
+                            .wrap_internal_err(
+                                "updating affiliate code id in database",
+                            )?;
                     }
 
-                    transaction.commit().await?;
+                    transaction
+                        .commit()
+                        .await
+                        .wrap_internal_err("committing database transaction")?;
                     crate::database::models::user_item::DBUser::clear_caches(
                         &[(metadata.user_item.id, None)],
                         &redis,
                     )
-                    .await?;
+                    .await
+                    .wrap_internal_err("clearing cached data from Redis")?;
                 }
             }
             EventType::PaymentIntentProcessing => {
                 if let EventObject::PaymentIntent(payment_intent) =
                     event.data.object
                 {
-                    let mut transaction = pool.begin().await?;
+                    let mut transaction = pool
+                        .begin()
+                        .await
+                        .wrap_internal_err("starting database transaction")?;
                     get_payment_intent_metadata(
                         payment_intent.id,
                         payment_intent.amount,
@@ -2419,15 +2573,22 @@ pub async fn stripe_webhook(
                         ChargeStatus::Processing,
                         &mut transaction,
                     )
-                    .await?;
-                    transaction.commit().await?;
+                    .await
+                    .wrap_api_err("fetching payment intent metadata")?;
+                    transaction
+                        .commit()
+                        .await
+                        .wrap_internal_err("committing database transaction")?;
                 }
             }
             EventType::PaymentIntentPaymentFailed => {
                 if let EventObject::PaymentIntent(payment_intent) =
                     event.data.object
                 {
-                    let mut transaction = pool.begin().await?;
+                    let mut transaction = pool
+                        .begin()
+                        .await
+                        .wrap_internal_err("starting database transaction")?;
 
                     let metadata = get_payment_intent_metadata(
                         payment_intent.id,
@@ -2439,7 +2600,8 @@ pub async fn stripe_webhook(
                         ChargeStatus::Failed,
                         &mut transaction,
                     )
-                    .await?;
+                    .await
+                    .wrap_api_err("fetching payment intent metadata")?;
 
                     if metadata.user_item.email.is_some() {
                         let money = rusty_money::Money::from_minor(
@@ -2472,10 +2634,16 @@ pub async fn stripe_webhook(
                             },
                         }
                         .insert(metadata.user_item.id, &mut transaction, &redis)
-                        .await?;
+                        .await
+                        .wrap_internal_err(
+                            "inserting payment failure notification",
+                        )?;
                     }
 
-                    transaction.commit().await?;
+                    transaction
+                        .commit()
+                        .await
+                        .wrap_internal_err("committing database transaction")?;
                 }
             }
             EventType::PaymentMethodAttached => {
@@ -2489,26 +2657,19 @@ pub async fn stripe_webhook(
                         &customer_id,
                         &[],
                     )
-                    .await?;
+                    .await
+                    .wrap_failed_dependency_err(
+                        "communicating with payment provider",
+                    )?;
 
                     if customer
                         .invoice_settings
                         .is_none_or(|x| x.default_payment_method.is_none())
                     {
-                        stripe::Customer::update(
+                        set_default_payment_method(
                             &stripe_client,
                             &customer_id,
-                            UpdateCustomer {
-                                invoice_settings: Some(
-                                    CustomerInvoiceSettings {
-                                        default_payment_method: Some(
-                                            payment_method.id.to_string(),
-                                        ),
-                                        ..Default::default()
-                                    },
-                                ),
-                                ..Default::default()
-                            },
+                            &payment_method.id,
                         )
                         .await?;
                     }
@@ -2516,10 +2677,14 @@ pub async fn stripe_webhook(
             }
             _ => {}
         }
-    } else {
-        return Err(ApiError::InvalidInput(
-            "Webhook signature validation failed!".to_string(),
+    } else if let Err(WebhookError::BadParse(err)) = result {
+        return Err(ApiError::Internal(
+            eyre::Report::new(err).wrap_err("parsing webhook event"),
         ));
+    } else {
+        return Err(ApiError::Request(eyre::eyre!(
+            "Webhook signature validation failed!",
+        )));
     }
 
     Ok(HttpResponse::Ok().finish())
@@ -2543,7 +2708,8 @@ async fn apply_credit_many(
         &subs_ids,
         &mut *transaction,
     )
-    .await?;
+    .await
+    .wrap_internal_err("fetching user subscriptions from database")?;
 
     let provisioned_count = subs
         .iter()
@@ -2571,18 +2737,22 @@ async fn apply_credit_many(
             subscription.id,
             &mut *transaction,
         )
-        .await?
-        .ok_or_else(|| {
-            ApiError::InvalidInput(format!(
-                "Could not find open charge for subscription {}",
+        .await
+        .wrap_internal_err("fetching charge from database")?
+        .wrap_request_err_with(|| {
+            format!(
+                "could not find open charge for subscription `{}`",
                 to_base62(subscription.id.0 as u64)
-            ))
+            )
         })?;
 
         let previous_due = open_charge.due;
         open_charge.due = previous_due + Duration::days(days as i64);
         let next_due = open_charge.due;
-        open_charge.upsert(&mut *transaction).await?;
+        open_charge
+            .upsert(&mut *transaction)
+            .await
+            .wrap_internal_err("updating next due in database")?;
 
         credit_sub_ids.push(subscription.id);
         credit_user_ids.push(subscription.user_id);
@@ -2602,7 +2772,10 @@ async fn apply_credit_many(
                 },
             }
             .insert(subscription.user_id, &mut *transaction, redis)
-            .await?;
+            .await
+            .wrap_internal_err(
+                "inserting database records for `apply_credit_many`",
+            )?;
         }
     }
 
@@ -2616,7 +2789,8 @@ async fn apply_credit_many(
         &credit_next_dues,
     )
     .await
-    .map_err(|e| ApiError::Internal(eyre::eyre!(e)))?;
+    .map_err(|err| eyre::eyre!(err))
+    .wrap_internal_err("inserting subscription credits into database")?;
 
     Ok(())
 }
@@ -2644,7 +2818,7 @@ pub enum CreditTarget {
     },
 }
 
-/// Credit subscriptions.  
+/// Credit subscriptions.
 #[utoipa::path(
 	context_path = "/billing",
 	tag = "billing",
@@ -2666,13 +2840,14 @@ pub async fn credit(
         &session_queue,
         Scopes::SESSION_ACCESS,
     )
-    .await?
+    .await
+    .wrap_auth_err("authenticating API request")?
     .1;
 
     if !user.role.is_admin() {
-        return Err(ApiError::CustomAuthentication(
-            "You do not have permission to credit subscriptions!".to_string(),
-        ));
+        return Err(ApiError::Auth(eyre::eyre!(
+            "You do not have permission to credit subscriptions!",
+        )));
     }
 
     let CreditRequest {
@@ -2683,18 +2858,21 @@ pub async fn credit(
     } = body.into_inner();
 
     if days <= 0 {
-        return Err(ApiError::InvalidInput(
-            "Days must be greater than zero".to_string(),
-        ));
+        return Err(ApiError::Request(eyre::eyre!(
+            "Days must be greater than zero",
+        )));
     }
-    let mut transaction = pool.begin().await?;
+    let mut transaction = pool
+        .begin()
+        .await
+        .wrap_internal_err("starting database transaction")?;
 
     match target {
         CreditTarget::Subscriptions { subscription_ids } => {
             if subscription_ids.is_empty() {
-                return Err(ApiError::InvalidInput(
-                    "You must specify at least one subscription id".to_string(),
-                ));
+                return Err(ApiError::Request(eyre::eyre!(
+                    "You must specify at least one subscription id",
+                )));
             }
             apply_credit_many(
                 &mut transaction,
@@ -2705,18 +2883,23 @@ pub async fn credit(
                 send_email,
                 message,
             )
-            .await?;
+            .await
+            .wrap_api_err("crediting user subscriptions")?;
         }
         CreditTarget::Nodes { nodes } => {
             if nodes.is_empty() {
-                return Err(ApiError::InvalidInput(
-                    "You must specify at least one node hostname".to_string(),
-                ));
+                return Err(ApiError::Request(eyre::eyre!(
+                    "You must specify at least one node hostname",
+                )));
             }
             let mut server_ids: Vec<String> = Vec::new();
             for hostname in nodes {
-                let ids =
-                    archon_client.get_servers_by_hostname(&hostname).await?;
+                let ids = archon_client
+                    .get_servers_by_hostname(&hostname)
+                    .await
+                    .wrap_internal_err(
+                        "fetching servers by hostname from Archon",
+                    )?;
                 server_ids.extend(ids.into_iter().map(|id| id.to_string()));
             }
             server_ids.dedup();
@@ -2724,11 +2907,11 @@ pub async fn credit(
                 &server_ids,
                 &mut transaction,
             )
-            .await?;
+            .await.wrap_internal_err("fetching user subscriptions from database")?;
             if subs.is_empty() {
-                return Err(ApiError::InvalidInput(
-                    "No subscriptions found for provided nodes".to_string(),
-                ));
+                return Err(ApiError::Request(eyre::eyre!(
+                    "No subscriptions found for provided nodes",
+                )));
             }
             apply_credit_many(
                 &mut transaction,
@@ -2739,20 +2922,23 @@ pub async fn credit(
                 send_email,
                 message,
             )
-            .await?;
+            .await
+            .wrap_api_err("crediting server subscriptions")?;
         }
         CreditTarget::Region { region } => {
-            let servers =
-                archon_client.get_active_servers_by_region(&region).await?;
+            let servers = archon_client
+                .get_active_servers_by_region(&region)
+                .await
+                .wrap_internal_err("fetching servers from database")?;
             let subs = user_subscription_item::DBUserSubscription::get_many_by_server_ids(
                 &servers.into_iter().map(|id| id.to_string()).collect::<Vec<String>>(),
                 &mut transaction,
             )
-            .await?;
+            .await.wrap_internal_err("fetching user subscriptions from database")?;
             if subs.is_empty() {
-                return Err(ApiError::InvalidInput(
-                    "No subscriptions found for provided region".to_string(),
-                ));
+                return Err(ApiError::Request(eyre::eyre!(
+                    "No subscriptions found for provided region",
+                )));
             }
             apply_credit_many(
                 &mut transaction,
@@ -2763,13 +2949,18 @@ pub async fn credit(
                 send_email,
                 message,
             )
-            .await?;
+            .await
+            .wrap_api_err("crediting region subscriptions")?;
         }
     }
 
-    transaction.commit().await?;
+    transaction
+        .commit()
+        .await
+        .wrap_internal_err("committing database transaction")?;
 
     Ok(HttpResponse::NoContent().finish())
 }
 
 pub mod payments;
+pub mod update_subscriptions;

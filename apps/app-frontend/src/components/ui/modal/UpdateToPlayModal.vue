@@ -8,6 +8,7 @@
 		:diffs="normalizedDiffs"
 		:version-date="versionDate"
 		:show-external-warnings="showExternalWarnings"
+		:external-warning-description="formatMessage(messages.externalWarningDescription)"
 		:confirm-label="formatMessage(commonMessages.updateButton)"
 		:confirm-icon="DownloadIcon"
 		:removed-label="formatMessage(messages.removed)"
@@ -33,6 +34,7 @@ import { get_project_many, get_version, get_version_many } from '@/helpers/cache
 import { wait_for_install_job } from '@/helpers/install'
 import { update_managed_modrinth_version } from '@/helpers/instance'
 import type { GameInstance } from '@/helpers/types'
+import { injectAppEvents } from '@/providers/app-events'
 import { injectServerInstall } from '@/providers/server-install'
 
 type Dependency = Labrinth.Versions.v3.Dependency
@@ -73,11 +75,17 @@ type ProjectInfo = {
 }
 
 const { formatMessage } = useVIntl()
+const appEvents = injectAppEvents()
 const { startInstallingServer, stopInstallingServer } = injectServerInstall()
 type UpdateCompleteCallback = () => void | Promise<void>
 
-defineProps<{
+const { showExternalWarnings } = defineProps<{
 	showExternalWarnings?: boolean
+}>()
+
+const emit = defineEmits<{
+	cancel: []
+	complete: []
 }>()
 
 const diffModal = ref<InstanceType<typeof ContentDiffModal>>()
@@ -87,16 +95,16 @@ const diffs = ref<DependencyDiff[]>([])
 const modpackVersionId = ref<string | null>(null)
 const modpackVersion = ref<Version | null>(null)
 
-const normalizedDiffs = computed<ContentDiffItem[]>(() =>
-	diffs.value.map((diff) => ({
+const normalizedDiffs = computed<ContentDiffItem[]>(() => {
+	return diffs.value.map((diff) => ({
 		type: diff.type,
 		external: Boolean(diff.fileName && !diff.project),
 		projectName: diff.project?.title,
 		fileName: diff.fileName,
 		currentVersionName: diff.currentVersion?.version_number,
 		newVersionName: diff.newVersion?.version_number,
-	})),
-)
+	}))
+})
 
 const versionDate = computed(() =>
 	modpackVersion.value?.date_published
@@ -242,24 +250,24 @@ async function checkUpdateAvailable(inst: GameInstance): Promise<DependencyDiff[
 }
 
 async function handleUpdate() {
-	hide()
 	const serverProjectId = instance.value?.link?.project_id
 	if (serverProjectId) startInstallingServer(serverProjectId)
 	try {
 		if (modpackVersionId.value && instance.value) {
 			const job = await update_managed_modrinth_version(instance.value.id, modpackVersionId.value)
-			await wait_for_install_job(job.job_id)
+			await wait_for_install_job(appEvents, job.job_id)
 			await onUpdateComplete.value()
 		}
 	} catch (error) {
 		console.error('Error updating instance:', error)
 	} finally {
 		if (serverProjectId) stopInstallingServer(serverProjectId)
+		emit('complete')
 	}
 }
 
 function handleDecline() {
-	hide()
+	emit('cancel')
 }
 
 function show(
@@ -293,11 +301,16 @@ const messages = defineMessages({
 	updateRequiredDescription: {
 		id: 'app.modal.update-to-play.update-required-description',
 		defaultMessage:
-			'An update is required to play {name}. Please update to the latest version to launch the game.',
+			'An update is required to play {name}. Please update to latest version to launch the game.',
 	},
 	removed: {
 		id: 'app.modal.update-to-play.removed',
 		defaultMessage: 'Removed',
+	},
+	externalWarningDescription: {
+		id: 'app.modal.update-to-play.server-modpack-unknown-files-description',
+		defaultMessage:
+			'This server modpack update contains files that aren’t published on Modrinth. We strongly recommend only installing files from sources you trust.',
 	},
 })
 

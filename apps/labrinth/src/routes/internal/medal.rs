@@ -1,17 +1,11 @@
 use crate::database::PgPool;
 use actix_web::{HttpResponse, post, web};
 use ariadne::ids::UserId;
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
-use tracing::warn;
 
-use crate::database::models::users_redeemals::{
-    Offer, RedeemalLookupFields, Status, UserRedeemal,
-};
-use crate::database::redis::RedisPool;
-use crate::queue::billing::try_process_user_redeemal;
 use crate::routes::ApiError;
 use crate::util::guards::medal_key_guard;
+use xredis::RedisPool;
 
 pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
     cfg.service(web::scope("/medal").service(verify).service(redeem));
@@ -19,6 +13,7 @@ pub fn config(cfg: &mut actix_web::web::ServiceConfig) {
 
 #[derive(Deserialize)]
 struct MedalQuery {
+    #[expect(dead_code, reason = "medal offer is currently disabled")]
     username: String,
 }
 
@@ -28,7 +23,7 @@ struct VerifyResponse {
     redeemed: bool,
 }
 
-/// Verify Medal credentials.  
+/// Verify Medal credentials.
 #[utoipa::path(
 	context_path = "/medal",
 	tag = "medal",
@@ -36,27 +31,34 @@ struct VerifyResponse {
 )]
 #[post("/verify", guard = "medal_key_guard")]
 pub async fn verify(
-    pool: web::Data<PgPool>,
-    web::Query(MedalQuery { username }): web::Query<MedalQuery>,
+    _pool: web::Data<PgPool>,
+    web::Query(MedalQuery { username: _ }): web::Query<MedalQuery>,
 ) -> Result<HttpResponse, ApiError> {
+    Err(ApiError::Request(eyre::eyre!(
+        "This offer is no longer available"
+    )))
+
+    /*
     let maybe_fields =
         RedeemalLookupFields::redeemal_status_by_username_and_offer(
             &**pool,
             &username,
             Offer::Medal,
         )
-        .await?;
+        .await
+        .wrap_internal_err("executing `RedeemalLookupFields::redeemal_status_by_username_and_offer`")?;
 
     match maybe_fields {
-        None => Err(ApiError::NotFound),
+        None => Err(ApiError::NotFound(eyre::eyre!("resource not found"))),
         Some(fields) => Ok(HttpResponse::Ok().json(VerifyResponse {
             user_id: fields.user_id.into(),
             redeemed: fields.redeemal_status.is_some(),
         })),
     }
+    */
 }
 
-/// Redeem Medal credit.  
+/// Redeem Medal credit.
 #[utoipa::path(
 	context_path = "/medal",
 	tag = "medal",
@@ -64,14 +66,22 @@ pub async fn verify(
 )]
 #[post("/redeem", guard = "medal_key_guard")]
 pub async fn redeem(
-    pool: web::Data<PgPool>,
-    redis: web::Data<RedisPool>,
-    web::Query(MedalQuery { username }): web::Query<MedalQuery>,
+    _pool: web::Data<PgPool>,
+    _redis: web::Data<RedisPool>,
+    web::Query(MedalQuery { username: _ }): web::Query<MedalQuery>,
 ) -> Result<HttpResponse, ApiError> {
     // Check the offer hasn't been redeemed yet, then insert into the table.
     // In a transaction to avoid double inserts.
 
-    let mut txn = pool.begin().await?;
+    Err(ApiError::Request(eyre::eyre!(
+        "This offer is no longer available"
+    )))
+
+    /*
+    let mut txn = pool
+        .begin()
+        .await
+        .wrap_internal_err("starting database transaction")?;
 
     let maybe_fields =
         RedeemalLookupFields::redeemal_status_by_username_and_offer(
@@ -79,15 +89,18 @@ pub async fn redeem(
             &username,
             Offer::Medal,
         )
-        .await?;
+        .await
+        .wrap_internal_err("executing `RedeemalLookupFields::redeemal_status_by_username_and_offer`")?;
 
     let user_id = match maybe_fields {
-        None => return Err(ApiError::NotFound),
+        None => {
+            return Err(ApiError::NotFound(eyre::eyre!("resource not found")));
+        }
         Some(fields) => {
             if fields.redeemal_status.is_some() {
-                return Err(ApiError::Conflict(
-                    "User already redeemed this offer".to_string(),
-                ));
+                return Err(ApiError::Conflict(eyre::eyre!(
+                    "User already redeemed this offer",
+                )));
             }
 
             fields.user_id
@@ -105,9 +118,14 @@ pub async fn redeem(
         n_attempts: 0,
     };
 
-    redeemal.insert(&mut txn).await?;
+    redeemal
+        .insert(&mut txn)
+        .await
+        .wrap_internal_err("inserting database records for `redeem`")?;
 
-    txn.commit().await?;
+    txn.commit()
+        .await
+        .wrap_internal_err("committing database transaction")?;
 
     // Immediately try to process the redeemal
     if let Err(error) = try_process_user_redeemal(&pool, &redis, redeemal).await
@@ -118,4 +136,5 @@ pub async fn redeem(
     } else {
         Ok(HttpResponse::Created().finish())
     }
+    */
 }

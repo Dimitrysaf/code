@@ -10,7 +10,6 @@ use crate::database::models::version_item::{
     DependencyBuilder, VersionBuilder, VersionFileBuilder,
 };
 use crate::database::models::{self, DBOrganization, image_item};
-use crate::database::redis::RedisPool;
 use crate::env::ENV;
 use crate::file_hosting::{FileHost, FileHostPublicity};
 use crate::models::exp;
@@ -25,9 +24,10 @@ use crate::models::projects::{
 };
 use crate::models::projects::{DependencyType, skip_nulls};
 use crate::models::teams::ProjectPermissions;
+use crate::models::v3::user_limits::UserLimits;
 use crate::queue::session::AuthQueue;
 use crate::search::SearchState;
-use crate::util::http::HttpClient;
+use crate::util::kafka::KafkaClientState;
 use crate::util::routes::read_from_field;
 use crate::util::validate::validation_errors_to_string;
 use crate::validate::{ValidationResult, validate_file};
@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use sha1::Digest;
 use std::collections::{HashMap, HashSet};
 use validator::Validate;
+use xredis::RedisPool;
 
 fn default_requested_status() -> VersionStatus {
     VersionStatus::Listed
@@ -130,7 +131,7 @@ pub async fn version_create_route(
     redis: Data<RedisPool>,
     file_host: Data<dyn FileHost>,
     session_queue: Data<AuthQueue>,
-    http: web::Data<HttpClient>,
+    kafka_client: web::Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
     version_create(
@@ -140,7 +141,7 @@ pub async fn version_create_route(
         redis,
         file_host,
         session_queue,
-        http,
+        kafka_client,
         search_state,
     )
     .await
@@ -153,7 +154,7 @@ pub async fn version_create(
     redis: Data<RedisPool>,
     file_host: Data<dyn FileHost>,
     session_queue: Data<AuthQueue>,
-    http: web::Data<HttpClient>,
+    kafka_client: web::Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
     let mut transaction = client.begin().await?;
@@ -168,7 +169,7 @@ pub async fn version_create(
         &mut uploaded_files,
         &client,
         &session_queue,
-        &http,
+        &kafka_client,
     )
     .await;
 
@@ -184,19 +185,20 @@ pub async fn version_create(
         if let Err(e) = rollback_result {
             return Err(e.into());
         }
-    } else if let Ok((_, project_id)) = &result {
+    } else if let Ok((_, project_id, version_id)) = &result {
         transaction.commit().await?;
-        super::projects::clear_project_cache_and_queue_search(
-            &redis,
-            &search_state,
-            *project_id,
-            None,
-            Some(true),
-        )
-        .await?;
+        models::DBProject::clear_cache(*project_id, None, Some(true), &redis)
+            .await?;
+        search_state
+            .queue
+            .push_version_changes(
+                (*project_id).into(),
+                [VersionId::from(*version_id)],
+            )
+            .await;
     }
 
-    result.map(|(response, _)| response)
+    result.map(|(response, _, _)| response)
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -209,8 +211,9 @@ async fn version_create_inner(
     uploaded_files: &mut Vec<UploadedFile>,
     pool: &PgPool,
     session_queue: &AuthQueue,
-    http: &reqwest::Client,
-) -> Result<(HttpResponse, models::DBProjectId), CreateError> {
+    kafka_client: &KafkaClientState,
+) -> Result<(HttpResponse, models::DBProjectId, models::DBVersionId), CreateError>
+{
     let mut initial_version_data = None;
     let mut version_builder = None;
     let mut selected_loaders = None;
@@ -315,6 +318,28 @@ async fn version_create_inner(
                     return Err(CreateError::CustomAuthenticationError(
                         "You don't have permission to upload this version!".to_string(),
                     ));
+                }
+
+                let project_version_limits =
+                    UserLimits::get_for_versions_per_project(
+                        &user,
+                        project_id,
+                        pool,
+                    )
+                    .await?;
+                if project_version_limits.current >= project_version_limits.max {
+                    return Err(CreateError::ProjectVersionLimitReached);
+                }
+
+                let daily_version_limits =
+                    UserLimits::get_for_versions_per_day(
+                        &user,
+                        Utc::now(),
+                        pool,
+                    )
+                    .await?;
+                if daily_version_limits.current >= daily_version_limits.max {
+                    return Err(CreateError::DailyVersionLimitReached);
                 }
 
                 let version_id: VersionId = models::generate_version_id(transaction).await?.into();
@@ -532,7 +557,9 @@ async fn version_create_inner(
     };
 
     let project_id = builder.project_id;
-    builder.insert(transaction, redis, file_host, http).await?;
+    builder
+        .insert(transaction, redis, file_host, kafka_client)
+        .await?;
 
     for image_id in version_data.uploaded_images {
         if let Some(db_image) =
@@ -568,7 +595,11 @@ async fn version_create_inner(
         }
     }
 
-    Ok((HttpResponse::Ok().json(response), project_id))
+    Ok((
+        HttpResponse::Ok().json(response),
+        project_id,
+        models::DBVersionId::from(version_id),
+    ))
 }
 
 /// Add files to an existing version.
@@ -604,7 +635,7 @@ pub async fn upload_file_to_version_route(
     redis: Data<RedisPool>,
     file_host: Data<dyn FileHost>,
     session_queue: web::Data<AuthQueue>,
-    http: web::Data<HttpClient>,
+    kafka_client: web::Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
     upload_file_to_version(
@@ -615,7 +646,7 @@ pub async fn upload_file_to_version_route(
         redis,
         file_host,
         session_queue,
-        http,
+        kafka_client,
         search_state,
     )
     .await
@@ -629,25 +660,26 @@ pub async fn upload_file_to_version(
     redis: Data<RedisPool>,
     file_host: Data<dyn FileHost>,
     session_queue: web::Data<AuthQueue>,
-    http: web::Data<HttpClient>,
+    kafka_client: web::Data<KafkaClientState>,
     search_state: Data<SearchState>,
 ) -> Result<HttpResponse, CreateError> {
     let mut transaction = client.begin().await?;
     let mut uploaded_files = Vec::new();
 
-    let version_id = models::DBVersionId::from(url_data.into_inner().0);
+    let version_id = url_data.into_inner().0;
+    let db_version_id = models::DBVersionId::from(version_id);
 
     let result = upload_file_to_version_inner(
         req,
         &mut payload,
-        client,
+        client.clone(),
         &mut transaction,
         redis.clone(),
         &**file_host,
         &mut uploaded_files,
-        version_id,
+        db_version_id,
         &session_queue,
-        &http,
+        &kafka_client,
     )
     .await;
 
@@ -665,14 +697,12 @@ pub async fn upload_file_to_version(
         }
     } else if let Ok((_, project_id)) = &result {
         transaction.commit().await?;
-        super::projects::clear_project_cache_and_queue_search(
-            &redis,
-            &search_state,
-            *project_id,
-            None,
-            Some(true),
-        )
-        .await?;
+        models::DBProject::clear_cache(*project_id, None, Some(true), &redis)
+            .await?;
+        search_state
+            .queue
+            .push_version_changes((*project_id).into(), [version_id])
+            .await;
     }
 
     result.map(|(response, _)| response)
@@ -689,7 +719,7 @@ async fn upload_file_to_version_inner(
     uploaded_files: &mut Vec<UploadedFile>,
     version_id: models::DBVersionId,
     session_queue: &AuthQueue,
-    http: &reqwest::Client,
+    kafka_client: &KafkaClientState,
 ) -> Result<(HttpResponse, models::DBProjectId), CreateError> {
     let mut initial_file_data: Option<InitialFileData> = None;
     let mut file_builders: Vec<VersionFileBuilder> = Vec::new();
@@ -882,7 +912,7 @@ async fn upload_file_to_version_inner(
                 &mut *transaction,
                 &redis,
                 file_host,
-                http,
+                kafka_client,
             )
             .await?;
         }
@@ -916,18 +946,19 @@ pub async fn upload_file(
     transaction: &mut PgTransaction<'_>,
     redis: &RedisPool,
 ) -> Result<(), CreateError> {
-    let (file_name, file_extension) = get_name_ext(content_disposition)?;
+    let (file_name, file_extension) =
+        get_name_and_extension(content_disposition)?;
 
-    if other_file_names.contains(&format!("{file_name}.{file_extension}")) {
+    if other_file_names.iter().any(|name| name == file_name) {
         return Err(CreateError::InvalidInput(
             "Duplicate files are not allowed to be uploaded to Modrinth!"
                 .to_string(),
         ));
     }
 
-    if file_name.contains('/') {
+    if !path_util::is_safe_file_name(file_name) {
         return Err(CreateError::InvalidInput(
-            "File names must not contain slashes!".to_string(),
+            "file names must be a single safe path component".to_string(),
         ));
     }
 
@@ -973,6 +1004,7 @@ pub async fn upload_file(
         loaders.clone(),
         file_type,
         version_fields.to_vec(),
+        dependencies,
         &mut *transaction,
         redis,
     )
@@ -1112,12 +1144,17 @@ pub async fn upload_file(
     Ok(())
 }
 
-pub fn get_name_ext(
+pub fn get_name_and_extension(
     content_disposition: &actix_web::http::header::ContentDisposition,
 ) -> Result<(&str, &str), CreateError> {
     let file_name = content_disposition.get_filename().ok_or_else(|| {
         CreateError::MissingValueError("Missing content file name".to_string())
     })?;
+    // trim start/end whitespace
+    // our S3 provider may not support spaces at the start/end of file names
+    // or key names
+    let file_name = file_name.trim();
+
     let file_extension = if let Some(last_period) = file_name.rfind('.') {
         file_name.get((last_period + 1)..).unwrap_or("")
     } else {

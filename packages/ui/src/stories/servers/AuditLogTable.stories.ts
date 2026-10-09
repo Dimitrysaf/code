@@ -93,6 +93,7 @@ const serverFullResponse: Archon.Servers.v1.ServerFull = {
 			region: 'us-east',
 			region_should_be_user_displayed: true,
 			hostname: 'ashburn-01',
+			url_host: 'https://ashburn-01.example.com',
 			is_decommissioned_node: false,
 		},
 	},
@@ -102,6 +103,7 @@ const serverFullResponse: Archon.Servers.v1.ServerFull = {
 			name: 'Create SMP',
 			created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString(),
 			is_active: false,
+			download_method: { method_type: 'direct_node_download' },
 			backups: [],
 			content: {
 				modloader: 'fabric',
@@ -120,6 +122,7 @@ const serverFullResponse: Archon.Servers.v1.ServerFull = {
 			name: 'SMP Season 4',
 			created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
 			is_active: true,
+			download_method: { method_type: 'direct_node_download' },
 			backups: [
 				{
 					id: backupId,
@@ -680,6 +683,11 @@ const loaderVersionEntries = toAuditEntries({
 			action: 'loader_version_edited',
 			metadata: { new_loader: null, new_version: null },
 			minutesAgo: 3,
+		}),
+		rawEntry({
+			action: 'loader_version_edited',
+			metadata: { new_loader: 'neo_forge', new_version: '21.1.65' },
+			minutesAgo: 4,
 		}),
 	],
 })

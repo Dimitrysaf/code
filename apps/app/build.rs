@@ -70,7 +70,6 @@ fn main() {
                 InlinedPlugin::new()
                     .commands(&[
                         "get_importable_instances",
-                        "import_instance",
                         "is_valid_importable_instance",
                         "get_default_launcher_path",
                     ])
@@ -106,6 +105,7 @@ fn main() {
                         "logs_get_latest_log_cursor",
                         "logs_get_live_log_buffer",
                         "logs_clear_live_log_buffer",
+                        "logs_log_webview",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
@@ -150,8 +150,19 @@ fn main() {
                         "modrinth_login",
                         "logout",
                         "get",
+                        "get_all",
+                        "set_active",
+                        "remove_account",
                         "cancel_modrinth_login",
                     ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
+                "onboarding-checklist",
+                InlinedPlugin::new()
+                    .commands(&["get_onboarding_checklist"])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
                     ),
@@ -163,6 +174,12 @@ fn main() {
                         "install_get_modpack_preview",
                         "install_create_instance",
                         "install_create_modpack_instance",
+                        "install_get_shared_instance_preview",
+                        "install_accept_shared_instance_invite",
+                        "install_get_shared_instance_update_preview",
+                        "install_shared_instance",
+                        "install_update_shared_instance",
+                        "install_bulk_update_content",
                         "install_import_instance",
                         "install_duplicate_instance",
                         "install_existing_instance",
@@ -170,6 +187,8 @@ fn main() {
                         "install_job_list",
                         "install_job_get",
                         "install_job_retry",
+                        "install_job_pause",
+                        "install_job_resume",
                         "install_job_cancel",
                         "install_job_dismiss",
                         "install_job_support_details",
@@ -192,6 +211,14 @@ fn main() {
                     ),
             )
             .plugin(
+                "reports",
+                InlinedPlugin::new()
+                    .commands(&["reports_create"])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "instance",
                 InlinedPlugin::new()
                     .commands(&[
@@ -203,15 +230,64 @@ fn main() {
                         "instance_get_install_candidates",
                         "instance_content",
                         "instance_get_content_items",
+                        "instance_sync_content_files",
+                        "instance_refresh_content_updates",
                         "instance_get_dependencies_as_content_items",
                         "instance_get_linked_modpack_info",
                         "instance_get_linked_modpack_content",
                         "instance_get_optimal_jre_key",
                         "instance_get_full_path",
                         "instance_get_mod_full_path",
+                        "instance_list_screenshots",
+                        "instance_list_all_screenshots",
+                        "instance_list_synced_screenshots",
+                        "instance_save_edited_screenshot",
+                        "instance_list_screenshot_groups",
+                        "instance_create_screenshot_group",
+                        "instance_rename_screenshot_group",
+                        "instance_delete_screenshot_group",
+                        "instance_set_screenshot_group_memberships",
+                        "instance_import_screenshot_groups",
+                        "instance_delete_screenshots",
+                        "instance_export_screenshots",
+                        "instance_move_screenshots",
+                        "instance_open_screenshot",
+                        "instance_set_synced_option",
+                        "instance_get_synced_option_join_preview",
+                        "instance_get_synced_options_overview",
+                        "instance_get_global_synced_options",
+                        "instance_get_initialized_synced_options",
+                        "instance_set_global_synced_option",
+                        "instance_list_game_options_sync_sources",
+                        "instance_get_synced_game_options_config",
+                        "instance_get_game_setting_locale_labels",
+                        "instance_preview_synced_game_option_changes",
+                        "instance_save_synced_game_option_changes",
+                        "instance_get_local_game_options_config",
+                        "instance_preview_local_game_option_changes",
+                        "instance_save_local_game_option_changes",
+                        "instance_get_command_history",
+                        "instance_set_command_history",
+                        "instance_open_synced_options_folder",
+                        "instance_list_synced_servers",
+                        "instance_update_synced_server",
+                        "instance_remove_synced_server",
+                        "instance_get_pack_sync_preview",
+                        "instance_sync_pack",
+                        "instance_desync_pack",
+                        "instance_list_synced_packs",
+                        "instance_upload_synced_pack",
+                        "instance_set_synced_pack_enabled",
+                        "instance_remove_synced_pack",
+                        "instance_rebuild_synced_options",
                         "instance_list",
+                        "instance_list_groups",
+                        "instance_create_group",
+                        "instance_rename_group",
+                        "instance_delete_group",
+                        "instance_set_group_order",
+                        "instance_set_group_memberships",
                         "instance_check_installed",
-                        "instance_update_all",
                         "instance_update_project",
                         "instance_add_project_from_version",
                         "instance_install_project_with_dependencies",
@@ -219,6 +295,7 @@ fn main() {
                         "instance_add_project_from_path",
                         "instance_is_file_on_modrinth",
                         "instance_toggle_disable_project",
+                        "instance_set_project_locked",
                         "instance_remove_project",
                         "instance_update_managed_modrinth_version",
                         "instance_repair_managed_modrinth",
@@ -226,6 +303,20 @@ fn main() {
                         "instance_kill",
                         "instance_edit",
                         "instance_edit_icon",
+                        "instance_edit_generated_icon",
+                        "instance_cache_generated_icon",
+                        "instance_get_recent_icon_configs",
+                        "instance_share_can_current_user_use",
+                        "instance_share_get_users",
+                        "instance_share_invite_users",
+                        "instance_share_create_invite_link",
+                        "instance_share_get_invites",
+                        "instance_share_revoke_invite",
+                        "instance_share_remove_users",
+                        "instance_share_get_publish_preview",
+                        "instance_share_publish",
+                        "instance_share_unlink",
+                        "instance_share_unpublish",
                         "instance_export_mrpack",
                         "instance_get_pack_export_candidates",
                     ])
@@ -239,6 +330,10 @@ fn main() {
                     .commands(&[
                         "settings_get",
                         "settings_set",
+                        "store_usage",
+                        "store_cleanup",
+                        "store_set_cache_limit",
+                        "store_verify",
                         "cancel_directory_change",
                     ])
                     .default_permission(
@@ -268,6 +363,28 @@ fn main() {
                     ),
             )
             .plugin(
+                "users",
+                InlinedPlugin::new()
+                    .commands(&[
+                        "search_user",
+                        "get_user_profile",
+                        "get_user_projects",
+                        "get_user_organizations",
+                        "get_user_collections",
+                        "get_user_preferences",
+                        "patch_user_preferences",
+                        "patch_user",
+                        "change_user_avatar",
+                        "delete_user_avatar",
+                        "block_user",
+                        "unblock_user",
+                        "get_blocked_users",
+                    ])
+                    .default_permission(
+                        DefaultPermissionRule::AllowAllCommands,
+                    ),
+            )
+            .plugin(
                 "utils",
                 InlinedPlugin::new()
                     .commands(&[
@@ -278,8 +395,11 @@ fn main() {
                         "open_path",
                         "show_launcher_logs_folder",
                         "show_app_db_backups_folder",
+                        "export_debug_info",
+                        "cancel_debug_info_export",
                         "progress_bars_list",
                         "get_opening_command",
+                        "get_image_thumbnail",
                     ])
                     .default_permission(
                         DefaultPermissionRule::AllowAllCommands,
@@ -291,14 +411,12 @@ fn main() {
                     .commands(&[
                         "init_ads_window",
                         "hide_ads_window",
-                        "scroll_ads_window",
-                        "show_ads_window",
-                        "show_ads_consent_overlay",
-                        "show_ads_consent_preferences",
+                        "update_ads_window_hold",
+                        "show_ads_consent_ui",
+                        "expand_ads_consent_webview",
                         "open_ads_consent_preferences",
-                        "hide_ads_consent_preferences",
-                        "hide_ads_consent_overlay",
-                        "get_ads_consent_required",
+                        "finish_ads_consent_flow",
+                        "should_show_ads_consent_popup",
                         "perform_ads_consent_action",
                         "record_ads_click",
                         "open_link",
@@ -313,6 +431,12 @@ fn main() {
                 InlinedPlugin::new()
                     .commands(&[
                         "file_extract_zip",
+                        "file_list",
+                        "file_read",
+                        "file_write",
+                        "file_create_directory",
+                        "file_rename",
+                        "file_delete",
                         "file_save_as",
                         "file_read_dragged_file",
                     ])
@@ -346,8 +470,10 @@ fn main() {
                         "backup_world",
                         "delete_world",
                         "add_server_to_instance",
+                        "ensure_managed_server_in_instance",
                         "edit_server_in_instance",
                         "remove_server_from_instance",
+                        "desync_server",
                         "get_instance_protocol_version",
                         "get_server_status",
                         "start_join_singleplayer_world",

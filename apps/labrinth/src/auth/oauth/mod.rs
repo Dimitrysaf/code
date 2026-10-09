@@ -12,7 +12,6 @@ use crate::database::models::{
     DBOAuthClientAuthorizationId, generate_oauth_access_token_id,
     generate_oauth_client_authorization_id,
 };
-use crate::database::redis::RedisPool;
 use crate::models;
 use crate::models::ids::OAuthClientId;
 use crate::models::pats::Scopes;
@@ -25,6 +24,7 @@ use rand::distributions::Alphanumeric;
 use rand::{Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::{Deserialize, Serialize};
+use xredis::RedisPool;
 
 use self::errors::{OAuthError, OAuthErrorType};
 
@@ -349,7 +349,7 @@ pub async fn accept_or_reject_client_scopes(
         &**pool,
         &redis,
         &session_queue,
-        Scopes::SESSION_ACCESS,
+        Scopes::SESSION_ACCESS | Scopes::USER_AUTH_WRITE,
     )
     .await?
     .1;

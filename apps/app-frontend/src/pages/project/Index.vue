@@ -31,8 +31,9 @@
 				:organization="organization"
 				:members="members"
 				:org-link="(slug) => `https://modrinth.com/organization/${slug}`"
-				:user-link="(username) => `https://modrinth.com/user/${username}`"
+				:user-link="(username) => `/user/${encodeURIComponent(username)}`"
 				link-target="_blank"
+				:user-link-target="null"
 				class="project-sidebar-section"
 			/>
 			<ProjectSidebarDetails
@@ -47,14 +48,14 @@
 		<div class="flex flex-col gap-4 p-6">
 			<div
 				v-if="projectInstallContext"
-				class="sticky top-0 z-20 -mx-6 -mt-6 rounded-tl-[--radius-xl] border-0 border-b border-solid bg-surface-1 p-3 border-surface-5"
+				class="sticky top-0 z-20 -mx-6 -mt-6 rounded-tl-[--radius-xl] border-0 border-b border-solid bg-surface-1 px-3 py-4 border-surface-5"
 			>
 				<BrowseInstallHeader :install-context="projectInstallContext" />
 			</div>
 			<InstanceIndicator v-if="instance && !projectInstallContext" :instance="instance" />
 			<template v-if="data">
 				<Teleport
-					v-if="themeStore.featureFlags.project_background"
+					v-if="appSettings.featureFlags.project_background"
 					to="#background-teleport-target"
 				>
 					<ProjectBackgroundGradient :project="data" />
@@ -69,104 +70,121 @@
 				>
 					<template #actions>
 						<template v-if="isServerProject">
-							<ButtonStyled v-if="serverPlaying" color="red" size="large">
-								<button type="button" @click="handleStopServer">
-									<StopCircleIcon />
-									{{ formatMessage(commonMessages.stopButton) }}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled v-else color="brand" size="large">
-								<button type="button" :disabled="serverInstallLoading" @click="handleClickPlay">
-									<PlayIcon />
-									{{
-										serverInstallLoading
-											? formatMessage(commonMessages.installingLabel)
-											: formatMessage(commonMessages.playButton)
-									}}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled circular size="large">
-								<button
-									v-tooltip="formatMessage(commonMessages.addServerToInstanceButton)"
-									type="button"
-									:aria-label="formatMessage(commonMessages.addServerToInstanceButton)"
-									@click="handleAddServerToInstance"
-								>
-									<PlusIcon />
-								</button>
-							</ButtonStyled>
-							<ButtonStyled circular size="large" type="transparent">
-								<TeleportOverflowMenu
-									:options="serverProjectHeaderMoreActions"
-									tooltip="More options"
-									aria-label="More options"
-								>
-									<MoreVerticalIcon />
-								</TeleportOverflowMenu>
-							</ButtonStyled>
+							<Button
+								v-if="serverPlaying"
+								type="colored"
+								color="red"
+								size="xl"
+								native-type="button"
+								@click="handleStopServer"
+							>
+								<StopCircleIcon />
+								{{ formatMessage(commonMessages.stopButton) }}
+							</Button>
+							<Button
+								v-else
+								type="colored"
+								color="brand"
+								size="xl"
+								native-type="button"
+								:disabled="serverInstallLoading"
+								@click="handleClickPlay"
+							>
+								<PlayIcon />
+								{{
+									serverInstallLoading
+										? formatMessage(commonMessages.installingLabel)
+										: formatMessage(commonMessages.playButton)
+								}}
+							</Button>
+							<IconButton
+								v-tooltip="formatMessage(commonMessages.addServerToInstanceButton)"
+								size="xl"
+								:label="formatMessage(commonMessages.addServerToInstanceButton)"
+								native-type="button"
+								@click="handleAddServerToInstance"
+							>
+								<PlusIcon />
+							</IconButton>
+							<TeleportOverflowMenu
+								type="quiet"
+								size="xl"
+								:label="formatMessage(messages.moreOptions)"
+								:options="serverProjectHeaderMoreActions"
+							>
+								<MoreVerticalIcon />
+							</TeleportOverflowMenu>
 						</template>
 						<template v-else>
-							<ButtonStyled v-if="showSwitchVersion && onVersionsPage" size="large">
-								<button v-tooltip="formatMessage(messages.alreadyInstalled)" type="button" disabled>
-									<CheckIcon />
-									{{ formatMessage(commonMessages.installedLabel) }}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled v-else-if="showSwitchVersion" size="large">
-								<button type="button" @click="goToVersions">
-									<SwapIcon />
-									{{ formatMessage(messages.switchVersion) }}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled v-else color="brand" size="large">
-								<button
-									v-tooltip="
-										installButtonInstalled ? formatMessage(messages.alreadyInstalled) : undefined
-									"
-									type="button"
-									:disabled="installButtonDisabled"
-									@click="install(null)"
-								>
-									<component :is="installButtonIcon" :class="installButtonIconClass" />
-									{{
-										installButtonInstalled
-											? formatMessage(commonMessages.installedLabel)
-											: installButtonValidating
-												? formatMessage(commonMessages.validatingLabel)
-												: installButtonLoading
-													? formatMessage(commonMessages.installingLabel)
-													: serverProjectSelected
-														? formatMessage(commonMessages.selectedLabel)
-														: formatMessage(commonMessages.installButton)
-									}}
-								</button>
-							</ButtonStyled>
-							<ButtonStyled circular size="large" type="transparent">
-								<TeleportOverflowMenu
-									:options="projectHeaderMoreActions"
-									tooltip="More options"
-									aria-label="More options"
-								>
-									<MoreVerticalIcon />
-								</TeleportOverflowMenu>
-							</ButtonStyled>
+							<Button
+								v-if="showSwitchVersion && onVersionsPage"
+								v-tooltip="formatMessage(messages.alreadyInstalled)"
+								size="xl"
+								native-type="button"
+								disabled
+							>
+								<CheckIcon />
+								{{ formatMessage(commonMessages.installedLabel) }}
+							</Button>
+							<Button
+								v-else-if="showSwitchVersion"
+								size="xl"
+								native-type="button"
+								@click="goToVersions"
+							>
+								<SwapIcon />
+								{{ formatMessage(messages.switchVersion) }}
+							</Button>
+							<Button
+								v-else
+								v-tooltip="
+									installButtonInstalled ? formatMessage(messages.alreadyInstalled) : undefined
+								"
+								type="colored"
+								color="brand"
+								size="xl"
+								native-type="button"
+								:disabled="installButtonDisabled"
+								@click="install(null)"
+							>
+								<component :is="installButtonIcon" :class="installButtonIconClass" />
+								{{
+									installButtonInstalled
+										? formatMessage(commonMessages.installedLabel)
+										: installButtonValidating
+											? formatMessage(commonMessages.validatingLabel)
+											: installButtonLoading
+												? formatMessage(commonMessages.installingLabel)
+												: serverProjectSelected
+													? formatMessage(commonMessages.selectedLabel)
+													: formatMessage(commonMessages.installButton)
+								}}
+							</Button>
+							<TeleportOverflowMenu
+								type="quiet"
+								size="xl"
+								:label="formatMessage(messages.moreOptions)"
+								:options="projectHeaderMoreActions"
+							>
+								<MoreVerticalIcon />
+							</TeleportOverflowMenu>
 						</template>
 					</template>
 				</ProjectPageHeader>
 				<NavTabs
 					:links="[
 						{
-							label: 'Description',
+							label: formatMessage(messages.descriptionTab),
 							href: projectDescriptionHref,
 						},
 						{
-							label: 'Versions',
+							label: formatMessage(messages.versionsTab),
 							href: versionsHref,
 							subpages: ['version'],
 							shown: projectV3?.minecraft_server == null,
 						},
 						{
-							label: 'Gallery',
+							label: formatMessage(messages.galleryTab),
 							href: projectGalleryHref,
 							shown: data.gallery.length > 0,
 						},
@@ -184,21 +202,15 @@
 					:installed-version="installedVersion"
 				/>
 			</template>
-			<template v-else> Project data couldn't not be loaded. </template>
+			<template v-else>{{ formatMessage(messages.loadError) }}</template>
 		</div>
 		<SelectedProjectsFloatingBar
 			v-if="projectInstallContext"
 			:install-context="projectInstallContext"
 		/>
-		<ContextMenu ref="options" @option-clicked="handleOptionsClick">
-			<template #install>
-				<DownloadIcon /> {{ formatMessage(commonMessages.installButton) }}
-			</template>
-			<template #open_link>
-				<GlobeIcon /> {{ formatMessage(commonMessages.openInModrinthButton) }} <ExternalIcon />
-			</template>
-			<template #copy_link>
-				<ClipboardCopyIcon /> {{ formatMessage(commonMessages.copyLinkButton) }}
+		<ContextMenu ref="options" :label="formatMessage(messages.projectActionsLabel)">
+			<template #open_link="{ option }">
+				<GlobeIcon /> {{ option.label }} <ExternalIcon />
 			</template>
 		</ContextMenu>
 		<CreationFlowModal
@@ -240,11 +252,13 @@ import {
 } from '@modrinth/assets'
 import {
 	BrowseInstallHeader,
-	ButtonStyled,
+	Button,
 	commonMessages,
+	ContextMenu,
 	CreationFlowModal,
 	defineMessages,
 	getTargetInstallPreferences,
+	IconButton,
 	injectNotificationManager,
 	NavTabs,
 	ProjectBackgroundGradient,
@@ -261,20 +275,20 @@ import {
 	useVIntl,
 } from '@modrinth/ui'
 import { useQueryClient } from '@tanstack/vue-query'
-import { convertFileSrc } from '@tauri-apps/api/core'
 import { openUrl } from '@tauri-apps/plugin-opener'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
-import { computed, onUnmounted, ref, shallowRef, watch } from 'vue'
+import { computed, ref, shallowRef, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import { SwapIcon } from '@/assets/icons/index.js'
-import ContextMenu from '@/components/ui/ContextMenu.vue'
 import InstanceIndicator from '@/components/ui/InstanceIndicator.vue'
 import {
 	fetchCachedServerStatus,
 	getFreshCachedServerStatus,
 } from '@/composables/instances/use-server-status-query'
+import { useAppEvent } from '@/composables/use-app-event'
+import { useAppSettings } from '@/composables/use-app-settings.ts'
 import {
 	get_organization,
 	get_project,
@@ -283,10 +297,10 @@ import {
 	get_version,
 	get_version_many,
 } from '@/helpers/cache.js'
-import { process_listener } from '@/helpers/events'
 import {
 	get as getInstance,
 	get_projects as getInstanceProjects,
+	getInstanceIconUrl,
 	kill,
 	list as listInstances,
 } from '@/helpers/instance'
@@ -294,11 +308,10 @@ import { get_loader_versions as getLoaderManifest } from '@/helpers/metadata'
 import { get_by_instance_id } from '@/helpers/process'
 import { get_categories, get_game_versions, get_loaders } from '@/helpers/tags'
 import { getServerAddress } from '@/helpers/worlds'
+import { provideBreadcrumbParent, useBreadcrumb } from '@/providers/breadcrumbs'
 import { injectContentInstall } from '@/providers/content-install'
 import { injectServerInstall } from '@/providers/server-install'
 import { createServerInstallContent } from '@/providers/setup/server-install-content'
-import { useBreadcrumbs } from '@/store/breadcrumbs'
-import { useTheming } from '@/store/state.js'
 
 dayjs.extend(relativeTime)
 
@@ -306,15 +319,50 @@ const { handleError } = injectNotificationManager()
 const { install: installVersion } = injectContentInstall()
 const route = useRoute()
 const router = useRouter()
+const displayedProjectRoute = shallowRef(router.currentRoute.value)
+watch(
+	() => router.currentRoute.value,
+	(nextRoute) => {
+		if (nextRoute.path.startsWith('/project/')) {
+			displayedProjectRoute.value = nextRoute
+		}
+	},
+	{ immediate: true },
+)
+const projectBreadcrumbTo = computed(() => {
+	const currentRoute = displayedProjectRoute.value
+	if (currentRoute.name === 'Version') {
+		return {
+			name: 'Versions',
+			params: { id: currentRoute.params.id },
+			query: currentRoute.query,
+		}
+	}
+
+	return currentRoute.fullPath
+})
 const queryClient = useQueryClient()
-const breadcrumbs = useBreadcrumbs()
-const themeStore = useTheming()
+const appSettings = useAppSettings()
 const { formatMessage } = useVIntl()
 
 const messages = defineMessages({
+	moreOptions: { id: 'app.project.more-options', defaultMessage: 'More options' },
+	projectActionsLabel: { id: 'app.project.actions.label', defaultMessage: 'Project actions' },
+	descriptionTab: { id: 'app.project.tab.description', defaultMessage: 'Description' },
+	versionsTab: { id: 'app.project.tab.versions', defaultMessage: 'Versions' },
+	galleryTab: { id: 'app.project.tab.gallery', defaultMessage: 'Gallery' },
+	loadError: {
+		id: 'app.project.load-error',
+		defaultMessage: 'Project data could not be loaded.',
+	},
+	comingSoon: { id: 'app.project.coming-soon', defaultMessage: 'Coming soon' },
 	backToBrowse: {
 		id: 'app.project.install-context.back-to-browse',
 		defaultMessage: 'Back to discover',
+	},
+	backToInstance: {
+		id: 'app.project.install-context.back-to-instance',
+		defaultMessage: 'Back to instance',
 	},
 	alreadyInstalled: {
 		id: 'app.project.install-button.already-installed',
@@ -330,6 +378,40 @@ const { installingServerProjects, playServerProject, showAddServerToInstanceModa
 	injectServerInstall()
 const installing = ref(false)
 const data = shallowRef(null)
+
+function getProjectBreadcrumbSummary(projectId) {
+	const identifier = Array.isArray(projectId) ? projectId[0] : projectId
+	if (typeof identifier !== 'string' || !identifier) return undefined
+
+	return queryClient.getQueryData(['projects', 'summary', identifier])
+}
+
+function getProjectBreadcrumbLabel(projectId) {
+	const summary = getProjectBreadcrumbSummary(projectId)
+	return summary?.name ?? summary?.title ?? formatMessage(commonMessages.loadingLabel)
+}
+
+const projectBreadcrumbLabel = ref(getProjectBreadcrumbLabel(route.params.id))
+const projectBreadcrumb = useBreadcrumb({
+	slot: 'project',
+	id: () => `project:${String(displayedProjectRoute.value.params.id ?? '')}`,
+	label: projectBreadcrumbLabel,
+	visual: () => {
+		const identifier = String(displayedProjectRoute.value.params.id ?? '')
+		const loadedProject =
+			data.value?.id === identifier || data.value?.slug === identifier ? data.value : undefined
+		const project = loadedProject ?? getProjectBreadcrumbSummary(identifier)
+		return {
+			type: 'image',
+			src: project?.icon_url,
+			alt: projectBreadcrumbLabel.value,
+			tintBy: identifier,
+		}
+	},
+	to: projectBreadcrumbTo,
+})
+provideBreadcrumbParent(projectBreadcrumb)
+
 const versions = shallowRef([])
 const members = shallowRef([])
 const categories = shallowRef([])
@@ -409,9 +491,18 @@ const projectGalleryHref = computed(() => buildProjectHref(`/project/${route.par
 const projectBrowseBackUrl = computed(() => {
 	const browsePath = route.query.b
 	if (typeof browsePath === 'string' && browsePath.startsWith('/browse/')) return browsePath
+	const instanceId = route.query.i
+	if (typeof instanceId === 'string' && instanceId) {
+		return `/instance/${encodeURIComponent(instanceId)}`
+	}
 	const type = data.value?.project_type ? `${data.value.project_type}` : 'mod'
 	return buildBrowseHref(`/browse/${type}`)
 })
+const projectBackLabel = computed(() =>
+	typeof route.query.i === 'string' && typeof route.query.b !== 'string'
+		? formatMessage(messages.backToInstance)
+		: formatMessage(messages.backToBrowse),
+)
 
 const projectInstallContext = computed(() => {
 	const serverData = serverInstallContent.serverContextServerData.value
@@ -425,7 +516,7 @@ const projectInstallContext = computed(() => {
 			iconSrc: null,
 			isMedal: serverData.is_medal,
 			backUrl: projectBrowseBackUrl.value,
-			backLabel: formatMessage(messages.backToBrowse),
+			backLabel: projectBackLabel.value,
 			heading: serverInstallContent.serverBrowseHeading.value,
 			queuedCount: serverInstallContent.queuedServerInstallCount.value,
 			selectedProjects: serverInstallContent.selectedServerInstallProjects.value,
@@ -443,9 +534,9 @@ const projectInstallContext = computed(() => {
 			name: instance.value.name,
 			loader: instance.value.loader,
 			gameVersion: instance.value.game_version,
-			iconSrc: instance.value.icon_path ? convertFileSrc(instance.value.icon_path) : null,
+			iconSrc: getInstanceIconUrl(instance.value.icon_path),
 			backUrl: projectBrowseBackUrl.value,
-			backLabel: formatMessage(messages.backToBrowse),
+			backLabel: projectBackLabel.value,
 			heading: formatMessage(commonMessages.installingContentLabel),
 		}
 	}
@@ -502,13 +593,13 @@ const serverProjectHeaderMoreActions = computed(() => [
 		action: openProjectInBrowser,
 	},
 	{
-		divider: true,
+		type: 'divider',
 	},
 	{
 		id: 'report',
 		label: formatMessage(commonMessages.reportButton),
 		icon: ReportIcon,
-		color: 'red',
+		tone: 'red',
 		action: reportProject,
 	},
 ])
@@ -518,7 +609,7 @@ const projectHeaderMoreActions = computed(() => [
 		label: formatMessage(commonMessages.followButton),
 		icon: HeartIcon,
 		disabled: true,
-		tooltip: 'Coming soon',
+		tooltip: formatMessage(messages.comingSoon),
 		action: () => {},
 	},
 	{
@@ -526,7 +617,7 @@ const projectHeaderMoreActions = computed(() => [
 		label: formatMessage(commonMessages.saveButton),
 		icon: BookmarkIcon,
 		disabled: true,
-		tooltip: 'Coming soon',
+		tooltip: formatMessage(messages.comingSoon),
 		action: () => {},
 	},
 	{
@@ -536,13 +627,13 @@ const projectHeaderMoreActions = computed(() => [
 		action: openProjectInBrowser,
 	},
 	{
-		divider: true,
+		type: 'divider',
 	},
 	{
 		id: 'report',
 		label: formatMessage(commonMessages.reportButton),
 		icon: ReportIcon,
-		color: 'red',
+		tone: 'red',
 		action: reportProject,
 	},
 ])
@@ -606,10 +697,16 @@ function reportProject() {
 }
 
 async function fetchProjectData() {
+	const requestedId = String(route.params.id ?? '')
+	projectBreadcrumbLabel.value = getProjectBreadcrumbLabel(requestedId)
 	const [project, projectV3Result] = await Promise.all([
-		get_project(route.params.id, 'must_revalidate').catch(handleError),
-		get_project_v3(route.params.id, 'must_revalidate').catch(handleError),
+		get_project(requestedId, 'must_revalidate').catch(handleError),
+		get_project_v3(requestedId, 'must_revalidate').catch(handleError),
 	])
+	if (String(route.params.id ?? '') !== requestedId) {
+		return
+	}
+
 	projectV3.value = projectV3Result
 
 	if (!project) {
@@ -618,6 +715,7 @@ async function fetchProjectData() {
 	}
 
 	data.value = project
+	projectBreadcrumbLabel.value = project.title
 	;[versions.value, members.value, categories.value, instance.value, instanceProjects.value] =
 		await Promise.all([
 			get_version_many(project.versions, 'must_revalidate').catch(handleError),
@@ -626,27 +724,39 @@ async function fetchProjectData() {
 			route.query.i ? getInstance(route.query.i).catch(handleError) : Promise.resolve(),
 			route.query.i ? getInstanceProjects(route.query.i).catch(handleError) : Promise.resolve(),
 		])
+	if (String(route.params.id ?? '') !== requestedId) {
+		return
+	}
 
-	versions.value = versions.value.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
-
-	if (instanceProjects.value) {
-		const installedFile = Object.values(instanceProjects.value).find(
-			(x) => x.metadata && x.metadata.project_id === data.value.id,
-		)
-		if (installedFile) {
-			installed.value = true
-			installedVersion.value = installedFile.metadata.version_id
+	for (const member of members.value ?? []) {
+		for (const identifier of [member.user.id, member.user.username]) {
+			if (identifier) {
+				queryClient.setQueryData(['users', 'summary', identifier], member.user)
+			}
 		}
 	}
 
+	versions.value = versions.value.sort((a, b) => dayjs(b.date_published) - dayjs(a.date_published))
+
+	const installedFile = instanceProjects.value
+		? Object.values(instanceProjects.value).find(
+				(x) => x.metadata && x.metadata.project_id === data.value.id,
+			)
+		: undefined
+	installed.value = !!installedFile
+	installedVersion.value = installedFile?.metadata.version_id ?? null
+
 	if (project.organization) {
 		organization.value = await get_organization(project.organization).catch(handleError)
+	} else {
+		organization.value = null
+	}
+	if (String(route.params.id ?? '') !== requestedId) {
+		return
 	}
 
 	isServerProject.value = projectV3.value?.minecraft_server != null
 	serverStatusOnline.value = !!projectV3.value?.minecraft_java_server?.ping?.data
-
-	breadcrumbs.setName('Project', data.value.title)
 
 	fetchDeferredServerData(project)
 }
@@ -719,8 +829,7 @@ function fetchDeferredServerData(project) {
 
 await fetchProjectData()
 
-let unlistenProcesses
-process_listener((e) => {
+useAppEvent('process', (e) => {
 	if (
 		e.event === 'finished' &&
 		serverInstancePath.value &&
@@ -728,12 +837,6 @@ process_listener((e) => {
 	) {
 		serverPlaying.value = false
 	}
-}).then((unlisten) => {
-	unlistenProcesses = unlisten
-})
-
-onUnmounted(() => {
-	unlistenProcesses?.()
 })
 
 watch(
@@ -818,36 +921,32 @@ async function install(version) {
 
 const options = ref(null)
 const handleRightClick = (event) => {
-	options.value.showMenu(event, data.value, [
+	const project = data.value
+	options.value.open(event, [
 		{
-			name: 'install',
+			id: 'install',
+			label: formatMessage(commonMessages.installButton),
+			icon: DownloadIcon,
+			action: () => install(null),
+		},
+		{ type: 'divider' },
+		{
+			id: 'open_link',
+			label: formatMessage(commonMessages.openInModrinthButton),
+			icon: GlobeIcon,
+			action: () => openProjectLink(project),
 		},
 		{
-			type: 'divider',
-		},
-		{
-			name: 'open_link',
-		},
-		{
-			name: 'copy_link',
+			id: 'copy_link',
+			label: formatMessage(commonMessages.copyLinkButton),
+			icon: ClipboardCopyIcon,
+			action: () => copyProjectLink(project),
 		},
 	])
 }
-const handleOptionsClick = (args) => {
-	switch (args.option) {
-		case 'install':
-			install(null)
-			break
-		case 'open_link':
-			openUrl(`https://modrinth.com/${args.item.project_type}/${args.item.slug}`)
-			break
-		case 'copy_link':
-			navigator.clipboard.writeText(
-				`https://modrinth.com/${args.item.project_type}/${args.item.slug}`,
-			)
-			break
-	}
-}
+const getProjectLink = (project) => `https://modrinth.com/${project.project_type}/${project.slug}`
+const openProjectLink = (project) => openUrl(getProjectLink(project))
+const copyProjectLink = (project) => navigator.clipboard.writeText(getProjectLink(project))
 </script>
 
 <style scoped lang="scss">

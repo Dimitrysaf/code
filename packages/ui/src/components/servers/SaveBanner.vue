@@ -1,24 +1,34 @@
 <template>
-	<Teleport to="body">
-		<FloatingActionBar :shown="props.isVisible">
+	<Teleport v-if="!saveBanner || saveBanner.target.value" :to="saveBanner?.target.value ?? 'body'">
+		<FloatingActionBar :shown="props.isVisible" :inline="!!saveBanner">
 			<p class="m-0 font-semibold text-sm md:text-base">You have unsaved changes.</p>
 			<div class="ml-auto flex gap-2">
-				<ButtonStyled type="transparent">
-					<button :disabled="props.isUpdating" @click="props.reset"><HistoryIcon /> Reset</button>
-				</ButtonStyled>
-				<ButtonStyled :color="props.restart ? 'standard' : 'brand'">
-					<button :disabled="props.isUpdating" @click="props.save">
+				<Button type="quiet" :disabled="props.isUpdating" @click="props.reset"
+					><HistoryIcon /> Reset</Button
+				>
+				<span v-tooltip="saveDisabledTooltip" class="flex">
+					<Button
+						:type="props.restart ? 'base' : 'colored'"
+						:color="props.restart ? undefined : 'brand'"
+						:disabled="props.isUpdating || props.hasErrors"
+						@click="props.save"
+					>
 						<SpinnerIcon v-if="props.isUpdating" class="animate-spin" />
 						<SaveIcon v-else />
 						{{ props.isUpdating ? 'Saving...' : 'Save' }}
-					</button>
-				</ButtonStyled>
-				<ButtonStyled v-if="props.restart" color="brand">
-					<button :disabled="props.isUpdating || isTransitioning" @click="saveAndPower">
+					</Button>
+				</span>
+				<span v-if="props.restart" v-tooltip="saveDisabledTooltip" class="flex">
+					<Button
+						type="colored"
+						color="brand"
+						:disabled="props.isUpdating || isTransitioning || props.hasErrors"
+						@click="saveAndPower"
+					>
 						<SpinnerIcon v-if="props.isUpdating || isTransitioning" class="animate-spin" />
 						{{ powerButtonLabel }}
-					</button>
-				</ButtonStyled>
+					</Button>
+				</span>
 			</div>
 		</FloatingActionBar>
 	</Teleport>
@@ -26,20 +36,46 @@
 
 <script setup lang="ts">
 import { HistoryIcon, SaveIcon, SpinnerIcon } from '@modrinth/assets'
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 
-import ButtonStyled from '#ui/components/base/ButtonStyled.vue'
+import { Button } from '#ui/components/base/buttons'
 import FloatingActionBar from '#ui/components/base/FloatingActionBar.vue'
+import { defineMessage, useVIntl } from '#ui/composables/i18n'
+import { injectServerSettings } from '#ui/layouts/shared/server-settings/providers/server-settings'
 import { injectModrinthClient, injectModrinthServerContext } from '#ui/providers'
 
 const props = defineProps<{
 	isUpdating: boolean
+	hasErrors?: boolean
 	restart?: boolean
-	save: () => void | Promise<void>
+	save: () => void | boolean | Promise<void | boolean>
 	reset: () => void
 	isVisible: boolean
 	serverId: string
 }>()
+
+const { formatMessage } = useVIntl()
+const resolveErrorsMessage = defineMessage({
+	id: 'hosting.save-banner.resolve-errors',
+	defaultMessage: 'Please resolve the errors in your changes before saving.',
+})
+const saveDisabledTooltip = computed(() =>
+	props.hasErrors ? formatMessage(resolveErrorsMessage) : undefined,
+)
+
+const saveBanner = injectServerSettings(null)?.saveBanner
+
+watch(
+	() => props.isVisible,
+	(shown) => {
+		if (saveBanner) saveBanner.shown.value = shown
+	},
+	{ immediate: true },
+)
+
+onBeforeUnmount(() => {
+	if (saveBanner) saveBanner.shown.value = false
+})
 
 const client = injectModrinthClient()
 
@@ -58,8 +94,9 @@ const powerButtonLabel = computed(() => {
 })
 
 const saveAndPower = async () => {
+	if (props.hasErrors) return
 	try {
-		await props.save()
+		if ((await props.save()) === false) return
 	} catch {
 		return
 	}
